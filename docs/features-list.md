@@ -58,10 +58,14 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Mobile navigation opens as a right-side slide-in drawer from the hamburger menu, while header controls reflow into compact grids on smaller screens. |
 | Implemented | Mobile app shell uses a compact brand bar with notifications beside the hamburger menu; account, language, and theme controls move into the bottom of the navigation drawer to keep page content higher. |
 | Implemented | Settings moved from the main nav list to a square gear shortcut beside the wider logout button in the navigation footer. |
+| Implemented | Dashboard and Reports metric cards become horizontally scrollable swipe rails on mobile. |
 | Implemented | Responsive hardening for top-bar actions, page actions, forms, tables, charts, participant chips, and mobile action buttons. |
 | Implemented | Date fields use a shared accessible picker control with a visible calendar button across expenses, recurring rules, party expenses, and report filters. |
+| Implemented | Native dropdown controls use consistent app-wide width, text clipping, dark-mode color-scheme, and option theme styling where browsers allow it. |
 | Implemented | Refreshed multi-accent visual system with blue, teal, violet, amber, and rose tokens instead of a single green-heavy palette. |
 | Implemented | Reports and charts use shared chart color tokens for clearer category, cashflow, budget, party, and currency visuals. |
+| Implemented | Report timeframe presets render as compact desktop buttons and a mobile-friendly dropdown. |
+| Implemented | Report export actions use compact side-by-side mobile controls to keep report content higher on the page. |
 | Implemented | Dark-mode report chart tooltips use theme-aware text and surface colors for readable values. |
 | Implemented | Compact mobile top-bar action wrapping so theme, logout, notifications, and status controls do not stretch into distorted blocks. |
 | Implemented | Accessible labels, captions, semantic tables, status messages, and keyboard-friendly controls. |
@@ -94,6 +98,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Overall spend budgets track every visible expense in the active month/year, while single-category budgets track only their matching category. |
 | Implemented | Budget spend matching supports both category id and category name so older existing expenses still count when the visible category matches. |
 | Implemented | Budget cards can expand to show the exact expenses included in the active calculation window. |
+| Implemented | Dashboard Budget Health and Budgets page rows highlight spend, limit, and percent values for faster scanning. |
 | Implemented | Default budget alert threshold of 80 percent. |
 | Implemented | Budget threshold notifications. |
 | Implemented | Budget spend impact on expense creation and reversal on expense deletion. |
@@ -128,6 +133,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Percentage and share split modes, with the payer included in the split math by default and allowed to have a zero share. |
 | Implemented | Existing manual, imported, and recurring expenses can be selected from the ledger and converted into party split expenses without duplicating expense rows. |
 | Implemented | Existing selected expenses can be added to an existing party split, or staged for a new party until participants are added. |
+| Implemented | Staged split callout explains when another participant is required before selected expenses can be added. |
 | Implemented | Split validation that participants belong to the party. |
 | Implemented | Mark split as settled. |
 | Implemented | External placeholder settlements settle directly without approval. |
@@ -177,6 +183,8 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Live backend report summary powers category, monthly cashflow, budget variance, merchant trend, party balance, and currency exposure charts. |
 | Implemented | CSV export for report data. |
 | Implemented | Browser print/PDF export path. |
+| Implemented | Report exports exclude the on-screen timeframe selector from PDF/print output; spreadsheet CSV exports contain only report data rows. |
+| Implemented | PDF/print report export keeps summary metrics together and starts each report chart panel on a separate page. |
 | Implemented | Reports ignore ledger-excluded party expenses and include finalized settlement cashflow. |
 | Implemented | Spend by category nets settlement credits/debits back to the original party expense category, so a reimbursed shared expense shows the user's final personal spend. |
 | Implemented | Budget spend also nets settlement reimbursements back to the original party expense category for the active budget period. |
@@ -197,6 +205,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Notification center in the app shell. |
 | Implemented | Unread count and mark-read behavior. |
 | Implemented | Notification center supports clearing all account notifications and uses fixed-height scrollable panels with themed smooth scrollbars on desktop and mobile. |
+| Implemented | Scrollable tables and panels use the same themed smooth scrollbar styling as the notification center. |
 | Implemented | Budget threshold notifications. |
 | Implemented | Import and settlement notification support. |
 | Implemented | Import password failures create warning notifications. |

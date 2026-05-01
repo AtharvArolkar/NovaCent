@@ -321,7 +321,11 @@ function BudgetList({ rows }: { rows: Budget[] }) {
           <article className="budget-row" key={budget.id}>
             <div>
               <h3>{tx(budget.category)}</h3>
-              <p>{money.format(budget.spent)} {tx("of")} {money.format(budget.limit)}</p>
+              <p className="budget-money-line">
+                <strong>{money.format(budget.spent)}</strong>
+                <span>{tx("of")}</span>
+                <strong>{money.format(budget.limit)}</strong>
+              </p>
             </div>
             <ProgressBar label={`${tx(budget.category)} ${tx("spend")}`} value={percent} />
           </article>
@@ -645,7 +649,12 @@ export function BudgetsView() {
                   <div>
                     <h3>{tx(budget.category)}</h3>
                     <p>{budget.scope === "overall" ? tx("Overall spend") : tx("Single category")}</p>
-                    <p>{formatCurrency(budget.spent, budget.currency)} {tx("of")} {formatCurrency(budget.limit, budget.currency)} {period === "yearly" ? tx("this year") : tx("this month")}</p>
+                    <p className="budget-money-line">
+                      <strong>{formatCurrency(budget.spent, budget.currency)}</strong>
+                      <span>{tx("of")}</span>
+                      <strong>{formatCurrency(budget.limit, budget.currency)}</strong>
+                      <span>{period === "yearly" ? tx("this year") : tx("this month")}</span>
+                    </p>
                     <small>{tx(budgetPeriodWindow(period))}</small>
                   </div>
                   <ProgressBar label={`${tx(budget.category)} ${tx("spend")}`} value={percent} />
@@ -1349,6 +1358,11 @@ export function PartiesView() {
 
   async function addStagedExpensesToOpenParty() {
     if (!partyDetail || !stagedSplitExpenseIds.length) return;
+    if (partyDetail.participants.length < 2) {
+      setStagedSplitState("failed");
+      setStagedSplitMessage(tx("Add at least one more participant before adding staged expenses."));
+      return;
+    }
     setStagedSplitState("saving");
     setStagedSplitMessage("");
     try {
@@ -1575,6 +1589,7 @@ export function PartiesView() {
                 <div className="staged-split-callout">
                   <div>
                     <p>{tx("You have selected expenses waiting to be added to this party split.")}</p>
+                    {partyDetail.participants.length < 2 ? <p className="muted-note">{tx("Add at least one more participant before adding staged expenses.")}</p> : null}
                     {stagedSplitState === "failed" && stagedSplitMessage ? <p className="error-note" role="alert">{tx(stagedSplitMessage)}</p> : null}
                     {stagedSplitState === "saved" && stagedSplitMessage ? <p className="success-note" role="status">{tx(stagedSplitMessage)}</p> : null}
                   </div>
@@ -1723,7 +1738,7 @@ export function ReportsView() {
         title={t("reports")}
         description="NovaCent reporting for category mix, cash flow, budget variance, merchants, parties, and currencies."
         action={
-          <div className="inline-actions">
+          <div className="inline-actions report-export-actions">
             <button
               type="button"
               onClick={() => {
@@ -1760,6 +1775,21 @@ export function ReportsView() {
               </button>
             ))}
           </div>
+          <select
+            className="report-range-select"
+            aria-label={tx("Report timeframe")}
+            value={reportRange.preset}
+            onChange={(event) => {
+              const preset = event.target.value as ReportRangePreset;
+              if (preset === "custom") return;
+              setReportRange(reportRangeForPreset(preset));
+            }}
+          >
+            {reportRangeOptions.map((option) => (
+              <option key={option.value} value={option.value}>{tx(option.label)}</option>
+            ))}
+            {reportRange.preset === "custom" ? <option value="custom">{tx("Custom range")}</option> : null}
+          </select>
         </div>
         <div className="report-date-range" aria-label={tx("Date range")}>
           <DateField label="From" value={reportRange.startDate ?? ""} onChange={(date) => setReportRange((current) => ({ ...current, preset: "custom", startDate: date }))} />
