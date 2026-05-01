@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">NovaCent icon</title>
+  <desc id="desc">A monogram logo with N and C shaped financial signal lines.</desc>
+  <rect width="512" height="512" rx="96" fill="#102a43"/>
+  <circle cx="376" cy="136" r="54" fill="#f59e0b"/>
+  <path d="M136 360V152l120 208V152" fill="none" stroke="#f8fafc" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M382 304c-24 38-61 58-108 58-66 0-112-46-112-106s46-106 112-106c47 0 84 20 108 58" fill="none" stroke="#5eead4" stroke-width="32" stroke-linecap="round"/>
+  <path d="M292 252h112M292 300h76" stroke="#f59e0b" stroke-width="22" stroke-linecap="round"/>
+</svg>
