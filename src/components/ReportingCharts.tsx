@@ -27,12 +27,22 @@ import type {
   PartySummaryPoint,
 } from "@/lib/reporting";
 
-const palette = ["#0f766e", "#2563eb", "#be123c", "#b45309", "#7c3aed", "#15803d"];
+const palette = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--accent-alt)"];
 const money = new Intl.NumberFormat("en-IN", {
   style: "currency",
   currency: "INR",
   maximumFractionDigits: 0,
 });
+const tooltipStyle = {
+  backgroundColor: "var(--surface)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  boxShadow: "var(--shadow)",
+  color: "var(--text)"
+};
+const tooltipTextStyle = {
+  color: "var(--text)"
+};
 
 function valueLabel(value: number | string | Array<number | string>) {
   if (Array.isArray(value)) return value.join(" - ");
@@ -124,7 +134,7 @@ export function CategoryBreakdownChart({ data }: { data: LabeledAmount[] }) {
                 <Cell fill={palette[index % palette.length]} key={row.label} />
               ))}
             </Pie>
-            <Tooltip formatter={valueLabel} />
+            <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
             <Legend />
           </PieChart>
         </ResponsiveContainer>
@@ -151,11 +161,11 @@ export function CashFlowTrendChart({ data }: { data: CashFlowPoint[] }) {
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" />
             <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} width={42} />
-            <Tooltip formatter={valueLabel} />
+            <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
             <Legend />
-            <Area dataKey="income" fill="#0f766e22" stroke="#0f766e" type="monotone" />
-            <Bar dataKey="spend" fill="#2563eb" radius={[6, 6, 0, 0]} />
-            <Line dataKey="saved" dot={{ r: 4 }} stroke="#be123c" strokeWidth={3} type="monotone" />
+            <Area dataKey="income" fill="var(--chart-2-soft)" stroke="var(--chart-2)" type="monotone" />
+            <Bar dataKey="spend" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
+            <Line dataKey="saved" dot={{ r: 4 }} stroke="var(--chart-5)" strokeWidth={3} type="monotone" />
           </ComposedChart>
         </ResponsiveContainer>
       </ChartFrame>
@@ -182,10 +192,10 @@ export function BudgetVarianceChart({ data }: { data: BudgetVariancePoint[] }) {
             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
             <XAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} type="number" />
             <YAxis dataKey="label" type="category" width={96} />
-            <Tooltip formatter={valueLabel} />
+            <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
             <Legend />
-            <Bar dataKey="budget" fill="#9ca3af" name="Budget" radius={[0, 6, 6, 0]} />
-            <Bar dataKey="actual" fill="#0f766e" name="Actual" radius={[0, 6, 6, 0]} />
+            <Bar dataKey="budget" fill="var(--muted)" name="Budget" radius={[0, 6, 6, 0]} />
+            <Bar dataKey="actual" fill="var(--chart-2)" name="Actual" radius={[0, 6, 6, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartFrame>
@@ -212,12 +222,12 @@ export function MerchantTrendsChart({ data }: { data: MerchantTrendPoint[] }) {
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="label" />
           <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} width={42} />
-          <Tooltip formatter={valueLabel} />
+          <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
           <Legend />
-          <Line dataKey="food" name="Food merchants" stroke="#0f766e" strokeWidth={3} type="monotone" />
-          <Line dataKey="travel" name="Travel merchants" stroke="#2563eb" strokeWidth={3} type="monotone" />
-          <Line dataKey="shopping" name="Shopping merchants" stroke="#be123c" strokeWidth={3} type="monotone" />
-          <Line dataKey="subscriptions" name="Subscriptions" stroke="#b45309" strokeWidth={3} type="monotone" />
+          <Line dataKey="food" name="Food merchants" stroke="var(--chart-2)" strokeWidth={3} type="monotone" />
+          <Line dataKey="travel" name="Travel merchants" stroke="var(--chart-1)" strokeWidth={3} type="monotone" />
+          <Line dataKey="shopping" name="Shopping merchants" stroke="var(--chart-5)" strokeWidth={3} type="monotone" />
+          <Line dataKey="subscriptions" name="Subscriptions" stroke="var(--chart-4)" strokeWidth={3} type="monotone" />
         </LineChart>
       </ResponsiveContainer>
     </ChartFrame>
@@ -241,8 +251,8 @@ export function SummaryBarsChart({
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" />
             <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} width={42} />
-            <Tooltip formatter={valueLabel} />
-            <Bar dataKey="value" fill="#7c3aed" radius={[6, 6, 0, 0]}>
+            <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
+            <Bar dataKey="value" fill="var(--chart-3)" radius={[6, 6, 0, 0]}>
               {data.map((row, index) => (
                 <Cell fill={palette[index % palette.length]} key={row.label} />
               ))}
@@ -271,10 +281,10 @@ export function PartySummaryChart({ data }: { data: PartySummaryPoint[] }) {
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" />
             <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} width={42} />
-            <Tooltip formatter={valueLabel} />
+            <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
             <Legend />
-            <Area dataKey="outstanding" fill="#be123c22" stroke="#be123c" type="monotone" />
-            <Area dataKey="settled" fill="#0f766e22" stroke="#0f766e" type="monotone" />
+            <Area dataKey="outstanding" fill="var(--chart-5-soft)" stroke="var(--chart-5)" type="monotone" />
+            <Area dataKey="settled" fill="var(--chart-2-soft)" stroke="var(--chart-2)" type="monotone" />
           </AreaChart>
         </ResponsiveContainer>
       </ChartFrame>

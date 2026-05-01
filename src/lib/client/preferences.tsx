@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { accounts } from "./demo-data";
 import { dictionary, type DictionaryKey, type Language } from "./dictionary";
 
 type Theme = "light" | "dark";
@@ -18,32 +17,52 @@ type PreferencesContextValue = {
 };
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
+const useMocks = process.env.NEXT_PUBLIC_USE_MOCKS === "true";
+const demoAccountIds = new Set(["primary-inr", "family", "travel-wallet"]);
+const legacyCachePrefixes = ["expense-tracker"];
 
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
-  const [accountId, setAccountId] = useState(accounts[0].id);
+  const [accountId, setAccountId] = useState(useMocks ? "primary-inr" : "");
   const [theme, setTheme] = useState<Theme>("light");
   const [language, setLanguage] = useState<Language>("en");
   const [isOnline, setIsOnline] = useState(true);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("rupee-flow-preferences");
     if (stored) {
       const parsed = JSON.parse(stored) as Partial<Pick<PreferencesContextValue, "accountId" | "theme" | "language">>;
-      if (parsed.accountId) setAccountId(parsed.accountId);
+      if (parsed.accountId && (useMocks || !demoAccountIds.has(parsed.accountId))) setAccountId(parsed.accountId);
       if (parsed.theme === "light" || parsed.theme === "dark") setTheme(parsed.theme);
       if (parsed.language === "en" || parsed.language === "es") setLanguage(parsed.language);
     }
+    setPreferencesLoaded(true);
   }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    if (!preferencesLoaded) return;
     window.localStorage.setItem("rupee-flow-preferences", JSON.stringify({ accountId, theme, language }));
-  }, [accountId, theme, language]);
+  }, [accountId, theme, language, preferencesLoaded]);
 
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => undefined);
-    }
+    if (!("serviceWorker" in navigator)) return;
+
+    const registerServiceWorker = async () => {
+      if (!useMocks && "caches" in window) {
+        const cacheNames = await window.caches.keys();
+        await Promise.all(
+          cacheNames
+            .filter((cacheName) => legacyCachePrefixes.some((prefix) => cacheName.startsWith(prefix)))
+            .map((cacheName) => window.caches.delete(cacheName))
+        );
+      }
+
+      const registration = await navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" });
+      registration.waiting?.postMessage({ type: "SKIP_WAITING" });
+    };
+
+    registerServiceWorker().catch(() => undefined);
   }, []);
 
   useEffect(() => {

@@ -1,12 +1,13 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, LogOut, Menu, X } from "lucide-react";
+import { SessionProvider, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { appConfig } from "@/lib/app-config";
 import { getAccounts, getNotifications, markNotificationsRead, syncPendingOutbox, type Notification } from "@/lib/client/expense-service";
-import { accounts as demoAccounts, type Account } from "@/lib/client/demo-data";
+import type { Account } from "@/lib/client/demo-data";
 import { languages, type Language } from "@/lib/client/dictionary";
 import { PreferencesProvider, usePreferences } from "@/lib/client/preferences";
 
@@ -14,7 +15,6 @@ const navItems = [
   { href: "/", key: "dashboard" },
   { href: "/expenses", key: "expenses" },
   { href: "/budgets", key: "budgets" },
-  { href: "/trips", key: "trips" },
   { href: "/parties", key: "parties" },
   { href: "/import-review", key: "importReview" },
   { href: "/reports", key: "reports" },
@@ -25,11 +25,15 @@ const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"
 
 function ShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const { accountId, setAccountId, theme, setTheme, language, setLanguage, isOnline, t } = usePreferences();
-  const [accountOptions, setAccountOptions] = useState<Account[]>(demoAccounts);
+  const [accountOptions, setAccountOptions] = useState<Account[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const unreadCount = useMemo(() => notifications.filter((notification) => !notification.read).length, [notifications]);
+  const userDisplayName = session?.user?.name?.trim() || session?.user?.email?.split("@")[0]?.trim() || t("user");
+  const firstName = userDisplayName.split(/\s+/)[0] || t("user");
 
   useEffect(() => {
     let mounted = true;
@@ -39,6 +43,8 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       if (items.length && !items.some((account) => account.id === accountId)) {
         setAccountId(items[0].id);
       }
+    }).catch(() => {
+      if (mounted) setAccountOptions([]);
     });
     return () => {
       mounted = false;
@@ -49,6 +55,8 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     let mounted = true;
     getNotifications(accountId).then((items) => {
       if (mounted) setNotifications(items);
+    }).catch(() => {
+      if (mounted) setNotifications([]);
     });
     return () => {
       mounted = false;
@@ -72,15 +80,33 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <Link className="brand" href="/" aria-label={`${t("appName")} home`}>
-          <span aria-hidden="true">{appConfig.logoMark}</span>
-          <strong>{t("appName")}</strong>
-        </Link>
-        <nav aria-label={t("navigation")}>
+        <div className="sidebar-header">
+          <Link className="brand" href="/" aria-label={`${t("appName")} home`} onClick={() => setMobileNavOpen(false)}>
+            <span aria-hidden="true">{appConfig.logoMark}</span>
+            <strong>{t("appName")}</strong>
+          </Link>
+          <button
+            className="mobile-menu-button"
+            type="button"
+            aria-expanded={mobileNavOpen}
+            aria-controls="primary-navigation"
+            aria-label={mobileNavOpen ? "Close navigation" : "Open navigation"}
+            onClick={() => setMobileNavOpen((open) => !open)}
+          >
+            {mobileNavOpen ? <X aria-hidden="true" size={18} /> : <Menu aria-hidden="true" size={18} />}
+          </button>
+        </div>
+        <nav id="primary-navigation" className={mobileNavOpen ? "open" : ""} aria-label={t("navigation")}>
           {navItems.map((item) => {
             const active = pathname === item.href;
             return (
-              <Link key={item.href} className={active ? "nav-link active" : "nav-link"} href={item.href} aria-current={active ? "page" : undefined}>
+              <Link
+                key={item.href}
+                className={active ? "nav-link active" : "nav-link"}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                onClick={() => setMobileNavOpen(false)}
+              >
                 {t(item.key)}
               </Link>
             );
@@ -91,15 +117,23 @@ function ShellContent({ children }: { children: React.ReactNode }) {
         <header className="topbar">
           <div className="control-group">
             <label htmlFor="account-switcher">{t("account")}</label>
-            <select id="account-switcher" value={accountId} onChange={(event) => setAccountId(event.target.value)}>
-              {accountOptions.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
-                </option>
-              ))}
+            <select id="account-switcher" value={accountId} onChange={(event) => setAccountId(event.target.value)} disabled={!accountOptions.length}>
+              {accountOptions.length ? (
+                accountOptions.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))
+              ) : (
+                <option value={accountId}>Loading account</option>
+              )}
             </select>
           </div>
           <div className="topbar-actions">
+            <div className="user-greeting" title={session?.user?.email ?? userDisplayName} aria-label={`${t("hello")} ${firstName}`}>
+              <span>{t("hello")}</span>
+              <strong>{firstName}</strong>
+            </div>
             <div className="control-group compact">
               <label htmlFor="language-switcher">{t("language")}</label>
               <select id="language-switcher" value={language} onChange={(event) => setLanguage(event.target.value as Language)}>
@@ -112,6 +146,10 @@ function ShellContent({ children }: { children: React.ReactNode }) {
             </div>
             <button className="toggle-button" type="button" aria-pressed={theme === "dark"} onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
               {theme === "dark" ? t("light") : t("dark")}
+            </button>
+            <button className="secondary-button logout-button" type="button" onClick={() => void signOut({ callbackUrl: "/login" })}>
+              <LogOut aria-hidden="true" size={16} />
+              <span>{t("logout")}</span>
             </button>
             <div className="notification-center">
               <button
@@ -161,8 +199,10 @@ function ShellContent({ children }: { children: React.ReactNode }) {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <PreferencesProvider>
-      <ShellContent>{children}</ShellContent>
-    </PreferencesProvider>
+    <SessionProvider>
+      <PreferencesProvider>
+        <ShellContent>{children}</ShellContent>
+      </PreferencesProvider>
+    </SessionProvider>
   );
 }

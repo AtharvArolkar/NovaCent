@@ -1,7 +1,7 @@
 {
   "name": "NovaCent",
   "short_name": "NovaCent",
-  "description": "Offline-capable expense tracking, reporting, imports, and currency snapshots.",
+  "description": "Offline-capable expense tracking, shared party settlements, reporting, imports, and currency snapshots.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

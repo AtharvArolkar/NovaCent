@@ -1,6 +1,6 @@
 # NovaCent
 
-NovaCent is a Next.js + TypeScript expense tracker for multi-user personal finance, INR-first multi-currency expenses, budgets, trips, parties, statement-import review, offline caching, and Vercel deployment.
+NovaCent is a Next.js + TypeScript expense tracker for multi-user personal finance, INR-first multi-currency expenses, budgets, shared parties, statement-import review, offline caching, and Vercel deployment.
 
 ## Quick Start
 
@@ -42,6 +42,8 @@ https://your-domain.vercel.app/api/auth/callback/google
 
 ## Verification
 
+The regression plan is maintained in [docs/regression-test-plan.md](docs/regression-test-plan.md). After every code or product change, run the relevant regression checks and report failures back to the developer/implementation agent before continuing.
+
 The app has been verified with:
 
 ```bash
@@ -53,10 +55,12 @@ npm audit --omit=dev
 
 ## Current Scope
 
+The living product feature inventory is maintained in [docs/features-list.md](docs/features-list.md). Update that document whenever a feature is added, changed, deferred, or removed.
+
 - Email/password and Google authentication.
 - Default INR account creation.
 - Global account switcher.
-- Account-scoped APIs for expenses, budgets, trips, parties, settlements, import batches, notifications, and reports.
+- Account-scoped APIs for expenses, budgets, parties, settlements, import batches, notifications, and reports.
 - Automatic INR conversion using Frankfurter exchange rates.
 - Statement upload parsing for CSV, XLS/XLSX, and text PDF, with review-before-save.
 - Party-only external participants and direct external settlement.
@@ -72,7 +76,7 @@ Remaining product requirements are stored in [docs/phase-2-requirements.md](docs
 
 ## Phase 3 Backlog
 
-Remaining end-to-end workflow and advanced production requirements are stored in [docs/phase-3-requirements.md](docs/phase-3-requirements.md). Phase 3 covers recurring-rule UI, party split UI, settlement approval UI, trip expense creation, backend-powered advanced reports, OCR, SMTP reset emails, and Google OAuth verification.
+Remaining end-to-end workflow and advanced production requirements are stored in [docs/phase-3-requirements.md](docs/phase-3-requirements.md). Phase 3 covers recurring-rule UI, party split UI, settlement approval UI, backend-powered advanced reports, OCR, SMTP reset emails, and Google OAuth verification.
 
 ## Notes
 

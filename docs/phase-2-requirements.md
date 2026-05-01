@@ -9,7 +9,7 @@ Phase 2 turns the current working MVP foundation into an end-to-end product by w
 | Status | Area |
 | --- | --- |
 | Implemented | Live API mode by default with optional mock fallback. |
-| Implemented | Client services for accounts, expenses, budgets, reports, trips, parties, imports, and notifications. |
+| Implemented | Client services for accounts, expenses, budgets, reports, parties, imports, and notifications. |
 | Implemented | Manual expense quick-add with live API save and offline outbox fallback. |
 | Implemented | Online sync replay for pending outbox items. |
 | Implemented | Import upload, review, delete, approve, and possible-duplicate filtering. |
@@ -30,7 +30,7 @@ Remaining deferred/end-to-end workflow items are tracked in `docs/phase-3-requir
 | Priority | Requirement | Expected Outcome |
 | --- | --- | --- |
 | P0 | Mock-to-live API switch | Add a `NEXT_PUBLIC_USE_MOCKS` feature flag so the app can run with demo data during UI development and switch to live API calls when MongoDB/auth are configured. |
-| P0 | Live frontend API integration | Dashboard, expenses, budgets, reports, trips, parties, imports, and settings read/write real MongoDB-backed APIs instead of demo data. |
+| P0 | Live frontend API integration | Dashboard, expenses, budgets, reports, parties, imports, and settings read/write real MongoDB-backed APIs instead of demo data. |
 | P0 | Manual expense submission | Expense form validates input, fetches exchange rate when needed, stores the expense in MongoDB, updates dashboard/report data, and works for active account only. |
 | P0 | Offline mutation replay | Offline-created expenses are stored in IndexedDB, queued in the sync outbox, replayed when online, and deduplicated with `clientMutationId`. |
 | P0 | Import review UI integration | Statement upload, parsed row review, edit/delete/approve actions, and approved-row save are fully wired to `/api/imports` and `/api/imports/[batchId]/approve`. |
@@ -38,10 +38,9 @@ Remaining deferred/end-to-end workflow items are tracked in `docs/phase-3-requir
 | P0 | Budget alert generation | Custom budget thresholds trigger in-app notifications, with 80 percent as the default threshold. |
 | P0 | In-app notification center | Notifications for budgets, imports, sync failures, and settlement approvals are visible from the app shell with unread/read states. |
 | P1 | Recurring monthly expenses | Users can create monthly recurring rules with end dates; generated/forecasted expenses appear in reports and avoidable-expense analysis. |
-| P1 | Trip expense workflow | Trip pages support adding trip expenses, multiple currencies, participants, and trip-specific reports. |
 | P1 | Party split workflow | Parties support equal, percentage, exact, and share-based splits across registered and external participants. |
 | P1 | Settlement workflow UI | External participant settlement completes directly; registered-user settlement requires approval from the affected account owner. |
-| P1 | Advanced charts and graphs | Add richer interactive charts for merchant trends, budget variance, recurring analysis, trip reports, party settlements, currency exposure, and cash-flow patterns while keeping the existing simple summaries. |
+| P1 | Advanced charts and graphs | Add richer interactive charts for merchant trends, budget variance, recurring analysis, party settlements, currency exposure, and cash-flow patterns while keeping the existing simple summaries. |
 | P1 | Report exports | Export reports to CSV and PDF. |
 | P1 | Modern animated UX | Add polished modern transitions, subtle animations, responsive motion states, and interaction feedback while respecting reduced-motion accessibility settings. |
 | P1 | NovaCent branding polish | Apply the NovaCent name and logo consistently across app shell, auth screens, manifest, README, and future generated exports/reports. |
@@ -80,7 +79,7 @@ Remaining deferred/end-to-end workflow items are tracked in `docs/phase-3-requir
 5. Complete import upload/review/approve UI with duplicate detection for overlapping bank statements.
 6. Add notification center and budget/import/sync/settlement notification generation.
 7. Add recurring rules and generated/forecasted expense handling.
-8. Complete trip and party split workflows.
+8. Complete party split workflows.
 9. Complete settlement approval UI.
 10. Add advanced charts, reports, and exports.
 11. Add NovaCent motion/UX polish.
@@ -117,7 +116,6 @@ Phase 2 reporting should add richer visuals without removing the current simple 
 - Merchant trend chart.
 - Budget variance chart.
 - Recurring avoidable-expense chart.
-- Trip spend by participant/category/currency.
 - Party settlement balance graph.
 - Currency exposure chart showing original currency and INR converted totals.
 
@@ -149,7 +147,6 @@ When `true`, the UI should continue using local demo data for fast layout and UX
 | Statement imports | `/api/imports` |
 | Import approval | `/api/imports/[batchId]/approve` |
 | Reports | `/api/reports/summary` |
-| Trips | `/api/trips` |
 | Parties | `/api/parties` |
 | Settlements | `/api/parties/[partyId]/settlements` |
 | Notifications | `/api/notifications` |

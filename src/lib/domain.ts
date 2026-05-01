@@ -10,11 +10,15 @@ export type SyncStatus = "synced" | "pending" | "failed" | "conflict";
 
 export type ImportRowStatus = "review" | "possible_duplicate" | "deleted" | "approved";
 
-export type ExpenseSource = "manual" | "recurring" | "import" | "trip" | "party";
+export type ExpenseSource = "manual" | "recurring" | "import" | "trip" | "party" | "settlement";
 
 export type RecurringFrequency = "daily" | "weekly" | "monthly" | "yearly";
 
 export type RecurringExpenseStatus = "active" | "paused" | "ended";
+
+export type BudgetPeriod = "monthly" | "yearly";
+
+export type BudgetScope = "overall" | "category";
 
 export interface Money {
   amount: number;
@@ -78,6 +82,10 @@ export interface Expense {
   notes?: string;
   tripId?: string;
   partyId?: string;
+  paidByParticipantId?: string;
+  settlementId?: string;
+  splitId?: string;
+  excludeFromLedger?: boolean;
   recurringRuleId?: string;
   syncStatus: SyncStatus;
   clientMutationId?: string;
@@ -109,9 +117,10 @@ export interface RecurringExpenseRule {
 export interface Budget {
   id: string;
   accountId: string;
+  scope?: BudgetScope;
   categoryId: string;
   categoryName: string;
-  period: "monthly";
+  period: BudgetPeriod;
   limit: Money;
   alertThreshold: number;
   spent: Money;
@@ -160,6 +169,7 @@ export interface Split {
   accountId: string;
   partyId: string;
   expenseId: string;
+  paidByParticipantId?: string;
   participantId: string;
   amount: Money;
   status: "open" | "settlement_pending" | "settled";

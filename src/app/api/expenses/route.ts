@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const { accountId } = await requireAccountAccess(accountIdFromRequest(request));
     const db = await getDb();
     const url = new URL(request.url);
-    const query: Record<string, unknown> = { accountId };
+    const query: Record<string, unknown> = { accountId, excludeFromLedger: { $ne: true } };
     const category = url.searchParams.get("category");
     const tripId = url.searchParams.get("tripId");
     const partyId = url.searchParams.get("partyId");
@@ -56,6 +56,8 @@ export async function POST(request: Request) {
       notes: payload.notes,
       tripId: payload.tripId,
       partyId: payload.partyId,
+      paidByParticipantId: payload.paidByParticipantId,
+      excludeFromLedger: payload.excludeFromLedger,
       recurringRuleId: payload.recurringRuleId,
       syncStatus: "synced",
       clientMutationId: payload.clientMutationId,

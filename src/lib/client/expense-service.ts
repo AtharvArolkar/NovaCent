@@ -1,8 +1,8 @@
 import { buildBudgetVariance, buildCategoryBreakdown } from "@/lib/reporting";
 import type { ReportingChartData } from "@/lib/reporting";
 import { enqueueOutboxItem, listOutboxItems, markOutboxItem, removeOutboxItem } from "@/lib/offline";
-import type { Account, Budget, Expense, ImportRow, Party, Trip } from "./demo-data";
-import { accounts, budgets, expenses, imports, parties, trips } from "./demo-data";
+import type { Account, Budget, Expense, ImportRow, Party } from "./demo-data";
+import { accounts, budgets, expenses, imports, parties } from "./demo-data";
 
 type Money = { amount?: number; currency?: string };
 type LiveAccount = { id?: string; name?: string; baseCurrency?: string; currency?: string; isDefault?: boolean };
@@ -15,23 +15,52 @@ type LiveExpense = {
   base?: Money;
   syncStatus?: string;
   source?: string;
+  tripId?: string;
+  partyId?: string;
+  paidByParticipantId?: string;
+  settlementId?: string;
+  excludeFromLedger?: boolean;
 };
-type LiveBudget = { id?: string; categoryName?: string; limit?: Money; spent?: Money };
-type LiveTrip = {
-  id?: string;
-  name?: string;
-  destination?: string;
-  startsAt?: string;
-  endsAt?: string;
-  participantCount?: number;
-  budget?: Money;
-  spend?: Money;
-};
+type LiveBudget = { id?: string; scope?: "overall" | "category"; categoryName?: string; limit?: Money; spent?: Money; period?: "monthly" | "yearly"; alertThreshold?: number };
 type LiveParty = {
   id?: string;
   name?: string;
-  participants?: Array<{ displayName?: string }>;
+  participants?: LivePartyParticipant[];
   balance?: Money | number;
+};
+type LivePartyParticipant = {
+  id?: string;
+  kind?: "registered" | "external";
+  displayName?: string;
+  userId?: string;
+  accountId?: string;
+  email?: string;
+};
+type LiveSplit = {
+  id?: string;
+  expenseId?: string;
+  paidByParticipantId?: string;
+  participantId?: string;
+  amount?: Money;
+  status?: "open" | "settlement_pending" | "settled";
+};
+type LiveSettlement = {
+  id?: string;
+  splitId?: string;
+  participantId?: string;
+  approvalParticipantId?: string;
+  amount?: Money;
+  status?: "pending_approval" | "settled" | "rejected";
+  requiresApproval?: boolean;
+  requestedAt?: string;
+  approvedAt?: string;
+};
+type LiveUserSearchResult = {
+  id?: string;
+  name?: string;
+  email?: string;
+  image?: string;
+  defaultAccountId?: string;
 };
 type LiveImportBatch = { id?: string; fileName?: string; rows?: LiveImportRow[] };
 type LiveImportRow = {
@@ -68,6 +97,84 @@ export type ExpenseCreateInput = {
   amount: number;
   currency: string;
   spentAt: string;
+  source?: "manual" | "recurring" | "import" | "trip" | "party";
+  tripId?: string;
+  partyId?: string;
+  paidByParticipantId?: string;
+  excludeFromLedger?: boolean;
+};
+export type BudgetCreateInput = {
+  categoryName: string;
+  scope: "overall" | "category";
+  limit: number;
+  currency: string;
+  period: "monthly" | "yearly";
+  alertThreshold: number;
+};
+export type PartyCreateInput = {
+  name: string;
+  participantNames?: string[];
+  participants?: PartyParticipantInput[];
+};
+export type PartyParticipantInput = {
+  kind: "registered" | "external";
+  displayName: string;
+  userId?: string;
+  accountId?: string;
+};
+export type UserSearchResult = {
+  id: string;
+  name: string;
+  email: string;
+  image?: string;
+  defaultAccountId?: string;
+};
+export type PartyParticipant = {
+  id: string;
+  kind: "registered" | "external";
+  displayName: string;
+  userId?: string;
+  accountId?: string;
+  email?: string;
+};
+export type PartySplit = {
+  id: string;
+  expenseId: string;
+  paidByParticipantId?: string;
+  participantId: string;
+  amount: number;
+  currency: string;
+  status: "open" | "settlement_pending" | "settled";
+};
+export type PartySettlement = {
+  id: string;
+  splitId: string;
+  participantId: string;
+  approvalParticipantId?: string;
+  amount: number;
+  currency: string;
+  status: "pending_approval" | "settled" | "rejected";
+  requiresApproval: boolean;
+  requestedAt: string;
+};
+export type PartyDetail = {
+  id: string;
+  name: string;
+  canManage: boolean;
+  participants: PartyParticipant[];
+  expenses: Expense[];
+  splits: PartySplit[];
+  settlements: PartySettlement[];
+};
+export type PartyExpenseCreateInput = {
+  merchant: string;
+  categoryName: string;
+  amount: number;
+  currency: string;
+  spentAt: string;
+  paidByParticipantId: string;
+  excludeFromLedger?: boolean;
+  splits: Array<{ participantId: string; amount: number }>;
 };
 
 const wait = (ms = 120) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -104,20 +211,8 @@ async function requestJson<T>(path: string, accountId?: string, init?: RequestIn
 
 async function withFallback<T>(live: () => Promise<T>, mock: () => Promise<T>) {
   if (useMocks) return mock();
-
-  try {
-    return await live();
-  } catch {
-    return mock();
-  }
+  return live();
 }
-
-const formatTripDates = (trip: LiveTrip) => {
-  if (!trip.startsAt) return trip.destination ?? "Dates pending";
-  const start = new Date(trip.startsAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" });
-  const end = trip.endsAt ? new Date(trip.endsAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" }) : "";
-  return end ? `${start}-${end}` : start;
-};
 
 const toAccount = (account: LiveAccount): Account => ({
   id: account.id ?? crypto.randomUUID(),
@@ -133,23 +228,23 @@ const toExpense = (expense: LiveExpense): Expense => ({
   category: expense.categoryName ?? "Uncategorized",
   amount: asAmount(expense.base ?? expense.original),
   owner: expense.source ?? "Account",
-  status: expense.syncStatus === "pending" ? "pending" : expense.syncStatus === "failed" || expense.syncStatus === "conflict" ? "needs-review" : "cleared"
+  status: expense.syncStatus === "pending" ? "pending" : expense.syncStatus === "failed" || expense.syncStatus === "conflict" ? "needs-review" : "cleared",
+  source: expense.source,
+  tripId: expense.tripId,
+  partyId: expense.partyId,
+  settlementId: expense.settlementId,
+  canDelete: expense.source !== "settlement" && !expense.settlementId
 });
 
 const toBudget = (budget: LiveBudget): Budget => ({
   id: budget.id ?? crypto.randomUUID(),
   category: budget.categoryName ?? "Uncategorized",
   limit: asAmount(budget.limit),
-  spent: asAmount(budget.spent)
-});
-
-const toTrip = (trip: LiveTrip): Trip => ({
-  id: trip.id ?? crypto.randomUUID(),
-  name: trip.name ?? trip.destination ?? "Trip",
-  dates: formatTripDates(trip),
-  spend: asAmount(trip.spend),
-  budget: asAmount(trip.budget) || 1,
-  members: trip.participantCount ?? 1
+  spent: asAmount(budget.spent),
+  scope: budget.scope ?? "category",
+  currency: budget.limit?.currency ?? budget.spent?.currency ?? "INR",
+  period: budget.period ?? "monthly",
+  alertThreshold: budget.alertThreshold ?? 80
 });
 
 const toParty = (party: LiveParty): Party => ({
@@ -157,6 +252,47 @@ const toParty = (party: LiveParty): Party => ({
   name: party.name ?? "Party",
   balance: asAmount(party.balance),
   members: party.participants?.map((participant) => participant.displayName ?? "Participant") ?? []
+});
+
+const toPartyParticipant = (participant: LivePartyParticipant): PartyParticipant => ({
+  id: participant.id ?? crypto.randomUUID(),
+  kind: participant.kind ?? "external",
+  displayName: participant.displayName ?? "Participant",
+  userId: participant.userId,
+  accountId: participant.accountId,
+  email: participant.email
+});
+
+const toPartySplit = (split: LiveSplit): PartySplit => ({
+  id: split.id ?? crypto.randomUUID(),
+  expenseId: split.expenseId ?? "",
+  paidByParticipantId: split.paidByParticipantId,
+  participantId: split.participantId ?? "",
+  amount: asAmount(split.amount),
+  currency: split.amount?.currency ?? "INR",
+  status: split.status ?? "open"
+});
+
+const toPartySettlement = (settlement: LiveSettlement): PartySettlement => ({
+  id: settlement.id ?? crypto.randomUUID(),
+  splitId: settlement.splitId ?? "",
+  participantId: settlement.participantId ?? "",
+  approvalParticipantId: settlement.approvalParticipantId,
+  amount: asAmount(settlement.amount),
+  currency: settlement.amount?.currency ?? "INR",
+  status: settlement.status ?? "pending_approval",
+  requiresApproval: settlement.requiresApproval ?? false,
+  requestedAt: settlement.requestedAt ?? new Date().toISOString()
+});
+
+const toPartyDetail = (payload: { party: LiveParty; expenses?: LiveExpense[]; splits?: LiveSplit[]; settlements?: LiveSettlement[]; canManage?: boolean }): PartyDetail => ({
+  id: payload.party.id ?? crypto.randomUUID(),
+  name: payload.party.name ?? "Party",
+  canManage: payload.canManage ?? true,
+  participants: payload.party.participants?.map(toPartyParticipant) ?? [],
+  expenses: payload.expenses?.map(toExpense) ?? [],
+  splits: payload.splits?.map(toPartySplit) ?? [],
+  settlements: payload.settlements?.map(toPartySettlement) ?? []
 });
 
 const toImportRow = (row: LiveImportRow, batch: LiveImportBatch): ImportRow => ({
@@ -183,12 +319,35 @@ const toPendingExpense = (input: ExpenseCreateInput, clientMutationId: string): 
   status: "pending"
 });
 
+const toLocalBudget = (input: BudgetCreateInput): Budget => ({
+  id: crypto.randomUUID(),
+  category: input.categoryName,
+  limit: input.limit,
+  spent: 0,
+  scope: input.scope,
+  currency: input.currency,
+  period: input.period,
+  alertThreshold: input.alertThreshold
+});
+
+const toLocalParty = (input: PartyCreateInput): Party => ({
+  id: crypto.randomUUID(),
+  name: input.name,
+  balance: 0,
+  members: participantsForPartyInput(input).map((participant) => participant.displayName)
+});
+
+const participantsForPartyInput = (input: PartyCreateInput): PartyParticipantInput[] => {
+  if (input.participants?.length) return input.participants;
+  return (input.participantNames ?? []).map((displayName) => ({ kind: "external" as const, displayName }));
+};
+
 export async function getAccounts() {
   return withFallback(
     async () => {
       const payload = await requestJson<{ accounts: LiveAccount[] }>("/api/accounts");
       const liveAccounts = payload.accounts.map(toAccount);
-      return liveAccounts.length ? liveAccounts : accounts;
+      return liveAccounts;
     },
     async () => {
       await wait();
@@ -252,7 +411,11 @@ export async function createExpense(accountId: string, input: ExpenseCreateInput
       currency: input.currency
     },
     spentAt: input.spentAt,
-    source: "manual",
+    source: input.source ?? "manual",
+    tripId: input.tripId,
+    partyId: input.partyId,
+    paidByParticipantId: input.paidByParticipantId,
+    excludeFromLedger: input.excludeFromLedger,
     clientMutationId
   };
 
@@ -285,6 +448,15 @@ export async function createExpense(accountId: string, input: ExpenseCreateInput
     });
     return toPendingExpense(input, clientMutationId);
   }
+}
+
+export async function deleteExpense(accountId: string, expenseId: string) {
+  if (useMocks) {
+    await wait();
+    return { deleted: true };
+  }
+
+  return requestJson<{ deleted: boolean }>(`/api/expenses/${expenseId}`, accountId, { method: "DELETE" });
 }
 
 export async function syncPendingOutbox(accountId?: string) {
@@ -346,18 +518,270 @@ export async function getBudgets(accountId?: string) {
   );
 }
 
-export async function getTripsAndParties(accountId?: string) {
+export async function createBudget(accountId: string, input: BudgetCreateInput) {
   return withFallback(
     async () => {
-      const [tripPayload, partyPayload] = await Promise.all([
-        requestJson<{ trips: LiveTrip[] }>("/api/trips", accountId),
-        requestJson<{ parties: LiveParty[] }>("/api/parties", accountId)
-      ]);
-      return { trips: tripPayload.trips.map(toTrip), parties: partyPayload.parties.map(toParty) };
+      const payload = {
+        scope: input.scope,
+        categoryId: categoryIdFor(input.categoryName),
+        categoryName: input.categoryName,
+        period: input.period,
+        limit: { amount: input.limit, currency: input.currency },
+        alertThreshold: input.alertThreshold
+      };
+      const result = await requestJson<{ budget: LiveBudget }>("/api/budgets", accountId, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      return toBudget(result.budget);
     },
     async () => {
       await wait();
-      return { trips, parties };
+      return toLocalBudget(input);
+    }
+  );
+}
+
+export async function updateBudget(accountId: string, budgetId: string, input: BudgetCreateInput) {
+  return withFallback(
+    async () => {
+      const payload = {
+        scope: input.scope,
+        categoryId: categoryIdFor(input.categoryName),
+        categoryName: input.categoryName,
+        period: input.period,
+        limit: { amount: input.limit, currency: input.currency },
+        alertThreshold: input.alertThreshold
+      };
+      const result = await requestJson<{ budget: LiveBudget }>(`/api/budgets/${budgetId}`, accountId, {
+        method: "PATCH",
+        body: JSON.stringify(payload)
+      });
+      return toBudget(result.budget);
+    },
+    async () => {
+      await wait();
+      return { ...toLocalBudget(input), id: budgetId };
+    }
+  );
+}
+
+export async function deleteBudget(accountId: string, budgetId: string) {
+  if (useMocks) {
+    await wait();
+    return { deleted: true };
+  }
+
+  return requestJson<{ deleted: boolean }>(`/api/budgets/${budgetId}`, accountId, { method: "DELETE" });
+}
+
+export async function getParties(accountId?: string) {
+  return withFallback(
+    async () => {
+      const payload = await requestJson<{ parties: LiveParty[] }>("/api/parties", accountId);
+      return payload.parties.map(toParty);
+    },
+    async () => {
+      await wait();
+      return parties;
+    }
+  );
+}
+
+export async function createParty(accountId: string, input: PartyCreateInput) {
+  return withFallback(
+    async () => {
+      const result = await requestJson<{ party: LiveParty }>("/api/parties", accountId, {
+        method: "POST",
+        body: JSON.stringify({
+          name: input.name,
+          participants: participantsForPartyInput(input)
+        })
+      });
+      return toParty(result.party);
+    },
+    async () => {
+      await wait();
+      return toLocalParty(input);
+    }
+  );
+}
+
+export async function deleteParty(accountId: string, partyId: string) {
+  if (useMocks) {
+    await wait();
+    return { deleted: true };
+  }
+
+  return requestJson<{ deleted: boolean; deletedExpenses: number }>(`/api/parties/${partyId}`, accountId, { method: "DELETE" });
+}
+
+export async function deletePartyExpense(accountId: string, partyId: string, expenseId: string) {
+  if (useMocks) {
+    await wait();
+    return { deleted: true };
+  }
+
+  return requestJson<{ deleted: boolean }>(`/api/parties/${partyId}/expenses/${expenseId}`, accountId, { method: "DELETE" });
+}
+
+export async function searchUsers(query: string) {
+  if (useMocks || query.trim().length < 2) {
+    await wait();
+    return [] as UserSearchResult[];
+  }
+
+  const payload = await requestJson<{ users: LiveUserSearchResult[] }>(`/api/users/search?q=${encodeURIComponent(query.trim())}`);
+  return payload.users.map((user) => ({
+    id: user.id ?? crypto.randomUUID(),
+    name: user.name ?? user.email ?? "User",
+    email: user.email ?? "",
+    image: user.image,
+    defaultAccountId: user.defaultAccountId
+  }));
+}
+
+export async function getPartyDetail(accountId: string, partyId: string) {
+  return withFallback(
+    async () => {
+      const payload = await requestJson<{ party: LiveParty; expenses: LiveExpense[]; splits: LiveSplit[]; settlements: LiveSettlement[]; canManage?: boolean }>(`/api/parties/${partyId}`, accountId);
+      return toPartyDetail(payload);
+    },
+    async () => {
+      await wait();
+      const party = parties.find((item) => item.id === partyId) ?? parties[0];
+      return {
+        id: party.id,
+        name: party.name,
+        canManage: true,
+        participants: party.members.map((displayName) => ({
+          id: crypto.randomUUID(),
+          kind: "external" as const,
+          displayName
+        })),
+        expenses: [],
+        splits: [],
+        settlements: []
+      };
+    }
+  );
+}
+
+export async function addPartyParticipant(accountId: string, partyId: string, participant: PartyParticipantInput) {
+  return withFallback(
+    async () => {
+      const payload = await requestJson<{ party: LiveParty }>(`/api/parties/${partyId}`, accountId, {
+        method: "PATCH",
+        body: JSON.stringify({ participant })
+      });
+      return payload.party.participants?.map(toPartyParticipant) ?? [];
+    },
+    async () => {
+      await wait();
+      return [{ id: crypto.randomUUID(), ...participant }];
+    }
+  );
+}
+
+export async function createPartyExpense(accountId: string, partyId: string, input: PartyExpenseCreateInput) {
+  return withFallback(
+    async () => {
+      const expense = await createExpense(accountId, {
+        merchant: input.merchant,
+        categoryName: input.categoryName,
+        amount: input.amount,
+        currency: input.currency,
+        spentAt: input.spentAt,
+        source: "party",
+        partyId,
+        paidByParticipantId: input.paidByParticipantId,
+        excludeFromLedger: input.excludeFromLedger
+      });
+      const splitPayload = await requestJson<{ splits: LiveSplit[] }>(`/api/parties/${partyId}/splits`, accountId, {
+        method: "POST",
+        body: JSON.stringify({
+          expenseId: expense.id,
+          paidByParticipantId: input.paidByParticipantId,
+          splits: input.splits.map((split) => ({
+            participantId: split.participantId,
+            amount: { amount: split.amount, currency: input.currency }
+          }))
+        })
+      });
+      return { expense, splits: splitPayload.splits.map(toPartySplit) };
+    },
+    async () => {
+      await wait();
+      const expense = toPendingExpense(
+        {
+          merchant: input.merchant,
+          categoryName: input.categoryName,
+          amount: input.amount,
+          currency: input.currency,
+          spentAt: input.spentAt,
+          source: "party",
+          partyId,
+          paidByParticipantId: input.paidByParticipantId,
+          excludeFromLedger: input.excludeFromLedger
+        },
+        crypto.randomUUID()
+      );
+      return {
+        expense,
+        splits: input.splits.map((split) => ({
+          id: crypto.randomUUID(),
+          expenseId: expense.id,
+          paidByParticipantId: input.paidByParticipantId,
+          participantId: split.participantId,
+          amount: split.amount,
+          currency: input.currency,
+          status: "open" as const
+        }))
+      };
+    }
+  );
+}
+
+export async function markPartySplitSettled(accountId: string, partyId: string, split: PartySplit, participantKind: "registered" | "external") {
+  return withFallback(
+    async () => {
+      const payload = await requestJson<{ settlement: LiveSettlement }>(`/api/parties/${partyId}/settlements`, accountId, {
+        method: "POST",
+        body: JSON.stringify({
+          splitId: split.id,
+          participantId: split.participantId,
+          participantKind,
+          amount: { amount: split.amount, currency: split.currency }
+        })
+      });
+      return toPartySettlement(payload.settlement);
+    },
+    async () => {
+      await wait();
+      return {
+        id: crypto.randomUUID(),
+        splitId: split.id,
+        participantId: split.participantId,
+        amount: split.amount,
+        currency: split.currency,
+        status: participantKind === "external" ? "settled" as const : "pending_approval" as const,
+        requiresApproval: participantKind === "registered",
+        requestedAt: new Date().toISOString()
+      };
+    }
+  );
+}
+
+export async function approvePartySettlement(accountId: string, partyId: string, settlementId: string, action: "approve" | "reject") {
+  return withFallback(
+    async () =>
+      requestJson<{ settlementId: string; status: string }>(`/api/parties/${partyId}/settlements/${settlementId}/approve`, accountId, {
+        method: "POST",
+        body: JSON.stringify({ action })
+      }),
+    async () => {
+      await wait();
+      return { settlementId, status: action === "approve" ? "settled" : "rejected" };
     }
   );
 }
@@ -440,7 +864,7 @@ const fallbackReportData = (): ReportingChartData => ({
     { label: "May", food: 8900, travel: 14200, shopping: 6800, subscriptions: 2297 },
     { label: "Jun", food: 10600, travel: 9800, shopping: 8100, subscriptions: 2297 }
   ],
-  trips: trips.map((trip) => ({ label: trip.name, value: trip.spend })),
+  trips: [],
   parties: parties.map((party, index) => ({
     label: party.name,
     outstanding: Math.max(party.balance, 0),
@@ -462,15 +886,14 @@ export async function getReports(accountId?: string): Promise<ReportingChartData
           monthlyTrend?: Array<{ month: string; amount: number }>;
         };
       }>("/api/reports/summary", accountId);
-      const fallback = fallbackReportData();
       return {
         categories: payload.report.categoryBreakdown?.map((row) => ({ label: row.category, value: row.amount })) ?? [],
         cashflow: payload.report.monthlyTrend?.map((row) => ({ label: row.month, income: 0, spend: row.amount })) ?? [],
-        budgetVariance: fallback.budgetVariance,
-        merchantTrends: fallback.merchantTrends,
-        trips: fallback.trips,
-        parties: fallback.parties,
-        currencies: fallback.currencies
+        budgetVariance: [],
+        merchantTrends: [],
+        trips: [],
+        parties: [],
+        currencies: []
       };
     },
     async () => {
@@ -486,7 +909,6 @@ export function reportDataToCsv(data: ReportingChartData) {
     ...data.categories.map((row) => ["category", row.label, row.value, "", ""]),
     ...data.cashflow.map((row) => ["cashflow", row.label, row.income, row.spend, row.income - row.spend]),
     ...data.budgetVariance.map((row) => ["budget", row.label, row.budget, row.actual, row.remaining]),
-    ...data.trips.map((row) => ["trip", row.label, row.value, "", ""]),
     ...data.parties.map((row) => ["party", row.label, row.outstanding, row.settled, ""]),
     ...data.currencies.map((row) => ["currency", row.label, row.value, "", ""])
   ];

@@ -13,6 +13,11 @@ export type Expense = {
   amount: number;
   owner: string;
   status: "cleared" | "pending" | "needs-review";
+  source?: string;
+  tripId?: string;
+  partyId?: string;
+  settlementId?: string;
+  canDelete?: boolean;
 };
 
 export type Budget = {
@@ -20,6 +25,10 @@ export type Budget = {
   category: string;
   limit: number;
   spent: number;
+  scope?: "overall" | "category";
+  currency?: string;
+  period?: "monthly" | "yearly";
+  alertThreshold?: number;
 };
 
 export type Trip = {

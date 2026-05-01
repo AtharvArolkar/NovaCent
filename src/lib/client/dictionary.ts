@@ -14,7 +14,6 @@ export const dictionary = {
     dashboard: "Dashboard",
     expenses: "Expenses",
     budgets: "Budgets",
-    trips: "Trips",
     parties: "Parties",
     importReview: "Import review",
     reports: "Reports",
@@ -42,7 +41,10 @@ export const dictionary = {
     monthlyRunway: "Monthly runway",
     pendingImports: "Pending imports",
     save: "Save",
-    syncNow: "Sync now"
+    syncNow: "Sync now",
+    logout: "Log out",
+    hello: "Hello",
+    user: "User"
   },
   es: {
     appName: appConfig.name,
@@ -50,7 +52,6 @@ export const dictionary = {
     dashboard: "Panel",
     expenses: "Gastos",
     budgets: "Presupuestos",
-    trips: "Viajes",
     parties: "Grupos",
     importReview: "Revision de importacion",
     reports: "Informes",
@@ -78,7 +79,10 @@ export const dictionary = {
     monthlyRunway: "Margen mensual",
     pendingImports: "Importaciones pendientes",
     save: "Guardar",
-    syncNow: "Sincronizar"
+    syncNow: "Sincronizar",
+    logout: "Cerrar sesion",
+    hello: "Hola",
+    user: "Usuario"
   }
 } satisfies Record<Language, Record<string, string>>;
 

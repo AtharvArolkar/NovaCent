@@ -1,4 +1,5 @@
-const CACHE_VERSION = "expense-tracker-v1";
+const CACHE_VERSION = "novacent-shell-v2";
+const LEGACY_CACHE_PREFIXES = ["expense-tracker"];
 const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -15,12 +16,22 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== CACHE_VERSION)
+            .filter(
+              (key) =>
+                key !== CACHE_VERSION ||
+                LEGACY_CACHE_PREFIXES.some((prefix) => key.startsWith(prefix)),
+            )
             .map((key) => caches.delete(key)),
         ),
       ),
   );
   self.clients.claim();
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("fetch", (event) => {
@@ -32,11 +43,11 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (url.pathname.startsWith("/api/")) {
-    event.respondWith(networkFirst(request));
+    event.respondWith(fetch(request));
     return;
   }
 
-  event.respondWith(cacheFirst(request));
+  event.respondWith(networkFirst(request));
 });
 
 self.addEventListener("sync", (event) => {
@@ -45,22 +56,14 @@ self.addEventListener("sync", (event) => {
   }
 });
 
-async function cacheFirst(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-
-  const response = await fetch(request);
-  const cache = await caches.open(CACHE_VERSION);
-  cache.put(request, response.clone());
-  return response;
-}
-
 async function networkFirst(request) {
   const cache = await caches.open(CACHE_VERSION);
 
   try {
     const response = await fetch(request);
-    cache.put(request, response.clone());
+    if (response.ok) {
+      cache.put(request, response.clone());
+    }
     return response;
   } catch (error) {
     const cached = await cache.match(request);
@@ -73,4 +76,3 @@ async function notifyClients(message) {
   const clients = await self.clients.matchAll({ includeUncontrolled: true });
   clients.forEach((client) => client.postMessage(message));
 }
-

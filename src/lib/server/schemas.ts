@@ -32,9 +32,11 @@ export const expenseSchema = z.object({
   original: moneySchema,
   spentAt: z.string().min(8),
   notes: z.string().max(1000).optional(),
-  source: z.enum(["manual", "recurring", "import", "trip", "party"]).default("manual"),
+  source: z.enum(["manual", "recurring", "import", "trip", "party", "settlement"]).default("manual"),
   tripId: z.string().optional(),
   partyId: z.string().optional(),
+  paidByParticipantId: z.string().optional(),
+  excludeFromLedger: z.coerce.boolean().default(false),
   recurringRuleId: z.string().optional(),
   clientMutationId: z.string().optional()
 });
@@ -63,8 +65,10 @@ export const recurringExpenseRunSchema = z.object({
 });
 
 export const budgetSchema = z.object({
+  scope: z.enum(["overall", "category"]).default("category"),
   categoryId: z.string().min(1),
   categoryName: z.string().min(1).max(80),
+  period: z.enum(["monthly", "yearly"]).default("monthly"),
   limit: moneySchema,
   alertThreshold: z.coerce.number().min(1).max(100).default(appConfig.defaultBudgetAlertThreshold)
 });
@@ -81,6 +85,7 @@ export const tripSchema = z.object({
   startsAt: z.string().min(8),
   endsAt: z.string().optional(),
   baseCurrency: z.string().min(3).max(8).default(appConfig.baseCurrency),
+  budget: moneySchema.optional(),
   participantCount: z.coerce.number().int().min(1).default(1)
 });
 
@@ -93,7 +98,11 @@ export const partyParticipantSchema = z.object({
 
 export const partySchema = z.object({
   name: z.string().min(2).max(120),
-  participants: z.array(partyParticipantSchema).min(1)
+  participants: z.array(partyParticipantSchema).default([])
+});
+
+export const partyParticipantAddSchema = z.object({
+  participant: partyParticipantSchema
 });
 
 export const settlementSchema = z.object({
@@ -106,6 +115,7 @@ export const settlementSchema = z.object({
 
 export const splitSchema = z.object({
   expenseId: z.string().min(1),
+  paidByParticipantId: z.string().min(1).optional(),
   splits: z.array(z.object({
     participantId: z.string().min(1),
     amount: moneySchema

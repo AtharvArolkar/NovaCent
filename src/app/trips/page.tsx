@@ -1,5 +1,5 @@
-import { TripsView } from "@/components/views";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <TripsView />;
+  redirect("/parties");
 }
