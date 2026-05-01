@@ -40,13 +40,20 @@ export const demoCategories: Category[] = [
   { id: "cat-travel", accountId: "acc-primary", name: "Travel", color: "#2563eb", icon: "plane", isSystem: true },
   { id: "cat-rent", accountId: "acc-primary", name: "Rent", color: "#b45309", icon: "home", isSystem: true },
   { id: "cat-shopping", accountId: "acc-primary", name: "Shopping", color: "#be123c", icon: "bag", isSystem: true },
-  { id: "cat-health", accountId: "acc-primary", name: "Health", color: "#7c3aed", icon: "heart", isSystem: true }
+  { id: "cat-health", accountId: "acc-primary", name: "Health", color: "#7c3aed", icon: "heart", isSystem: true },
+  { id: "cat-fuel", accountId: "acc-primary", name: "Fuel", color: "#0891b2", icon: "fuel", isSystem: true },
+  { id: "cat-loan-emi", accountId: "acc-primary", name: "Loan/EMI", color: "#64748b", icon: "receipt", isSystem: true },
+  { id: "cat-others", accountId: "acc-primary", name: "Others", color: "#475569", icon: "circle", isSystem: true }
 ];
 
 export const demoCategoryRules: CategoryRule[] = [
   { id: "rule-swiggy", accountId: "acc-primary", pattern: "Swiggy", categoryId: "cat-food", categoryName: "Food" },
   { id: "rule-uber", accountId: "acc-primary", pattern: "Uber", categoryId: "cat-travel", categoryName: "Travel" },
-  { id: "rule-amazon", accountId: "acc-primary", pattern: "Amazon", categoryId: "cat-shopping", categoryName: "Shopping" }
+  { id: "rule-amazon", accountId: "acc-primary", pattern: "Amazon", categoryId: "cat-shopping", categoryName: "Shopping" },
+  { id: "rule-fuel", accountId: "acc-primary", pattern: "Fuel", categoryId: "cat-fuel", categoryName: "Fuel" },
+  { id: "rule-petrol", accountId: "acc-primary", pattern: "Petrol", categoryId: "cat-fuel", categoryName: "Fuel" },
+  { id: "rule-emi", accountId: "acc-primary", pattern: "EMI", categoryId: "cat-loan-emi", categoryName: "Loan/EMI" },
+  { id: "rule-loan", accountId: "acc-primary", pattern: "Loan", categoryId: "cat-loan-emi", categoryName: "Loan/EMI" }
 ];
 
 export const demoExpenses: Expense[] = [
@@ -232,12 +239,18 @@ export const demoReport: ReportSummary = {
     { category: "Food", amount: 1280, color: "#0f766e" }
   ],
   monthlyTrend: [
-    { month: "Jan", amount: 31400 },
-    { month: "Feb", amount: 36500 },
-    { month: "Mar", amount: 34200 },
-    { month: "Apr", amount: 38943 }
+    { month: "Jan", amount: 31400, income: 0, spend: 31400 },
+    { month: "Feb", amount: 36500, income: 0, spend: 36500 },
+    { month: "Mar", amount: 34200, income: 0, spend: 34200 },
+    { month: "Apr", amount: 38943, income: 0, spend: 38943 }
+  ],
+  budgetVariance: [
+    { categoryName: "Overall spend", limitAmount: 50000, actualAmount: 38943, remainingAmount: 11057, usagePercent: 78 }
+  ],
+  merchantTrends: [
+    { month: "Apr", food: 1280, travel: 1364, shopping: 4299, subscriptions: 0 }
   ],
   tripSpend: [{ trip: "Dubai workation", amount: 1364 }],
-  partyBalances: [{ party: "Goa friends trip", outstanding: 5200, settled: 2400 }]
+  partyBalances: [{ party: "Goa friends trip", outstanding: 5200, settled: 2400 }],
+  currencyExposure: [{ currency: "INR", amount: 38943 }]
 };
-

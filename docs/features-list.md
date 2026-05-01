@@ -23,7 +23,9 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Live mode clears legacy app-shell caches and service-worker API responses are network-only, so old demo screens/data do not keep rendering after refresh. |
 | Implemented | Vercel-ready configuration and setup documentation. |
 | Implemented | PWA manifest and offline service-worker foundation. |
+| Implemented | PWA install prompt configuration with browser install event handling, install/dismiss actions, and installable manifest shortcuts. |
 | Implemented | QA regression test plan for validating working features after every change. |
+| Implemented | Non-deviation QA guard requiring existing working functionality to remain unchanged unless the user explicitly requests a behavior change. |
 | Implemented | Responsiveness checker process for validating UI changes across mobile, tablet, and desktop widths. |
 
 ## Authentication And Accounts
@@ -34,6 +36,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Logout action from the authenticated app shell sidebar/footer. |
 | Implemented | Google OAuth wiring with placeholder credentials until real Google keys are configured. |
 | Implemented | Forgot-password, reset-password, and change-password APIs and screens. |
+| Implemented | Forgot-password can send reset links through generic SMTP when SMTP variables are configured; development reset URL remains available only when SMTP is not configured. |
 | Implemented | Authenticated navigation panel displays `Hi <first name>` at the bottom, using the formatted first word of the profile name with email/user fallback. |
 | Implemented | Default INR account creation for new users. |
 | Implemented | Multiple account support with a global account switcher. |
@@ -45,8 +48,10 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Status | Feature |
 | --- | --- |
 | Implemented | NovaCent branding through centralized app configuration. |
+| Implemented | Login, registration, and password recovery pages use a responsive NovaCent-branded auth layout with prominent logo/app-name treatment, desktop split-panel presentation, and compact mobile form flow. |
 | Implemented | Central translation dictionary for changing app text from one file, with English, Spanish, French, Hindi, and Marathi language options. |
 | Implemented | App-shell, auth screens, dashboard, expenses, budgets, imports, parties, reports, settings, chart captions, empty states, and common action/status labels are wired through the central translation helpers. |
+| Implemented | Phase 3 recurring, support, statement password, split-selection, and split-mode labels use supplemental translations for English, Spanish, French, Hindi, and Marathi flows. |
 | Implemented | Translation audit coverage includes confirmation dialogs, placeholders, chart accessibility labels, table captions, notification labels, and mobile drawer controls. |
 | Implemented | Light/dark theme switching. |
 | Implemented | Responsive app shell with sidebar navigation and top account controls. |
@@ -54,12 +59,14 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Mobile app shell uses a compact brand bar with notifications beside the hamburger menu; account, language, and theme controls move into the bottom of the navigation drawer to keep page content higher. |
 | Implemented | Settings moved from the main nav list to a square gear shortcut beside the wider logout button in the navigation footer. |
 | Implemented | Responsive hardening for top-bar actions, page actions, forms, tables, charts, participant chips, and mobile action buttons. |
+| Implemented | Date fields use a shared accessible picker control with a visible calendar button across expenses, recurring rules, party expenses, and report filters. |
 | Implemented | Refreshed multi-accent visual system with blue, teal, violet, amber, and rose tokens instead of a single green-heavy palette. |
 | Implemented | Reports and charts use shared chart color tokens for clearer category, cashflow, budget, party, and currency visuals. |
 | Implemented | Dark-mode report chart tooltips use theme-aware text and surface colors for readable values. |
 | Implemented | Compact mobile top-bar action wrapping so theme, logout, notifications, and status controls do not stretch into distorted blocks. |
 | Implemented | Accessible labels, captions, semantic tables, status messages, and keyboard-friendly controls. |
 | Implemented | Modern UI polish, chart visuals, transitions, and stable form layouts. |
+| Implemented | Authenticated How to use NovaCent guide page linked from Settings with centrally managed localized guide content for accounts, expenses, budgets, imports, parties, recurring expenses, reports, notifications, and support, including fully localized Hindi and Marathi guide copy. |
 
 ## Expenses
 
@@ -68,6 +75,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Overall expense ledger with search. |
 | Implemented | Quick-add expense form appears above the ledger and defaults the date to the local current date. |
 | Implemented | Manual expense create flow with success/error feedback. |
+| Implemented | Category pickers include Food, Shopping, Travel, Fuel, Loan/EMI, Subscriptions, Health, Others, plus import-specific Uncategorized/Reimbursements options. |
 | Implemented | Offline expense queueing when the device is offline. |
 | Implemented | Expense delete button with confirmation. |
 | Implemented | Settlement ledger rows are locked from direct deletion. |
@@ -85,9 +93,19 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Monthly and yearly budget periods. Monthly budgets run from the 1st of the current month to month end; yearly budgets run from Jan 1 to Dec 31. Budget spend is recalculated for the active month/year and includes existing matching expenses when a budget is listed, created, or edited. |
 | Implemented | Overall spend budgets track every visible expense in the active month/year, while single-category budgets track only their matching category. |
 | Implemented | Budget spend matching supports both category id and category name so older existing expenses still count when the visible category matches. |
+| Implemented | Budget cards can expand to show the exact expenses included in the active calculation window. |
 | Implemented | Default budget alert threshold of 80 percent. |
 | Implemented | Budget threshold notifications. |
 | Implemented | Budget spend impact on expense creation and reversal on expense deletion. |
+
+## Recurring Expenses
+
+| Status | Feature |
+| --- | --- |
+| Implemented | Recurring expense rules can be created, viewed, edited, paused, resumed, and ended. |
+| Implemented | Recurring rules auto-create due expenses through a Vercel Cron-compatible background endpoint. |
+| Implemented | Recurring auto-runs use idempotent client mutation ids so the same due occurrence is not duplicated. |
+| Implemented | Recurring expenses preserve currency snapshots and feed normal expense, budget, and report totals. |
 
 ## Parties, Splits, And Settlements
 
@@ -107,6 +125,9 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Shared party workspaces read party expenses across the owner account and registered participant accounts while keeping splits and settlements under the party owner account. |
 | Implemented | Party expense paid-by participant selection. |
 | Implemented | Even split and manual split amount modes. |
+| Implemented | Percentage and share split modes, with the payer included in the split math by default and allowed to have a zero share. |
+| Implemented | Existing manual, imported, and recurring expenses can be selected from the ledger and converted into party split expenses without duplicating expense rows. |
+| Implemented | Existing selected expenses can be added to an existing party split, or staged for a new party until participants are added. |
 | Implemented | Split validation that participants belong to the party. |
 | Implemented | Mark split as settled. |
 | Implemented | External placeholder settlements settle directly without approval. |
@@ -125,11 +146,21 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | --- | --- |
 | Implemented | Upload statement files for review. |
 | Implemented | CSV, XLS/XLSX, TXT, and text-PDF parsing path. |
+| Implemented | Bank statement parser recognizes common Date, Description/Narration/Particulars, Ref/UTR/Cheque, Withdrawal/Debit/DR, Deposit/Credit/CR, Amount, Currency, and Balance column patterns across different statement layouts. |
+| Implemented | Import review separates withdrawal and deposit amounts: withdrawals post as spend, while deposits post as negative gain/reimbursement cashflow when approved. |
+| Implemented | Import review displays one signed amount column: deposits show as positive inflow and withdrawals show as negative outflow. |
+| Implemented | Import review uses a desktop-aligned table and mobile cards with minimal description/amount/approve/delete controls plus expandable details. |
+| Implemented | Import review lets each staged row be approved with a selected category from a dropdown, including leaving it as Uncategorized. |
+| Implemented | Text/PDF import parsing prefers detected transaction table sections and skips account-level metadata such as account opening date, minimum balance, opening/closing balance, and statement summaries. |
+| Implemented | Text/PDF import parsing merges wrapped transaction lines so rows split across multiple PDF text lines are still captured. |
+| Implemented | PDF statement text extraction preserves column spacing more carefully before parsing, reducing merged date/amount/reference rows. |
 | Implemented | Review-before-save import workflow. |
 | Implemented | Imported row approve and delete actions. |
 | Implemented | Possible duplicate detection and duplicate filter. |
 | Implemented | Category suggestions for imported rows. |
 | Implemented | Uploaded file name is retained as metadata. |
+| Implemented | Password-protected text PDF statements can be uploaded with a transient statement password. The password is used only for parsing and is not stored in MongoDB. |
+| Implemented | Missing or incorrect statement password attempts create a failed import batch and a warning notification with a retryable error message. |
 | Deferred | Scanned PDF/image OCR is planned for the OCR import phase. |
 
 ## Reports And Analytics
@@ -138,10 +169,12 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | --- | --- |
 | Implemented | Category breakdown chart. |
 | Implemented | Monthly cash-flow chart. |
+| Implemented | Report generation supports timeframe filters with calendar date range controls and presets for past 15 days, 1 month, 3 months, 1 year by default, 3 years, and All. |
 | Implemented | Budget variance chart. |
 | Implemented | Merchant trend chart. |
 | Implemented | Party settlement chart. |
 | Implemented | Currency exposure chart. |
+| Implemented | Live backend report summary powers category, monthly cashflow, budget variance, merchant trend, party balance, and currency exposure charts. |
 | Implemented | CSV export for report data. |
 | Implemented | Browser print/PDF export path. |
 | Implemented | Reports ignore ledger-excluded party expenses and include finalized settlement cashflow. |
@@ -163,8 +196,19 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | --- | --- |
 | Implemented | Notification center in the app shell. |
 | Implemented | Unread count and mark-read behavior. |
+| Implemented | Notification center supports clearing all account notifications and uses fixed-height scrollable panels with themed smooth scrollbars on desktop and mobile. |
 | Implemented | Budget threshold notifications. |
 | Implemented | Import and settlement notification support. |
+| Implemented | Import password failures create warning notifications. |
+
+## Customer Support
+
+| Status | Feature |
+| --- | --- |
+| Implemented | Dedicated authenticated Support page in the main navigation with name, request type, and comments. |
+| Implemented | Support request types include Add feature, Report issue, and Praise. |
+| Implemented | Support submissions are saved to MongoDB with account/user association before optional admin email. |
+| Implemented | Support admin email uses generic SMTP when `SUPPORT_ADMIN_EMAIL` and SMTP variables are configured, without blocking MongoDB persistence if email fails. |
 
 ## Offline And Sync
 
@@ -191,7 +235,6 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 
 | Status | Feature |
 | --- | --- |
-| Deferred | Scanned PDF and image OCR import. |
-| Deferred | Production SMTP email delivery verification. |
-| Deferred | Full recurring-expense management UI. |
+| Deferred | Scanned PDF and image OCR import with async/background processing and later sync into import review. |
+| Deferred | Production SMTP email delivery verification against a real provider/account. |
 | Deferred | Google OAuth verification with real production credentials. |

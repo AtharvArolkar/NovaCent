@@ -1,12 +1,12 @@
 "use client";
 
-import { Bell, LogOut, Menu, Settings, X } from "lucide-react";
+import { Bell, Download, LogOut, Menu, Settings, X } from "lucide-react";
 import { SessionProvider, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { appConfig } from "@/lib/app-config";
-import { getAccounts, getNotifications, markNotificationsRead, syncPendingOutbox, type Notification } from "@/lib/client/expense-service";
+import { clearNotifications, getAccounts, getNotifications, markNotificationsRead, syncPendingOutbox, type Notification } from "@/lib/client/expense-service";
 import type { Account } from "@/lib/client/demo-data";
 import { languages, type Language } from "@/lib/client/dictionary";
 import { PreferencesProvider, usePreferences } from "@/lib/client/preferences";
@@ -15,9 +15,11 @@ const navItems = [
   { href: "/", key: "dashboard" },
   { href: "/expenses", key: "expenses" },
   { href: "/budgets", key: "budgets" },
+  { href: "/recurring-expenses", key: "recurring" },
   { href: "/parties", key: "parties" },
   { href: "/import-review", key: "importReview" },
-  { href: "/reports", key: "reports" }
+  { href: "/reports", key: "reports" },
+  { href: "/support", key: "support" }
 ] as const;
 
 const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
@@ -25,10 +27,11 @@ const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"
 function ShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { accountId, setAccountId, theme, setTheme, language, setLanguage, isOnline, t, tx } = usePreferences();
+  const { accountId, setAccountId, theme, setTheme, language, setLanguage, isOnline, canInstallPwa, promptPwaInstall, dismissPwaInstall, t, tx } = usePreferences();
   const [accountOptions, setAccountOptions] = useState<Account[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [clearingNotifications, setClearingNotifications] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const unreadCount = useMemo(() => notifications.filter((notification) => !notification.read).length, [notifications]);
   const userDisplayName = session?.user?.name?.trim() || session?.user?.email?.split("@")[0]?.trim() || t("user");
@@ -73,6 +76,15 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     void markNotificationsRead(accountId);
   };
 
+  const clearAllNotifications = () => {
+    const previousNotifications = notifications;
+    setClearingNotifications(true);
+    setNotifications([]);
+    void clearNotifications(accountId)
+      .catch(() => setNotifications(previousNotifications))
+      .finally(() => setClearingNotifications(false));
+  };
+
   const notificationCenter = (panelId: string, className = "notification-center") => (
     <div className={className}>
       <button
@@ -91,22 +103,29 @@ function ShellContent({ children }: { children: React.ReactNode }) {
         <section className="notification-panel" id={panelId} aria-label={tx("Notifications")}>
           <div className="notification-heading">
             <h2>{tx("Notifications")}</h2>
-            <button className="text-button" type="button" onClick={markRead}>
-              {tx("Mark read")}
-            </button>
+            <div className="notification-heading-actions">
+              <button className="text-button" type="button" disabled={!unreadCount} onClick={markRead}>
+                {tx("Mark read")}
+              </button>
+              <button className="text-button danger-text-button" type="button" aria-label={tx("Clear notifications")} disabled={!notifications.length || clearingNotifications} onClick={clearAllNotifications}>
+                {tx("Clear")}
+              </button>
+            </div>
           </div>
-          {notifications.length ? (
-            <ul>
-              {notifications.map((notification) => (
-                <li key={notification.id} className={notification.read ? "" : "unread"}>
-                  <strong>{notification.title}</strong>
-                  <p>{notification.body}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted-note">{tx("No notifications yet.")}</p>
-          )}
+          <div className="notification-scroll" tabIndex={notifications.length > 4 ? 0 : undefined}>
+            {notifications.length ? (
+              <ul>
+                {notifications.map((notification) => (
+                  <li key={notification.id} className={notification.read ? "" : "unread"}>
+                    <strong>{notification.title}</strong>
+                    <p>{notification.body}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted-note">{tx("No notifications yet.")}</p>
+            )}
+          </div>
         </section>
       ) : null}
     </div>
@@ -254,6 +273,23 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         {!isOnline ? <div className="offline-banner" role="status">{t("offlineMessage")}</div> : null}
+        {canInstallPwa ? (
+          <section className="install-banner" aria-label={tx("Install app")}>
+            <div>
+              <strong>{tx("Install app")}</strong>
+              <p>{tx("Add this workspace to your device for quicker offline access.")}</p>
+            </div>
+            <div className="install-banner-actions">
+              <button type="button" onClick={() => void promptPwaInstall()}>
+                <Download aria-hidden="true" size={16} />
+                <span>{tx("Install")}</span>
+              </button>
+              <button className="secondary-button" type="button" onClick={dismissPwaInstall}>
+                {tx("Not now")}
+              </button>
+            </div>
+          </section>
+        ) : null}
         <main>{children}</main>
       </div>
     </div>

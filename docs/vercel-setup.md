@@ -19,9 +19,15 @@
 | `GOOGLE_CLIENT_SECRET` | Yes for Google login | Server only | From Google Cloud OAuth credentials. |
 | `SMTP_HOST` | Optional | Server only | Used for real password reset emails. |
 | `SMTP_PORT` | Optional | Server only | Defaults depend on your SMTP provider. |
+| `SMTP_SECURE` | Optional | Server only | Use `true` for implicit TLS providers, usually port 465. |
 | `SMTP_USER` | Optional | Server only | SMTP username. |
 | `SMTP_PASSWORD` | Optional | Server only | SMTP password. |
 | `SMTP_FROM` | Optional | Server only | Sender address for password reset emails. |
+| `SMTP_ENVELOPE_FROM` | Optional | Server only | SMTP envelope sender if your provider requires one. |
+| `SMTP_HELO_DOMAIN` | Optional | Server only | HELO/EHLO domain sent to the SMTP server. |
+| `SUPPORT_ADMIN_EMAIL` | Optional | Server only | Receives support request emails when SMTP is configured. |
+| `CRON_SECRET` | Recommended | Server only | Protects the recurring expense cron endpoint. |
+| `OCR_ENABLED`, `OCR_LANG`, `OCR_MAX_FILE_MB`, `OCR_WORKER_SECRET` | Optional | Server only | Reserved for scanned PDF/image OCR worker configuration. |
 | `CURRENCY_PROVIDER` | Optional | Server only | Defaults to `frankfurter`; no API key needed. |
 
 Only variables prefixed with `NEXT_PUBLIC_` are browser-safe. This app currently keeps secrets server-only.
@@ -50,11 +56,15 @@ http://localhost:3000/api/auth/callback/google
 6. Test Google login if configured.
 7. Add a foreign-currency expense and confirm INR conversion.
 8. Upload a CSV/XLSX/text-PDF statement and approve rows from review.
-9. Test offline behavior by loading reports, disabling the network, and confirming cached report UI remains visible.
+9. Upload a password-protected text PDF statement with its statement password and confirm the password is not stored in the import batch.
+10. Create a recurring expense rule and confirm the Vercel cron route is configured.
+11. Submit a support request from Settings and confirm it is stored in MongoDB.
+12. Test offline behavior by loading reports, disabling the network, and confirming cached report UI remains visible.
 
 ## Offline And PWA Notes
 
 - `public/manifest.webmanifest` defines installable app metadata.
+- The app shell listens for the browser `beforeinstallprompt` event and shows an install banner with Install and Not now actions when the app is installable.
 - `public/sw.js` caches the app shell and same-origin static GET requests.
 - API GET requests use network-first caching with fallback.
 - Mutating offline writes should be queued through `src/lib/offline/outbox.ts`.
@@ -69,4 +79,3 @@ http://localhost:3000/api/auth/callback/google
 4. Store metadata such as original file name, status, and optional hash.
 5. Let the user edit, delete, or approve rows.
 6. Save only approved rows as account-scoped expenses.
-

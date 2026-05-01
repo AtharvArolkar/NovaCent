@@ -21,7 +21,25 @@ type LiveExpense = {
   settlementId?: string;
   excludeFromLedger?: boolean;
 };
-type LiveBudget = { id?: string; scope?: "overall" | "category"; categoryName?: string; limit?: Money; spent?: Money; period?: "monthly" | "yearly"; alertThreshold?: number };
+type LiveBudgetIncludedExpense = {
+  id?: string;
+  date?: string;
+  merchant?: string;
+  categoryName?: string;
+  amount?: number;
+  currency?: string;
+  source?: string;
+};
+type LiveBudget = {
+  id?: string;
+  scope?: "overall" | "category";
+  categoryName?: string;
+  limit?: Money;
+  spent?: Money;
+  period?: "monthly" | "yearly";
+  alertThreshold?: number;
+  includedExpenses?: LiveBudgetIncludedExpense[];
+};
 type LiveParty = {
   id?: string;
   name?: string;
@@ -67,8 +85,14 @@ type LiveImportRow = {
   id?: string;
   batchId?: string;
   merchant?: string;
+  description?: string;
+  reference?: string;
+  spentAt?: string;
+  direction?: "withdrawal" | "deposit";
   original?: Money;
   amount?: number;
+  withdrawalAmount?: Money;
+  depositAmount?: Money;
   confidence?: number;
   suggestedCategoryName?: string;
   suggestedCategory?: string;
@@ -82,6 +106,21 @@ type LiveNotification = {
   tone?: "info" | "warning" | "success";
   read?: boolean;
   createdAt?: string;
+};
+type LiveRecurringExpenseRule = {
+  id?: string;
+  merchant?: string;
+  description?: string;
+  categoryName?: string;
+  original?: Money;
+  frequency?: "daily" | "weekly" | "monthly" | "yearly";
+  interval?: number;
+  startsAt?: string;
+  endsAt?: string;
+  nextRunAt?: string;
+  lastRunAt?: string;
+  status?: "active" | "paused" | "ended";
+  notes?: string;
 };
 export type Notification = {
   id: string;
@@ -176,6 +215,43 @@ export type PartyExpenseCreateInput = {
   excludeFromLedger?: boolean;
   splits: Array<{ participantId: string; amount: number }>;
 };
+export type RecurringExpenseRule = {
+  id: string;
+  merchant: string;
+  description?: string;
+  categoryName: string;
+  amount: number;
+  currency: string;
+  frequency: "daily" | "weekly" | "monthly" | "yearly";
+  interval: number;
+  startsAt: string;
+  endsAt?: string;
+  nextRunAt: string;
+  lastRunAt?: string;
+  status: "active" | "paused" | "ended";
+  notes?: string;
+};
+export type RecurringExpenseInput = {
+  merchant: string;
+  description?: string;
+  categoryName: string;
+  amount: number;
+  currency: string;
+  frequency: RecurringExpenseRule["frequency"];
+  interval: number;
+  startsAt: string;
+  endsAt?: string;
+  notes?: string;
+};
+export type SupportRequestInput = {
+  name: string;
+  type: "add_feature" | "report_issue" | "praise";
+  comments: string;
+};
+export type ReportRangeInput = {
+  startDate?: string;
+  endDate?: string;
+};
 
 const wait = (ms = 120) => new Promise((resolve) => setTimeout(resolve, ms));
 const useMocks = process.env.NEXT_PUBLIC_USE_MOCKS === "true";
@@ -203,7 +279,8 @@ async function requestJson<T>(path: string, accountId?: string, init?: RequestIn
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error ?? `Request failed: ${response.status}`);
   }
 
   return response.json() as Promise<T>;
@@ -244,7 +321,16 @@ const toBudget = (budget: LiveBudget): Budget => ({
   scope: budget.scope ?? "category",
   currency: budget.limit?.currency ?? budget.spent?.currency ?? "INR",
   period: budget.period ?? "monthly",
-  alertThreshold: budget.alertThreshold ?? 80
+  alertThreshold: budget.alertThreshold ?? 80,
+  includedExpenses: budget.includedExpenses?.map((expense) => ({
+    id: expense.id ?? crypto.randomUUID(),
+    date: expense.date ?? new Date().toISOString().slice(0, 10),
+    merchant: expense.merchant ?? "Unknown merchant",
+    category: expense.categoryName ?? "Uncategorized",
+    amount: expense.amount ?? 0,
+    currency: expense.currency,
+    source: expense.source
+  }))
 });
 
 const toParty = (party: LiveParty): Party => ({
@@ -295,19 +381,61 @@ const toPartyDetail = (payload: { party: LiveParty; expenses?: LiveExpense[]; sp
   settlements: payload.settlements?.map(toPartySettlement) ?? []
 });
 
-const toImportRow = (row: LiveImportRow, batch: LiveImportBatch): ImportRow => ({
-  id: row.id ?? crypto.randomUUID(),
-  batchId: row.batchId ?? batch.id,
-  source: batch.fileName ?? batch.id ?? row.batchId ?? "Import",
-  merchant: row.merchant ?? "Unknown merchant",
-  amount: asAmount(row.original ?? row.amount),
-  confidence: row.confidence ?? 0,
-  suggestedCategory: row.suggestedCategoryName ?? row.suggestedCategory ?? "Uncategorized",
-  isPossibleDuplicate: row.status === "possible_duplicate" || Boolean(row.possibleDuplicates?.length)
+const toImportRow = (row: LiveImportRow, batch: LiveImportBatch): ImportRow => {
+  const amount = asAmount(row.original ?? row.amount);
+  const withdrawalAmount = asAmount(row.withdrawalAmount) || (amount > 0 ? amount : 0);
+  const depositAmount = asAmount(row.depositAmount) || (amount < 0 ? Math.abs(amount) : 0);
+
+  return {
+    id: row.id ?? crypto.randomUUID(),
+    batchId: row.batchId ?? batch.id,
+    source: batch.fileName ?? batch.id ?? row.batchId ?? "Import",
+    date: row.spentAt?.slice(0, 10),
+    reference: row.reference,
+    merchant: row.description ?? row.merchant ?? "Unknown merchant",
+    amount,
+    withdrawalAmount,
+    depositAmount,
+    confidence: row.confidence ?? 0,
+    suggestedCategory: row.suggestedCategoryName ?? row.suggestedCategory ?? "Uncategorized",
+    isPossibleDuplicate: row.status === "possible_duplicate" || Boolean(row.possibleDuplicates?.length)
+  };
+};
+
+const toRecurringRule = (rule: LiveRecurringExpenseRule): RecurringExpenseRule => ({
+  id: rule.id ?? crypto.randomUUID(),
+  merchant: rule.merchant ?? "Recurring expense",
+  description: rule.description,
+  categoryName: rule.categoryName ?? "Uncategorized",
+  amount: asAmount(rule.original),
+  currency: rule.original?.currency ?? "INR",
+  frequency: rule.frequency ?? "monthly",
+  interval: rule.interval ?? 1,
+  startsAt: (rule.startsAt ?? new Date().toISOString()).slice(0, 10),
+  endsAt: rule.endsAt?.slice(0, 10),
+  nextRunAt: (rule.nextRunAt ?? new Date().toISOString()).slice(0, 10),
+  lastRunAt: rule.lastRunAt?.slice(0, 10),
+  status: rule.status ?? "active",
+  notes: rule.notes
 });
 
 const categoryIdFor = (categoryName: string) =>
   `cat-${categoryName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "uncategorized"}`;
+
+const recurringPayload = (input: RecurringExpenseInput) => ({
+  merchant: input.merchant,
+  description: input.description,
+  categoryId: categoryIdFor(input.categoryName),
+  categoryName: input.categoryName,
+  original: { amount: input.amount, currency: input.currency },
+  frequency: input.frequency,
+  interval: input.interval,
+  startsAt: input.startsAt,
+  endsAt: input.endsAt || undefined,
+  nextRunAt: input.startsAt,
+  autoCreate: true,
+  notes: input.notes
+});
 
 const toPendingExpense = (input: ExpenseCreateInput, clientMutationId: string): Expense => ({
   id: clientMutationId,
@@ -327,7 +455,8 @@ const toLocalBudget = (input: BudgetCreateInput): Budget => ({
   scope: input.scope,
   currency: input.currency,
   period: input.period,
-  alertThreshold: input.alertThreshold
+  alertThreshold: input.alertThreshold,
+  includedExpenses: []
 });
 
 const toLocalParty = (input: PartyCreateInput): Party => ({
@@ -575,6 +704,92 @@ export async function deleteBudget(accountId: string, budgetId: string) {
   return requestJson<{ deleted: boolean }>(`/api/budgets/${budgetId}`, accountId, { method: "DELETE" });
 }
 
+export async function getRecurringExpenses(accountId?: string) {
+  return withFallback(
+    async () => {
+      const payload = await requestJson<{ recurringExpenses: LiveRecurringExpenseRule[] }>("/api/recurring-expenses", accountId);
+      return payload.recurringExpenses.map(toRecurringRule);
+    },
+    async () => {
+      await wait();
+      return [] as RecurringExpenseRule[];
+    }
+  );
+}
+
+export async function createRecurringExpenseRule(accountId: string, input: RecurringExpenseInput) {
+  return withFallback(
+    async () => {
+      const payload = await requestJson<{ recurringExpense: LiveRecurringExpenseRule }>("/api/recurring-expenses", accountId, {
+        method: "POST",
+        body: JSON.stringify(recurringPayload(input))
+      });
+      return toRecurringRule(payload.recurringExpense);
+    },
+    async () => {
+      await wait();
+      return {
+        id: crypto.randomUUID(),
+        merchant: input.merchant,
+        description: input.description,
+        categoryName: input.categoryName,
+        amount: input.amount,
+        currency: input.currency,
+        frequency: input.frequency,
+        interval: input.interval,
+        startsAt: input.startsAt,
+        endsAt: input.endsAt,
+        nextRunAt: input.startsAt,
+        status: "active" as const,
+        notes: input.notes
+      };
+    }
+  );
+}
+
+export async function updateRecurringExpenseRule(accountId: string, ruleId: string, input: Partial<RecurringExpenseInput> & { status?: RecurringExpenseRule["status"] }) {
+  return withFallback(
+    async () => {
+      const body = {
+        ...(input.merchant !== undefined ? { merchant: input.merchant } : {}),
+        ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.categoryName !== undefined ? { categoryId: categoryIdFor(input.categoryName), categoryName: input.categoryName } : {}),
+        ...(input.amount !== undefined || input.currency !== undefined ? { original: { amount: input.amount ?? 0, currency: input.currency ?? "INR" } } : {}),
+        ...(input.frequency !== undefined ? { frequency: input.frequency } : {}),
+        ...(input.interval !== undefined ? { interval: input.interval } : {}),
+        ...(input.startsAt !== undefined ? { startsAt: input.startsAt, nextRunAt: input.startsAt } : {}),
+        ...(input.endsAt !== undefined ? { endsAt: input.endsAt || undefined } : {}),
+        ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        ...(input.status !== undefined ? { status: input.status } : {}),
+        autoCreate: true
+      };
+      const payload = await requestJson<{ recurringExpense: LiveRecurringExpenseRule }>(`/api/recurring-expenses/${ruleId}`, accountId, {
+        method: "PATCH",
+        body: JSON.stringify(body)
+      });
+      return toRecurringRule(payload.recurringExpense);
+    },
+    async () => {
+      await wait();
+      return {
+        id: ruleId,
+        merchant: input.merchant ?? "Recurring expense",
+        description: input.description,
+        categoryName: input.categoryName ?? "Uncategorized",
+        amount: input.amount ?? 0,
+        currency: input.currency ?? "INR",
+        frequency: input.frequency ?? "monthly",
+        interval: input.interval ?? 1,
+        startsAt: input.startsAt ?? new Date().toISOString().slice(0, 10),
+        endsAt: input.endsAt,
+        nextRunAt: input.startsAt ?? new Date().toISOString().slice(0, 10),
+        status: input.status ?? "active",
+        notes: input.notes
+      } as RecurringExpenseRule;
+    }
+  );
+}
+
 export async function getParties(accountId?: string) {
   return withFallback(
     async () => {
@@ -742,6 +957,23 @@ export async function createPartyExpense(accountId: string, partyId: string, inp
   );
 }
 
+export async function addExistingExpensesToParty(accountId: string, partyId: string, expenseIds: string[]) {
+  if (useMocks) {
+    await wait();
+    return { convertedExpenseIds: expenseIds, splits: [] as PartySplit[] };
+  }
+
+  const payload = await requestJson<{ convertedExpenseIds: string[]; splits: LiveSplit[] }>(`/api/parties/${partyId}/expenses/from-existing`, accountId, {
+    method: "POST",
+    body: JSON.stringify({ expenseIds })
+  });
+
+  return {
+    convertedExpenseIds: payload.convertedExpenseIds,
+    splits: payload.splits.map(toPartySplit)
+  };
+}
+
 export async function markPartySplitSettled(accountId: string, partyId: string, split: PartySplit, participantKind: "registered" | "external") {
   return withFallback(
     async () => {
@@ -799,13 +1031,16 @@ export async function getImportRows(accountId?: string) {
   );
 }
 
-export async function uploadStatement(accountId: string, file: File) {
+export async function uploadStatement(accountId: string, file: File, statementPassword?: string) {
   if (useMocks) {
     return imports;
   }
 
   const formData = new FormData();
   formData.append("file", file);
+  if (statementPassword?.trim()) {
+    formData.append("statementPassword", statementPassword.trim());
+  }
   const response = await fetch(withAccountQuery("/api/imports", accountId), {
     method: "POST",
     headers: { "x-account-id": accountId },
@@ -813,18 +1048,20 @@ export async function uploadStatement(accountId: string, file: File) {
   });
 
   if (!response.ok) {
-    throw new Error(`Import upload failed: ${response.status}`);
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error ?? `Import upload failed: ${response.status}`);
   }
 
   const payload = (await response.json()) as { batch: LiveImportBatch };
   return (payload.batch.rows ?? []).map((row) => toImportRow(row, payload.batch));
 }
 
-export async function reviewImportRow(accountId: string, row: ImportRow, action: "approve" | "delete") {
+export async function reviewImportRow(accountId: string, row: ImportRow, action: "approve" | "delete", options: { categoryName?: string } = {}) {
   if (useMocks || !row.batchId) {
     return { approved: action === "approve" ? 1 : 0, deleted: action === "delete" ? 1 : 0 };
   }
 
+  const categoryName = options.categoryName?.trim() || row.suggestedCategory || "Uncategorized";
   const response = await requestJson<{ approvedExpenses?: unknown[]; deletedRows?: number }>(`/api/imports/${row.batchId}/approve`, accountId, {
     method: "POST",
     body: JSON.stringify({
@@ -832,6 +1069,7 @@ export async function reviewImportRow(accountId: string, row: ImportRow, action:
         {
           rowId: row.id,
           action,
+          ...(action === "approve" ? { categoryId: categoryIdFor(categoryName), categoryName } : {}),
           confirmDuplicate: row.isPossibleDuplicate && action === "approve",
           overrideReason: row.isPossibleDuplicate && action === "approve" ? "Confirmed during import review" : undefined
         }
@@ -877,23 +1115,47 @@ const fallbackReportData = (): ReportingChartData => ({
   ]
 });
 
-export async function getReports(accountId?: string): Promise<ReportingChartData> {
+export async function getReports(accountId?: string, range: ReportRangeInput = {}): Promise<ReportingChartData> {
   return withFallback(
     async () => {
+      const params = new URLSearchParams();
+      if (range.startDate) params.set("startDate", range.startDate);
+      if (range.endDate) params.set("endDate", range.endDate);
+      const path = params.size ? `/api/reports/summary?${params.toString()}` : "/api/reports/summary";
       const payload = await requestJson<{
         report: {
           categoryBreakdown?: Array<{ category: string; amount: number }>;
-          monthlyTrend?: Array<{ month: string; amount: number }>;
+          monthlyTrend?: Array<{ month: string; amount: number; income?: number; spend?: number }>;
+          budgetVariance?: Array<{ categoryName: string; limitAmount: number; actualAmount: number; remainingAmount: number; usagePercent: number }>;
+          merchantTrends?: Array<{ month: string; food: number; travel: number; shopping: number; subscriptions: number }>;
+          partyBalances?: Array<{ party: string; outstanding: number; settled: number }>;
+          currencyExposure?: Array<{ currency: string; amount: number }>;
         };
-      }>("/api/reports/summary", accountId);
+      }>(path, accountId);
       return {
         categories: payload.report.categoryBreakdown?.map((row) => ({ label: row.category, value: row.amount })) ?? [],
-        cashflow: payload.report.monthlyTrend?.map((row) => ({ label: row.month, income: 0, spend: row.amount })) ?? [],
-        budgetVariance: [],
-        merchantTrends: [],
+        cashflow: payload.report.monthlyTrend?.map((row) => ({
+          label: row.month,
+          income: row.income ?? (row.amount < 0 ? Math.abs(row.amount) : 0),
+          spend: row.spend ?? (row.amount > 0 ? row.amount : 0)
+        })) ?? [],
+        budgetVariance: payload.report.budgetVariance?.map((row) => ({
+          label: row.categoryName,
+          budget: row.limitAmount,
+          actual: row.actualAmount,
+          remaining: row.remainingAmount,
+          usage: row.usagePercent
+        })) ?? [],
+        merchantTrends: payload.report.merchantTrends?.map((row) => ({
+          label: row.month,
+          food: row.food,
+          travel: row.travel,
+          shopping: row.shopping,
+          subscriptions: row.subscriptions
+        })) ?? [],
         trips: [],
-        parties: [],
-        currencies: []
+        parties: payload.report.partyBalances?.map((row) => ({ label: row.party, outstanding: row.outstanding, settled: row.settled })) ?? [],
+        currencies: payload.report.currencyExposure?.map((row) => ({ label: row.currency, value: row.amount })) ?? []
       };
     },
     async () => {
@@ -945,6 +1207,22 @@ export async function getNotifications(accountId?: string) {
   );
 }
 
+export async function submitSupportRequest(accountId: string, input: SupportRequestInput) {
+  if (useMocks) {
+    await wait();
+    return {
+      id: crypto.randomUUID(),
+      ...input,
+      status: "open"
+    };
+  }
+
+  return requestJson<{ supportRequest: unknown }>("/api/support", accountId, {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
 export async function markNotificationsRead(accountId?: string) {
   if (useMocks) return;
 
@@ -956,4 +1234,12 @@ export async function markNotificationsRead(accountId?: string) {
   } catch {
     // Notification read state is nice-to-have; keep the shell usable offline.
   }
+}
+
+export async function clearNotifications(accountId?: string) {
+  if (useMocks) return;
+
+  await requestJson<{ cleared: boolean; deletedCount: number }>("/api/notifications", accountId, {
+    method: "DELETE"
+  });
 }

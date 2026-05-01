@@ -6,12 +6,35 @@ This document defines the QA regression process for NovaCent. After every produc
 
 ## QA Operating Rule
 
+- Preserve existing working functionality after every change unless the user explicitly requests a behavior change.
+- Before editing, identify the feature areas the change could touch and compare the final behavior against the current feature inventory in `docs/features-list.md`.
+- Treat unintended workflow, data, permission, report, budget, settlement, import, sync, translation, accessibility, or responsive layout changes as regressions even when automated checks pass.
 - Run automated checks after every code change: `npm.cmd run typecheck`, `npm.cmd run lint`, and `npm.cmd run build`.
 - For documentation-only changes, verify links and file presence instead of running the full build unless code behavior was affected.
 - For feature changes, test the changed feature plus adjacent flows that share data or UI.
 - For UI changes, run the responsiveness checklist in `docs/responsiveness-checklist.md`.
 - For money-moving features, verify ledger, budget, report, account ownership, and deletion side effects.
 - Do not mark a feature complete when a regression fails. Report the defect to the developer/implementation agent and keep the failed area listed in the final response.
+
+## Non-Deviation Guard
+
+Use this guard after every implementation change:
+
+1. List the intended behavior changes from the user request.
+2. List the existing flows that must remain unchanged.
+3. Run or reason through regression checks for every adjacent flow touched by the edit.
+4. Confirm that any changed behavior is either explicitly requested or documented as a new requirement.
+5. If an unintended deviation is found, fix it before finalizing or report it as a blocking regression.
+
+Common protected flows:
+
+- Auth, logout, account switching, and account-scoped visibility.
+- Expense creation, search, delete, offline queueing, and ledger status.
+- Budget create/edit/delete, monthly/yearly periods, threshold notifications, and spend calculations.
+- Party creation, participant search/placeholders, split creation, settlement approvals, and delete locks.
+- Import review, duplicate handling, category suggestions, and approved-row ledger creation.
+- Reports, settlement netting, budget netting, export behavior, and chart readability.
+- Translation, accessibility, responsive layout, dark/light theme, and navigation behavior.
 
 ## Defect Report Format
 

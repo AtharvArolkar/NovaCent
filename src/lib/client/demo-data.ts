@@ -29,6 +29,17 @@ export type Budget = {
   currency?: string;
   period?: "monthly" | "yearly";
   alertThreshold?: number;
+  includedExpenses?: BudgetIncludedExpense[];
+};
+
+export type BudgetIncludedExpense = {
+  id: string;
+  date: string;
+  merchant: string;
+  category: string;
+  amount: number;
+  currency?: string;
+  source?: string;
 };
 
 export type Trip = {
@@ -51,8 +62,12 @@ export type ImportRow = {
   id: string;
   batchId?: string;
   source: string;
+  date?: string;
+  reference?: string;
   merchant: string;
   amount: number;
+  withdrawalAmount?: number;
+  depositAmount?: number;
   confidence: number;
   suggestedCategory: string;
   isPossibleDuplicate?: boolean;
@@ -90,7 +105,7 @@ export const parties: Party[] = [
 ];
 
 export const imports: ImportRow[] = [
-  { id: "im-001", source: "HDFC_April_2026.pdf", merchant: "Swiggy Instamart", amount: 938, confidence: 91, suggestedCategory: "Food" },
-  { id: "im-002", source: "ICICI_April.csv", merchant: "Unknown POS 4192", amount: 1844, confidence: 41, suggestedCategory: "Shopping" },
-  { id: "im-003", source: "SBI_Card.xlsx", merchant: "Uber India", amount: 640, confidence: 88, suggestedCategory: "Travel" }
+  { id: "im-001", source: "HDFC_April_2026.pdf", date: "2026-04-29", reference: "UPI9381", merchant: "Swiggy Instamart", amount: 938, withdrawalAmount: 938, confidence: 91, suggestedCategory: "Food" },
+  { id: "im-002", source: "ICICI_April.csv", date: "2026-04-28", reference: "POS4192", merchant: "Unknown POS 4192", amount: 1844, withdrawalAmount: 1844, confidence: 41, suggestedCategory: "Shopping" },
+  { id: "im-003", source: "SBI_Card.xlsx", date: "2026-04-27", reference: "UBR640", merchant: "Uber India", amount: 640, withdrawalAmount: 640, confidence: 88, suggestedCategory: "Travel" }
 ];

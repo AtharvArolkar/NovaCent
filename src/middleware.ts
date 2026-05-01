@@ -9,7 +9,6 @@ export default withAuth({
 export const config = {
   matcher: [
     "/",
-    "/((?!api/auth|login|register|forgot-password|reset-password|_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|sw.js).*)"
+    "/((?!api/auth|api/cron|login|register|forgot-password|reset-password|_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|sw.js).*)"
   ]
 };
-

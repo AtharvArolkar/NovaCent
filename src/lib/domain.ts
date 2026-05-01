@@ -124,6 +124,17 @@ export interface Budget {
   limit: Money;
   alertThreshold: number;
   spent: Money;
+  includedExpenses?: BudgetIncludedExpense[];
+}
+
+export interface BudgetIncludedExpense {
+  id: string;
+  date: string;
+  merchant: string;
+  categoryName: string;
+  amount: number;
+  currency: CurrencyCode;
+  source?: ExpenseSource;
 }
 
 export interface NotificationItem {
@@ -134,6 +145,21 @@ export interface NotificationItem {
   tone: "info" | "warning" | "success";
   read: boolean;
   createdAt: string;
+}
+
+export type SupportRequestType = "add_feature" | "report_issue" | "praise";
+
+export interface SupportRequest {
+  id: string;
+  userId: string;
+  accountId: string;
+  name: string;
+  email?: string;
+  type: SupportRequestType;
+  comments: string;
+  status: "open" | "reviewed" | "closed";
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Trip {
@@ -197,9 +223,15 @@ export interface ImportRow {
   batchId: string;
   status: ImportRowStatus;
   merchant: string;
+  description?: string;
+  reference?: string;
+  direction?: "withdrawal" | "deposit";
   categoryId?: string;
   spentAt: string;
   original: Money;
+  withdrawalAmount?: Money;
+  depositAmount?: Money;
+  balanceAmount?: Money;
   suggestedCategoryName: string;
   confidence: number;
   rawText?: string;
@@ -228,7 +260,10 @@ export interface ReportSummary {
   budgetUsage: number;
   pendingSyncCount: number;
   categoryBreakdown: Array<{ category: string; amount: number; color: string }>;
-  monthlyTrend: Array<{ month: string; amount: number }>;
+  monthlyTrend: Array<{ month: string; amount: number; income: number; spend: number }>;
+  budgetVariance: Array<{ categoryName: string; limitAmount: number; actualAmount: number; remainingAmount: number; usagePercent: number }>;
+  merchantTrends: Array<{ month: string; food: number; travel: number; shopping: number; subscriptions: number }>;
   tripSpend: Array<{ trip: string; amount: number }>;
   partyBalances: Array<{ party: string; outstanding: number; settled: number }>;
+  currencyExposure: Array<{ currency: string; amount: number }>;
 }

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "novacent-shell-v2";
+const CACHE_VERSION = "novacent-shell-v3";
 const LEGACY_CACHE_PREFIXES = ["expense-tracker"];
 const APP_SHELL = ["/", "/manifest.webmanifest", "/icon.svg"];
 

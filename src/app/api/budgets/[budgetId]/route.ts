@@ -1,8 +1,9 @@
 import { accountIdFromRequest, requireAccountAccess } from "@/lib/server/auth";
 import { handleApiError, ok, problem } from "@/lib/server/http";
 import { collections, getDb } from "@/lib/server/mongodb";
-import { calculatedBudgetSpent } from "@/lib/server/budgets";
+import { calculatedBudgetSpent, hydrateBudgetSpend } from "@/lib/server/budgets";
 import { budgetSchema } from "@/lib/server/schemas";
+import type { Budget } from "@/lib/domain";
 
 interface RouteContext {
   params: Promise<{ budgetId: string }> | { budgetId: string };
@@ -14,7 +15,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { accountId } = await requireAccountAccess(accountIdFromRequest(request));
     const payload = budgetSchema.parse(await request.json());
     const db = await getDb();
-    const existing = await db.collection(collections.budgets).findOne({ id: budgetId, accountId });
+    const existing = await db.collection<Budget>(collections.budgets).findOne({ id: budgetId, accountId });
 
     if (!existing) {
       return problem("Budget was not found.", 404);
@@ -40,7 +41,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       updatedAt: new Date().toISOString()
     };
 
-    await db.collection(collections.budgets).updateOne(
+    await db.collection<Budget>(collections.budgets).updateOne(
       { id: budgetId, accountId },
       {
         $set: {
@@ -56,7 +57,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       }
     );
 
-    return ok({ budget: updatedBudget });
+    const [hydratedBudget] = await hydrateBudgetSpend(db, accountId, [updatedBudget]);
+    return ok({ budget: hydratedBudget ?? updatedBudget });
   } catch (error) {
     return handleApiError(error);
   }

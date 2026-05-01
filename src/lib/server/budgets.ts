@@ -1,5 +1,5 @@
 import type { Db } from "mongodb";
-import type { Budget, BudgetPeriod, BudgetScope, Expense, Split } from "@/lib/domain";
+import type { Budget, BudgetIncludedExpense, BudgetPeriod, BudgetScope, Expense, Split } from "@/lib/domain";
 import { collections, getDb } from "@/lib/server/mongodb";
 import { createNotification } from "@/lib/server/notifications";
 
@@ -48,6 +48,28 @@ function categoryKeys(categoryId?: string, categoryName?: string) {
   ].filter(Boolean);
 }
 
+function includedExpenseFrom(expense: Expense, category: { categoryName?: string }): BudgetIncludedExpense {
+  return {
+    id: expense.id,
+    date: expense.spentAt.slice(0, 10),
+    merchant: expense.merchant,
+    categoryName: category.categoryName ?? expense.categoryName,
+    amount: roundMoney(expense.base.amount),
+    currency: expense.base.currency,
+    source: expense.source
+  };
+}
+
+function addSpend(
+  spendByCategory: Map<string, number>,
+  expensesByCategory: Map<string, BudgetIncludedExpense[]>,
+  key: string,
+  expense: BudgetIncludedExpense
+) {
+  spendByCategory.set(key, (spendByCategory.get(key) ?? 0) + expense.amount);
+  expensesByCategory.set(key, [...(expensesByCategory.get(key) ?? []), expense]);
+}
+
 function budgetCategoryFor(expense: Expense, expensesById: Map<string, Expense>, splitsById: Map<string, Split>) {
   if (expense.source !== "settlement" || !expense.splitId) {
     return { categoryId: expense.categoryId, categoryName: expense.categoryName };
@@ -61,8 +83,8 @@ function budgetCategoryFor(expense: Expense, expensesById: Map<string, Expense>,
   };
 }
 
-async function budgetSpendByCategory(db: Db, accountId: string, period: BudgetPeriod = "monthly") {
-  const expenses = await db.collection<Expense>(collections.expenses).find({ accountId, excludeFromLedger: { $ne: true } }).toArray();
+async function budgetCalculationByCategory(db: Db, accountId: string, period: BudgetPeriod = "monthly") {
+  const expenses = await db.collection<Expense>(collections.expenses).find({ accountId, excludeFromLedger: { $ne: true } }).sort({ spentAt: -1, createdAt: -1 }).toArray();
   const periodExpenses = expenses.filter((expense) => expenseInPeriod(expense, period));
   const settlementSplitIds = Array.from(
     new Set(periodExpenses.filter((expense) => expense.source === "settlement" && expense.splitId).map((expense) => expense.splitId as string))
@@ -77,48 +99,50 @@ async function budgetSpendByCategory(db: Db, accountId: string, period: BudgetPe
   const expensesById = new Map([...sourceExpenses, ...expenses].map((expense) => [expense.id, expense]));
   const splitsById = new Map(splits.map((split) => [split.id, split]));
   const spendByCategory = new Map<string, number>();
-  let totalSpend = 0;
+  const expensesByCategory = new Map<string, BudgetIncludedExpense[]>();
 
   for (const expense of periodExpenses) {
-    totalSpend += expense.base.amount;
     const category = budgetCategoryFor(expense, expensesById, splitsById);
+    const includedExpense = includedExpenseFrom(expense, category);
+    addSpend(spendByCategory, expensesByCategory, "scope:overall", includedExpense);
     for (const key of categoryKeys(category.categoryId, category.categoryName)) {
-      spendByCategory.set(key, (spendByCategory.get(key) ?? 0) + expense.base.amount);
+      addSpend(spendByCategory, expensesByCategory, key, includedExpense);
     }
   }
 
-  spendByCategory.set("scope:overall", totalSpend);
-  return spendByCategory;
+  return { spendByCategory, expensesByCategory };
 }
 
 export async function hydrateBudgetSpend(db: Db, accountId: string, budgets: Budget[]) {
-  const periodSpend = new Map<BudgetPeriod, Map<string, number>>();
+  const periodSpend = new Map<BudgetPeriod, Awaited<ReturnType<typeof budgetCalculationByCategory>>>();
   const spendForPeriod = async (period: BudgetPeriod) => {
     const existing = periodSpend.get(period);
     if (existing) return existing;
-    const next = await budgetSpendByCategory(db, accountId, period);
+    const next = await budgetCalculationByCategory(db, accountId, period);
     periodSpend.set(period, next);
     return next;
   };
 
   const hydratedBudgets = await Promise.all(budgets.map(async (budget) => {
     const period = budget.period ?? "monthly";
-    const spendByCategory = await spendForPeriod(period);
+    const { spendByCategory, expensesByCategory } = await spendForPeriod(period);
     const scope = budgetScope(budget);
+    const categoryKey = scope === "overall"
+      ? "scope:overall"
+      : spendByCategory.has(`id:${budget.categoryId}`)
+        ? `id:${budget.categoryId}`
+        : `name:${normalizedCategoryName(budget.categoryName)}`;
     return {
       ...budget,
       scope,
       period,
       spent: {
         amount: Math.max(0, roundMoney(
-          scope === "overall"
-            ? spendByCategory.get("scope:overall") ?? 0
-            : spendByCategory.get(`id:${budget.categoryId}`) ??
-              spendByCategory.get(`name:${normalizedCategoryName(budget.categoryName)}`) ??
-              0
+          spendByCategory.get(categoryKey) ?? 0
         )),
         currency: budget.limit.currency
-      }
+      },
+      includedExpenses: expensesByCategory.get(categoryKey) ?? []
     };
   }));
 
@@ -126,7 +150,7 @@ export async function hydrateBudgetSpend(db: Db, accountId: string, budgets: Bud
 }
 
 export async function calculatedBudgetSpent(db: Db, input: { accountId: string; scope?: BudgetScope; categoryId: string; categoryName?: string; currency: string; period?: BudgetPeriod }) {
-  const spendByCategory = await budgetSpendByCategory(db, input.accountId, input.period ?? "monthly");
+  const { spendByCategory } = await budgetCalculationByCategory(db, input.accountId, input.period ?? "monthly");
   return {
     amount: Math.max(0, roundMoney(
       input.scope === "overall"

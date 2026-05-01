@@ -35,6 +35,7 @@ export const collections = {
   recurringRules: "recurringRules",
   budgets: "budgets",
   notifications: "notifications",
+  supportRequests: "supportRequests",
   trips: "trips",
   parties: "parties",
   splits: "splits",
@@ -62,6 +63,7 @@ export async function ensureCoreIndexes() {
     db.collection(collections.importRows).createIndex({ accountId: 1, batchId: 1, status: 1 }),
     db.collection(collections.importRows).createIndex({ accountId: 1, duplicateKey: 1 }),
     db.collection(collections.notifications).createIndex({ accountId: 1, userId: 1, createdAt: -1 }),
+    db.collection(collections.supportRequests).createIndex({ accountId: 1, userId: 1, createdAt: -1 }),
     db.collection(collections.currencyRates).createIndex({ from: 1, to: 1, provider: 1 }, { unique: true }),
   ]);
 }

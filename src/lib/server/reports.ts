@@ -1,40 +1,104 @@
-import type { Budget, Expense, ReportSummary, Split, Trip } from "@/lib/domain";
+import type { Budget, Expense, Party, ReportSummary, Settlement, Split, Trip } from "@/lib/domain";
 import { appConfig } from "@/lib/app-config";
 
 function roundMoney(amount: number) {
   return Math.round(amount * 100) / 100;
 }
 
+function amountFrom(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (value && typeof value === "object" && "amount" in value) {
+    const amount = Number((value as { amount?: unknown }).amount);
+    return Number.isFinite(amount) ? amount : 0;
+  }
+  return 0;
+}
+
+function currencyFrom(value: unknown, fallback: string = appConfig.baseCurrency) {
+  if (value && typeof value === "object" && "currency" in value) {
+    const currency = (value as { currency?: unknown }).currency;
+    return typeof currency === "string" && currency.trim() ? currency : fallback;
+  }
+  return fallback;
+}
+
+function expenseBaseAmount(expense: Expense) {
+  return amountFrom(expense.base) || amountFrom(expense.original) || amountFrom((expense as Expense & { amount?: unknown }).amount);
+}
+
+function expenseOriginalAmount(expense: Expense) {
+  return amountFrom(expense.original) || expenseBaseAmount(expense);
+}
+
+function expenseMonthLabel(expense: Expense) {
+  const spentAt = expense.spentAt || (expense as Expense & { date?: string }).date;
+  const parsed = new Date(spentAt ?? "");
+  if (Number.isNaN(parsed.getTime())) return "Undated";
+  return parsed.toLocaleString("en", { month: "short", year: "2-digit" });
+}
+
+function expenseCategoryName(expense: Expense) {
+  return expense.categoryName || (expense as Expense & { category?: string }).category || "Uncategorized";
+}
+
+function budgetLimitAmount(budget: Budget) {
+  return amountFrom(budget.limit);
+}
+
 function reportCategoryFor(expense: Expense, expensesById: Map<string, Expense>, splitsById: Map<string, Split>) {
   if (expense.source !== "settlement" || !expense.splitId) {
-    return expense.categoryName;
+    return expenseCategoryName(expense);
   }
 
   const split = splitsById.get(expense.splitId);
   const sourceExpense = split?.expenseId ? expensesById.get(split.expenseId) : undefined;
-  return sourceExpense?.categoryName ?? expense.categoryName;
+  return (sourceExpense ? expenseCategoryName(sourceExpense) : undefined) ?? expenseCategoryName(expense);
 }
 
 export function buildReportSummary(expenses: Expense[], budgets: Budget[], trips: Trip[], splits: Split[] = [], relatedExpenses: Expense[] = []): ReportSummary {
-  const total = expenses.reduce((sum, expense) => sum + expense.base.amount, 0);
+  const total = expenses.reduce((sum, expense) => sum + expenseBaseAmount(expense), 0);
   const pendingSyncCount = expenses.filter((expense) => expense.syncStatus === "pending").length;
-  const budgetTotal = budgets.reduce((sum, budget) => sum + budget.limit.amount, 0);
-  const budgetSpent = budgets.reduce((sum, budget) => sum + budget.spent.amount, 0);
+  const budgetTotal = budgets.reduce((sum, budget) => sum + budgetLimitAmount(budget), 0);
+  const budgetSpent = budgets.reduce((sum, budget) => sum + amountFrom(budget.spent), 0);
   const byCategory = new Map<string, number>();
-  const byMonth = new Map<string, number>();
+  const byMonth = new Map<string, { amount: number; income: number; spend: number }>();
   const byTrip = new Map<string, number>();
+  const byCurrency = new Map<string, number>();
+  const merchantTrendMonths = new Map<string, { food: number; travel: number; shopping: number; subscriptions: number }>();
   const expensesById = new Map([...relatedExpenses, ...expenses].map((expense) => [expense.id, expense]));
   const splitsById = new Map(splits.map((split) => [split.id, split]));
 
   for (const expense of expenses) {
     const reportCategory = reportCategoryFor(expense, expensesById, splitsById);
-    byCategory.set(reportCategory, (byCategory.get(reportCategory) ?? 0) + expense.base.amount);
-    const month = new Date(expense.spentAt).toLocaleString("en", { month: "short" });
-    byMonth.set(month, (byMonth.get(month) ?? 0) + expense.base.amount);
+    const baseAmount = expenseBaseAmount(expense);
+    byCategory.set(reportCategory, (byCategory.get(reportCategory) ?? 0) + baseAmount);
+    const month = expenseMonthLabel(expense);
+    const monthBucket = byMonth.get(month) ?? { amount: 0, income: 0, spend: 0 };
+    monthBucket.amount += baseAmount;
+    if (baseAmount < 0) {
+      monthBucket.income += Math.abs(baseAmount);
+    } else {
+      monthBucket.spend += baseAmount;
+    }
+    byMonth.set(month, monthBucket);
+    const originalCurrency = currencyFrom(expense.original, (expense as Expense & { currency?: string }).currency || appConfig.baseCurrency);
+    byCurrency.set(originalCurrency, (byCurrency.get(originalCurrency) ?? 0) + Math.max(expenseOriginalAmount(expense), 0));
+    const trendBucket = merchantTrendMonths.get(month) ?? { food: 0, travel: 0, shopping: 0, subscriptions: 0 };
+    const categoryKey = reportCategory.toLowerCase();
+    if (categoryKey.includes("food")) {
+      trendBucket.food += Math.max(baseAmount, 0);
+    } else if (categoryKey.includes("travel")) {
+      trendBucket.travel += Math.max(baseAmount, 0);
+    } else if (categoryKey.includes("shopping")) {
+      trendBucket.shopping += Math.max(baseAmount, 0);
+    } else if (categoryKey.includes("subscription")) {
+      trendBucket.subscriptions += Math.max(baseAmount, 0);
+    }
+    merchantTrendMonths.set(month, trendBucket);
     if (expense.tripId) {
       const trip = trips.find((item) => item.id === expense.tripId);
       const name = trip?.name ?? "Trip";
-      byTrip.set(name, (byTrip.get(name) ?? 0) + expense.base.amount);
+      byTrip.set(name, (byTrip.get(name) ?? 0) + baseAmount);
     }
   }
 
@@ -51,8 +115,53 @@ export function buildReportSummary(expenses: Expense[], budgets: Budget[], trips
         ...row,
         color: colors[index % colors.length]
       })),
-    monthlyTrend: Array.from(byMonth.entries()).map(([month, amount]) => ({ month, amount: roundMoney(amount) })),
+    monthlyTrend: Array.from(byMonth.entries()).map(([month, bucket]) => ({
+      month,
+      amount: roundMoney(bucket.amount),
+      income: roundMoney(bucket.income),
+      spend: roundMoney(bucket.spend)
+    })),
+    budgetVariance: budgets.map((budget) => ({
+      categoryName: budget.scope === "overall" ? "Overall spend" : budget.categoryName,
+      limitAmount: roundMoney(budgetLimitAmount(budget)),
+      actualAmount: roundMoney(Math.max(0, budget.scope === "overall" ? total : byCategory.get(budget.categoryName) ?? 0)),
+      remainingAmount: roundMoney(budgetLimitAmount(budget) - Math.max(0, budget.scope === "overall" ? total : byCategory.get(budget.categoryName) ?? 0)),
+      usagePercent: budgetLimitAmount(budget) > 0 ? Math.round((Math.max(0, budget.scope === "overall" ? total : byCategory.get(budget.categoryName) ?? 0) / budgetLimitAmount(budget)) * 100) : 0
+    })),
+    merchantTrends: Array.from(merchantTrendMonths.entries()).map(([month, bucket]) => ({
+      month,
+      food: roundMoney(bucket.food),
+      travel: roundMoney(bucket.travel),
+      shopping: roundMoney(bucket.shopping),
+      subscriptions: roundMoney(bucket.subscriptions)
+    })),
     tripSpend: Array.from(byTrip.entries()).map(([trip, amount]) => ({ trip, amount: roundMoney(amount) })),
-    partyBalances: []
+    partyBalances: [],
+    currencyExposure: Array.from(byCurrency.entries()).map(([currency, amount]) => ({ currency, amount: roundMoney(amount) }))
+  };
+}
+
+export function attachPartyBalances(summary: ReportSummary, parties: Party[], splits: Split[], settlements: Settlement[]): ReportSummary {
+  const partyBalances = parties.map((party) => {
+    const partySplits = splits.filter((split) => split.partyId === party.id);
+    const partySettlements = settlements.filter((settlement) => settlement.partyId === party.id);
+    return {
+      party: party.name,
+      outstanding: roundMoney(
+        partySplits
+          .filter((split) => split.status !== "settled")
+          .reduce((sum, split) => sum + amountFrom(split.amount), 0)
+      ),
+      settled: roundMoney(
+        partySettlements
+          .filter((settlement) => settlement.status === "settled")
+          .reduce((sum, settlement) => sum + amountFrom(settlement.amount), 0)
+      )
+    };
+  });
+
+  return {
+    ...summary,
+    partyBalances
   };
 }

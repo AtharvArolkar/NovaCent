@@ -1,43 +1,196 @@
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import { createRequire } from "node:module";
 import type { CategoryRule, ImportRow } from "@/lib/domain";
 
 type RawRecord = Record<string, unknown>;
+type ParseStatementOptions = {
+  statementPassword?: string;
+};
+type PdfTextItem = { str?: string; transform?: number[]; width?: number };
+type PdfPage = {
+  getTextContent: (options: { normalizeWhitespace: boolean; disableCombineTextItems: boolean }) => Promise<{ items: PdfTextItem[] }>;
+};
+type PdfDocument = {
+  numPages: number;
+  getPage: (pageNumber: number) => Promise<PdfPage>;
+  destroy: () => void;
+};
+type PdfJs = {
+  disableWorker: boolean;
+  getDocument: (source: { data: Uint8Array; password?: string }) => Promise<PdfDocument>;
+};
 
-const merchantKeys = ["merchant", "description", "details", "narration", "transaction", "payee"];
-const amountKeys = ["amount", "debit", "withdrawal", "paid", "value"];
-const dateKeys = ["date", "transaction date", "spent at", "posted date"];
-const currencyKeys = ["currency", "ccy"];
+const merchantKeys = [
+  "merchant",
+  "description",
+  "details",
+  "narration",
+  "particulars",
+  "transaction",
+  "transaction details",
+  "transaction remarks",
+  "remarks",
+  "memo",
+  "payee",
+  "beneficiary name",
+  "remitter name",
+  "beneficiary/remitter name"
+];
+const amountKeys = ["amount", "transaction amount", "txn amount", "net amount", "value", "amt"];
+const withdrawalKeys = ["withdrawal", "withdrawals", "withdrawal amount", "withdrawal amt", "debit", "debits", "debit amount", "debit amt", "dr", "paid out", "payment", "payments", "money out", "outflow"];
+const depositKeys = ["deposit", "deposits", "deposit amount", "deposit amt", "credit", "credits", "credit amount", "credit amt", "cr", "paid in", "receipt", "receipts", "money in", "inflow", "received"];
+const balanceKeys = ["balance", "running balance", "closing balance", "available balance"];
+const referenceKeys = ["reference", "ref", "ref no", "reference no", "reference number", "utr", "utr no", "transaction id", "transaction ref", "txn ref", "document number", "sequence", "sequence no", "cheque", "cheque no", "chq", "chq no", "rrn", "arn"];
+const directionKeys = ["type", "transaction type", "debit credit", "debit/credit", "dr cr", "dr/cr", "d/c", "payment receipt", "payment/receipt"];
+const dateKeys = ["date", "transaction date", "spent at", "posted date", "posting date", "post date", "value date", "book date", "txn date", "tran date", "date posted"];
+const currencyKeys = ["currency", "ccy", "curr"];
+const statementAmountPattern = /(?:₹|rs\.?|inr|\$|€|£)?\s*[-+]?(?:\d{1,3}(?:,\d{2,3})+|\d+)\.\d{1,2}/gi;
+const statementMonthPattern = "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
+const statementDatePattern = new RegExp(`\\b(\\d{4}-\\d{2}-\\d{2}|\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{1,2}[-\\s]${statementMonthPattern}[-\\s]\\d{2,4})\\b`, "i");
+const require = createRequire(import.meta.url);
 
-function pickValue(record: RawRecord, keys: string[]) {
-  const entries = Object.entries(record);
-  for (const key of keys) {
-    const found = entries.find(([name]) => name.trim().toLowerCase() === key);
-    if (found?.[1] !== undefined && found[1] !== null && String(found[1]).trim()) {
-      return String(found[1]).trim();
+export class StatementPasswordError extends Error {
+  constructor(message: string, readonly reason: "required" | "invalid") {
+    super(message);
+    this.name = "StatementPasswordError";
+  }
+}
+
+function normalizeFieldName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function pickValue(record: RawRecord, keys: string[], options: { contains?: boolean; exclude?: string[] } = {}) {
+  const normalizedKeys = keys.map(normalizeFieldName);
+  const excluded = new Set((options.exclude ?? []).flatMap((key) => [key, normalizeFieldName(key)]));
+  const entries = Object.entries(record)
+    .map(([name, value]) => ({ name, normalized: normalizeFieldName(name), value }))
+    .filter((entry) => !excluded.has(entry.normalized));
+
+  for (const key of normalizedKeys) {
+    const found = entries.find((entry) => entry.normalized === key);
+    if (found?.value !== undefined && found.value !== null && String(found.value).trim()) {
+      return String(found.value).trim();
     }
   }
+
+  if (options.contains) {
+    for (const key of normalizedKeys.filter((item) => item.length >= 3)) {
+      const found = entries.find((entry) => entry.normalized.includes(key));
+      if (found?.value !== undefined && found.value !== null && String(found.value).trim()) {
+        return String(found.value).trim();
+      }
+    }
+  }
+
   return "";
 }
 
-function parseAmount(value: string) {
-  const normalized = value.replace(/[,₹$€£A-Z\s]/gi, "");
-  const amount = Number(normalized);
-  return Number.isFinite(amount) ? Math.abs(amount) : 0;
+function normalizeMoneyNumber(value: string) {
+  let normalized = value.replace(/[^\d,.-]/g, "");
+  if (normalized.includes(",") && !normalized.includes(".")) {
+    const lastComma = normalized.lastIndexOf(",");
+    const decimalDigits = normalized.length - lastComma - 1;
+    normalized = decimalDigits > 0 && decimalDigits <= 2
+      ? `${normalized.slice(0, lastComma).replace(/[.,]/g, "")}.${normalized.slice(lastComma + 1)}`
+      : normalized.replace(/,/g, "");
+  } else {
+    normalized = normalized.replace(/,/g, "");
+  }
+  return normalized;
 }
+
+function directionFromText(value: string): "withdrawal" | "deposit" | undefined {
+  const normalized = value.toLowerCase();
+  const compact = normalized.replace(/[^a-z]/g, "");
+  if (["c", "cr", "credit"].includes(compact)) {
+    return "deposit";
+  }
+  if (["d", "dr", "debit"].includes(compact)) {
+    return "withdrawal";
+  }
+  const depositHint = /\b(cr|credit|deposit|deposited|receipt|received|refund|cashback|salary|interest|paid in|money in|inflow)\b/.test(normalized);
+  const withdrawalHint = /\b(dr|debit|withdrawal|withdrawn|payment|paid out|purchase|sent|money out|outflow)\b/.test(normalized);
+  if (withdrawalHint && !depositHint) {
+    return "withdrawal";
+  }
+  if (depositHint && !withdrawalHint) {
+    return "deposit";
+  }
+  if (withdrawalHint && depositHint) {
+    return /\b(deposit|deposited|receipt|received|refund|cashback|salary|interest|paid in|money in|inflow)\b/.test(normalized)
+      ? "deposit"
+      : "withdrawal";
+  }
+  return undefined;
+}
+
+function parseMoneyToken(value: string) {
+  const raw = String(value ?? "").trim();
+  if (!raw) {
+    return { amount: 0, signedAmount: 0, explicitSign: false };
+  }
+
+  const direction = directionFromText(raw);
+  const parenthesized = /^\s*\(.*\)\s*$/.test(raw);
+  const explicitSign = parenthesized || /^\s*[-+]/.test(raw) || Boolean(direction);
+  const magnitude = Number(normalizeMoneyNumber(raw));
+  const amount = Number.isFinite(magnitude) ? Math.abs(magnitude) : 0;
+  const isNegative = parenthesized || /^\s*-/.test(raw) || direction === "withdrawal";
+  return {
+    amount,
+    signedAmount: isNegative ? -amount : amount,
+    explicitSign
+  };
+}
+
+function parseAmount(value: string) {
+  return parseMoneyToken(value).amount;
+}
+
+const defaultCategoryRules: Array<{ pattern: RegExp; categoryName: string }> = [
+  { pattern: /\b(fuel|petrol|diesel|iocl|indian\s+oil|hpcl|hindustan\s+petroleum|bpcl|bharat\s+petroleum|shell)\b/i, categoryName: "Fuel" },
+  { pattern: /\b(loan|emi)\b/i, categoryName: "Loan/EMI" }
+];
 
 function categoryForMerchant(merchant: string, rules: CategoryRule[]) {
   const rule = rules.find((item) => merchant.toLowerCase().includes(item.pattern.toLowerCase()));
-  return rule?.categoryName ?? "Uncategorized";
+  if (rule?.categoryName) return rule.categoryName;
+  return defaultCategoryRules.find((item) => item.pattern.test(merchant))?.categoryName ?? "Uncategorized";
 }
 
 function rowFromRecord(record: RawRecord, batchId: string, rules: CategoryRule[]): ImportRow | null {
-  const merchant = pickValue(record, merchantKeys);
-  const amount = parseAmount(pickValue(record, amountKeys));
-  const spentAt = pickValue(record, dateKeys) || new Date().toISOString().slice(0, 10);
+  const description = pickValue(record, merchantKeys, { contains: true });
+  const reference = pickValue(record, referenceKeys, { contains: true });
+  const dateValue = pickValue(record, dateKeys, { contains: true });
+  const dateMatch = dateValue.match(statementDatePattern);
+  const spentAt = dateMatch?.[0] ? normalizeStatementDate(dateMatch[0]) : dateValue || new Date().toISOString().slice(0, 10);
   const currency = (pickValue(record, currencyKeys) || "INR").toUpperCase();
+  const withdrawalValue = pickValue(record, withdrawalKeys, { contains: true, exclude: balanceKeys });
+  const depositValue = pickValue(record, depositKeys, { contains: true, exclude: balanceKeys });
+  const balanceValue = pickValue(record, balanceKeys, { contains: true });
+  const amountValue = pickValue(record, amountKeys);
+  const directionValue = pickValue(record, directionKeys, { contains: true });
+  let withdrawalAmount = parseAmount(withdrawalValue);
+  let depositAmount = parseAmount(depositValue);
+  const balanceAmount = parseAmount(balanceValue);
 
-  if (!merchant || amount <= 0) {
+  if (withdrawalAmount <= 0 && depositAmount <= 0) {
+    const parsedAmount = parseMoneyToken(amountValue);
+    const direction = directionFromText(directionValue) ?? directionFromText(amountValue) ?? directionFromText(description);
+    if (direction === "deposit" || (parsedAmount.explicitSign && parsedAmount.signedAmount > 0 && direction !== "withdrawal")) {
+      depositAmount = parsedAmount.amount;
+    } else {
+      withdrawalAmount = parsedAmount.amount;
+    }
+  }
+
+  const direction = withdrawalAmount > 0 ? "withdrawal" : "deposit";
+  const amount = direction === "withdrawal" ? withdrawalAmount : -depositAmount;
+  const merchant = description || (reference ? `Reference ${reference}` : "");
+
+  if (!merchant || (withdrawalAmount <= 0 && depositAmount <= 0)) {
     return null;
   }
 
@@ -46,34 +199,271 @@ function rowFromRecord(record: RawRecord, batchId: string, rules: CategoryRule[]
     batchId,
     status: "review",
     merchant,
+    description: merchant,
+    reference,
+    direction,
     spentAt,
     original: { amount, currency },
-    suggestedCategoryName: categoryForMerchant(merchant, rules),
-    confidence: 0.82,
+    withdrawalAmount: withdrawalAmount > 0 ? { amount: withdrawalAmount, currency } : undefined,
+    depositAmount: depositAmount > 0 ? { amount: depositAmount, currency } : undefined,
+    balanceAmount: balanceAmount > 0 ? { amount: balanceAmount, currency } : undefined,
+    suggestedCategoryName: direction === "deposit" ? "Reimbursements" : categoryForMerchant(merchant, rules),
+    confidence: description && (withdrawalValue || depositValue) ? 90 : 78,
     rawText: JSON.stringify(record)
+  };
+}
+
+function normalizeStatementLine(line: string) {
+  return line
+    .replace(/\u00a0/g, " ")
+    .replace(/(\d{1,2}[/-]\d{1,2}[/-]\d{4})(?=\d)/g, "$1 ")
+    .replace(/(\d+\.\d{2})(?=\d)/g, "$1 ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isTransactionTableHeader(line: string) {
+  const normalized = ` ${line.toLowerCase().replace(/[^a-z0-9/ ]+/g, " ")} `;
+  const hasDate = /\b(date|txn date|tran date|transaction date|value date|posting date|post date|book date)\b/.test(normalized);
+  const hasDescription = /\b(description|narration|particulars|remarks|details|transaction|payee|beneficiary|remitter)\b/.test(normalized);
+  const hasMoneyColumn = /\b(withdrawal|debit|dr|deposit|credit|cr|amount|balance|paid in|paid out|money in|money out)\b/.test(normalized);
+  return hasDate && hasDescription && hasMoneyColumn && !/\b(statement date|from date|to date|opening date)\b/.test(normalized);
+}
+
+function isStatementMetadataLine(line: string) {
+  const normalized = ` ${line.toLowerCase().replace(/[^a-z0-9/ ]+/g, " ")} `;
+  return /\b(account opening date|opening date|min(?:imum)? balance|minimum account balance|average monthly balance|amb|required balance|customer id|account number|account no|branch|ifsc|micr|nominee|statement period|period from|from date|to date|generated on|computer generated|page no|opening balance|closing balance|total withdrawal|total deposit|total debit|total credit|transaction summary|statement summary|summary)\b/.test(normalized);
+}
+
+function isTransactionTableEnd(line: string) {
+  const normalized = ` ${line.toLowerCase().replace(/[^a-z0-9/ ]+/g, " ")} `;
+  return /\b(closing balance|total withdrawal|total deposit|total debit|total credit|transaction summary|statement summary|end of statement|generated on|computer generated)\b/.test(normalized);
+}
+
+function transactionCandidateLines(lines: string[]) {
+  const candidates: string[] = [];
+  let insideTable = false;
+  let foundHeader = false;
+
+  for (const line of lines) {
+    if (isTransactionTableHeader(line)) {
+      insideTable = true;
+      foundHeader = true;
+      continue;
+    }
+
+    if (insideTable && isTransactionTableEnd(line)) {
+      insideTable = false;
+      continue;
+    }
+
+    if (!insideTable || isStatementMetadataLine(line)) {
+      continue;
+    }
+
+    candidates.push(line);
+  }
+
+  if (foundHeader) {
+    return { lines: candidates, foundHeader };
+  }
+
+  return { lines: lines.filter((line) => !isStatementMetadataLine(line)), foundHeader };
+}
+
+function normalizeStatementDate(value: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value;
+  }
+
+  const monthNameMatch = value.match(new RegExp(`^(\\d{1,2})[-\\s](${statementMonthPattern})[-\\s](\\d{2,4})$`, "i"));
+  if (monthNameMatch) {
+    const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const month = monthNames.findIndex((name) => monthNameMatch[2].toLowerCase().startsWith(name)) + 1;
+    const year = (monthNameMatch[3].length === 2 ? `20${monthNameMatch[3]}` : monthNameMatch[3]).padStart(4, "0");
+    return `${year}-${String(month).padStart(2, "0")}-${monthNameMatch[1].padStart(2, "0")}`;
+  }
+
+  const [dayPart, monthPart, yearPart] = value.split(/[/-]/);
+  const year = (yearPart.length === 2 ? `20${yearPart}` : yearPart).padStart(4, "0");
+  return `${year}-${monthPart.padStart(2, "0")}-${dayPart.padStart(2, "0")}`;
+}
+
+function statementAmountMatches(text: string) {
+  statementAmountPattern.lastIndex = 0;
+  return Array.from(text.matchAll(statementAmountPattern)).map((match) => ({
+    token: match[0],
+    amount: parseAmount(match[0])
+  }));
+}
+
+function mergeWrappedTransactionLines(lines: string[]) {
+  const merged: string[] = [];
+  let pending = "";
+
+  for (const line of lines) {
+    if (isTransactionTableHeader(line) || isStatementMetadataLine(line) || isTransactionTableEnd(line)) {
+      if (pending) {
+        merged.push(pending);
+        pending = "";
+      }
+      continue;
+    }
+
+    const hasDate = statementDatePattern.test(line);
+    if (hasDate) {
+      if (pending) {
+        merged.push(pending);
+      }
+      pending = line;
+      continue;
+    }
+
+    if (pending) {
+      pending = `${pending} ${line}`;
+    }
+  }
+
+  if (pending) {
+    merged.push(pending);
+  }
+
+  return merged;
+}
+
+function findReference(text: string, dateIndex: number) {
+  const beforeDate = text.slice(0, dateIndex);
+  const candidates = beforeDate
+    .split(/\s+/)
+    .map((token) => token.replace(/^[^\w]+|[^\w]+$/g, ""))
+    .filter(Boolean);
+  return candidates.find((token) => /\d{6,}/.test(token)) ?? candidates.find((token) => /[A-Z]{2,}\d{3,}/i.test(token));
+}
+
+function cleanDescription(text: string, dateToken: string, amountTokens: string[], reference?: string) {
+  let description = ` ${text} `;
+  description = description.replace(dateToken, " ");
+  for (const amountToken of amountTokens) {
+    description = description.replace(amountToken, " ");
+  }
+  if (reference) {
+    description = description.replace(reference, " ");
+  }
+
+  description = description
+    .replace(/\b(?:date|value date|transaction date|ref|ref no|reference|description|narration|particulars|withdrawal|withdrawals|debit|deposit|credit|balance|amount|chq|cheque|utr|dr|cr)\b/gi, " ")
+    .replace(/\b\d{6,}\b/g, " ")
+    .replace(/[|:_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return /\p{L}/u.test(description) ? description : "";
+}
+
+function rowFromStatementLine(line: string, batchId: string, rules: CategoryRule[], options: { foundTableHeader?: boolean } = {}): ImportRow | null {
+  const normalizedLine = normalizeStatementLine(line);
+  const dateMatch = normalizedLine.match(statementDatePattern);
+
+  if (!dateMatch || dateMatch.index === undefined) {
+    return null;
+  }
+
+  const spentAt = normalizeStatementDate(dateMatch[1]);
+  const afterDate = normalizedLine.slice(dateMatch.index + dateMatch[0].length);
+  const amountMatches = statementAmountMatches(afterDate);
+
+  if (!amountMatches.length) {
+    return null;
+  }
+
+  const reference = findReference(normalizedLine, dateMatch.index);
+  const dateIsAtTransactionStart = dateMatch.index <= 24 || Boolean(reference);
+  if (!options.foundTableHeader && !dateIsAtTransactionStart && amountMatches.length < 2) {
+    return null;
+  }
+
+  const relevantAmounts = amountMatches.slice(-3);
+  let withdrawalAmount = 0;
+  let depositAmount = 0;
+  let balanceAmount = 0;
+
+  if (relevantAmounts.length >= 3) {
+    withdrawalAmount = relevantAmounts[0].amount;
+    depositAmount = relevantAmounts[1].amount;
+    balanceAmount = relevantAmounts[2].amount;
+  } else if (relevantAmounts.length === 2) {
+    const lowerLine = normalizedLine.toLowerCase();
+    const depositHint = /\b(cr|credit|deposit|deposited|received|refund|cashback)\b/.test(lowerLine) && !/\b(dr|debit|withdrawal|paid|purchase|sent|to)\b/.test(lowerLine);
+    if (depositHint) {
+      depositAmount = relevantAmounts[0].amount;
+    } else {
+      withdrawalAmount = relevantAmounts[0].amount;
+    }
+    balanceAmount = relevantAmounts[1].amount;
+  } else {
+    withdrawalAmount = relevantAmounts[0].amount;
+  }
+
+  if (withdrawalAmount <= 0 && depositAmount <= 0) {
+    return null;
+  }
+
+  const description = cleanDescription(normalizedLine, dateMatch[0], amountMatches.map((match) => match.token), reference) || (reference ? `Reference ${reference}` : "");
+
+  if (!description) {
+    return null;
+  }
+
+  const direction = withdrawalAmount > 0 ? "withdrawal" : "deposit";
+  const signedAmount = direction === "withdrawal" ? withdrawalAmount : -depositAmount;
+
+  return {
+    id: crypto.randomUUID(),
+    batchId,
+    status: "review",
+    merchant: description,
+    description,
+    reference,
+    direction,
+    spentAt,
+    original: { amount: signedAmount, currency: "INR" },
+    withdrawalAmount: withdrawalAmount > 0 ? { amount: withdrawalAmount, currency: "INR" } : undefined,
+    depositAmount: depositAmount > 0 ? { amount: depositAmount, currency: "INR" } : undefined,
+    balanceAmount: balanceAmount > 0 ? { amount: balanceAmount, currency: "INR" } : undefined,
+    suggestedCategoryName: direction === "deposit" ? "Reimbursements" : categoryForMerchant(description, rules),
+    confidence: reference ? 90 : 82,
+    rawText: normalizedLine
   };
 }
 
 function parseRowsFromText(text: string, batchId: string, rules: CategoryRule[]): ImportRow[] {
   const rows: ImportRow[] = [];
-  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const amountPattern = /(-?\d{1,3}(?:,\d{3})*(?:\.\d{1,2})|-?\d+(?:\.\d{1,2}))/;
+  const rawLines = text.split(/\r?\n/).map(normalizeStatementLine).filter(Boolean);
+  const { lines, foundHeader } = transactionCandidateLines(rawLines);
+  const transactionLines = mergeWrappedTransactionLines(lines);
 
-  for (const line of lines) {
-    const amountMatch = line.match(amountPattern);
+  for (const line of transactionLines) {
+    const statementRow = rowFromStatementLine(line, batchId, rules, { foundTableHeader: foundHeader });
+    if (statementRow) {
+      rows.push(statementRow);
+      continue;
+    }
+
+    statementAmountPattern.lastIndex = 0;
+    const amountMatch = line.match(statementAmountPattern);
     if (!amountMatch) {
       continue;
     }
 
-    const amount = parseAmount(amountMatch[1]);
+    const amount = parseAmount(amountMatch[0]);
     if (amount <= 0) {
       continue;
     }
 
-    const dateMatch = line.match(/\b(\d{4}-\d{2}-\d{2}|\d{2}[/-]\d{2}[/-]\d{4})\b/);
-    const merchant = line.replace(amountMatch[0], "").replace(dateMatch?.[0] ?? "", "").replace(/\s+/g, " ").trim();
+    const dateMatch = line.match(statementDatePattern);
+    const merchant = cleanDescription(line, dateMatch?.[0] ?? "", [amountMatch[0]]);
 
-    if (merchant.length < 2) {
+    if (!merchant) {
       continue;
     }
 
@@ -82,10 +472,13 @@ function parseRowsFromText(text: string, batchId: string, rules: CategoryRule[])
       batchId,
       status: "review",
       merchant,
-      spentAt: dateMatch?.[0] ?? new Date().toISOString().slice(0, 10),
+      description: merchant,
+      direction: "withdrawal",
+      spentAt: dateMatch?.[0] ? normalizeStatementDate(dateMatch[0]) : new Date().toISOString().slice(0, 10),
       original: { amount, currency: "INR" },
+      withdrawalAmount: { amount, currency: "INR" },
       suggestedCategoryName: categoryForMerchant(merchant, rules),
-      confidence: 0.66,
+      confidence: 62,
       rawText: line
     });
   }
@@ -93,7 +486,83 @@ function parseRowsFromText(text: string, batchId: string, rules: CategoryRule[])
   return rows;
 }
 
-export async function parseStatementFile(file: File, batchId: string, rules: CategoryRule[]) {
+function isPdfPasswordError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  const name = error.name.toLowerCase();
+  const message = error.message.toLowerCase();
+  return name.includes("password") || message.includes("password") || message.includes("encrypted");
+}
+
+async function parsePdfText(buffer: Buffer, statementPassword?: string) {
+  const pdfjs = require("pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js") as PdfJs;
+  pdfjs.disableWorker = true;
+
+  try {
+    const doc = await pdfjs.getDocument({
+      data: new Uint8Array(buffer),
+      password: statementPassword?.trim() || undefined
+    });
+    let text = "";
+
+    for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
+      const page = await doc.getPage(pageNumber);
+      const content = await page.getTextContent({
+        normalizeWhitespace: false,
+        disableCombineTextItems: false
+      });
+      const lineBuckets: Array<{ y: number; items: Array<{ text: string; x: number; width: number }> }> = [];
+
+      for (const item of content.items) {
+        const itemText = item.str?.replace(/\s+/g, " ").trim();
+        if (!itemText) {
+          continue;
+        }
+
+        const y = item.transform?.[5] ?? 0;
+        const x = item.transform?.[4] ?? 0;
+        const bucket = lineBuckets.find((line) => Math.abs(line.y - y) <= 2);
+        const target = bucket ?? { y, items: [] };
+        target.items.push({ text: itemText, x, width: item.width ?? itemText.length * 5 });
+        if (!bucket) {
+          lineBuckets.push(target);
+        }
+      }
+
+      const pageText = lineBuckets
+        .sort((left, right) => right.y - left.y)
+        .map((line) => {
+          const ordered = line.items.sort((left, right) => left.x - right.x);
+          return ordered.reduce((value, item, index) => {
+            if (index === 0) {
+              return item.text;
+            }
+            const previous = ordered[index - 1];
+            const gap = item.x - (previous.x + previous.width);
+            return `${value}${gap > 1 ? " " : ""}${item.text}`;
+          }, "");
+        })
+        .join("\n");
+      text += `\n\n${pageText}`;
+    }
+
+    doc.destroy();
+    return text;
+  } catch (error) {
+    if (isPdfPasswordError(error)) {
+      throw new StatementPasswordError(
+        statementPassword?.trim()
+          ? "The statement password is incorrect. Please retry with the correct password."
+          : "This statement is password protected. Enter the statement password and upload again.",
+        statementPassword?.trim() ? "invalid" : "required"
+      );
+    }
+    throw error;
+  }
+}
+
+export async function parseStatementFile(file: File, batchId: string, rules: CategoryRule[], options: ParseStatementOptions = {}) {
   const extension = file.name.split(".").pop()?.toLowerCase();
   const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -110,11 +579,9 @@ export async function parseStatementFile(file: File, batchId: string, rules: Cat
   }
 
   if (extension === "pdf") {
-    const pdfParse = (await import("pdf-parse")).default;
-    const result = await pdfParse(buffer);
-    return parseRowsFromText(result.text, batchId, rules);
+    const text = await parsePdfText(buffer, options.statementPassword);
+    return parseRowsFromText(text, batchId, rules);
   }
 
   return parseRowsFromText(buffer.toString("utf8"), batchId, rules);
 }
-

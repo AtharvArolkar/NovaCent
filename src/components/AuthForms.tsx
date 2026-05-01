@@ -13,14 +13,60 @@ function readForm(form: HTMLFormElement) {
   return Object.fromEntries(new FormData(form).entries()) as Record<string, string>;
 }
 
-function AuthCard({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+function AuthCard({
+  title,
+  description,
+  children,
+  eyebrow = "Welcome back"
+}: {
+  title: string;
+  description: string;
+  children: React.ReactNode;
+  eyebrow?: string;
+}) {
   const { tx } = usePreferences();
   return (
-    <section className="auth-card" aria-labelledby="auth-title">
-      <p className="eyebrow">{appConfig.logoMark}</p>
-      <h1 id="auth-title">{tx(title)}</h1>
-      <p>{tx(description)}</p>
-      {children}
+    <section className="auth-card" aria-labelledby="auth-title" aria-describedby="auth-description">
+      <div className="auth-brand-panel" aria-label={tx("NovaCent secure finance workspace")}>
+        <div className="auth-logo-lockup">
+          <span className="auth-logo-mark" aria-hidden="true">{appConfig.logoMark}</span>
+          <div>
+            <strong>{appConfig.name}</strong>
+            <span>{tx("Personal finance, neatly connected.")}</span>
+          </div>
+        </div>
+        <div className="auth-brand-copy">
+          <p className="eyebrow">{tx("Secure money workspace")}</p>
+          <h2>{tx("Your money workspace, ready when you are.")}</h2>
+          <p>{tx("Accounts, budgets, imports, parties, recurring expenses, and reports stay organized in one calm place.")}</p>
+        </div>
+        <dl className="auth-highlights" aria-label={tx("NovaCent highlights")}>
+          <div>
+            <dt>{tx("Account scoped")}</dt>
+            <dd>{tx("Only your selected account data is shown.")}</dd>
+          </div>
+          <div>
+            <dt>{tx("Offline ready")}</dt>
+            <dd>{tx("Supported changes can wait safely for sync.")}</dd>
+          </div>
+          <div>
+            <dt>{tx("Report friendly")}</dt>
+            <dd>{tx("Every approved input feeds your charts.")}</dd>
+          </div>
+        </dl>
+      </div>
+      <div className="auth-form-panel">
+        <div className="auth-mobile-lockup">
+          <span className="auth-logo-mark" aria-hidden="true">{appConfig.logoMark}</span>
+          <strong>{appConfig.name}</strong>
+        </div>
+        <div className="auth-form-heading">
+          <p className="eyebrow">{tx(eyebrow)}</p>
+          <h1 id="auth-title">{tx(title)}</h1>
+          <p id="auth-description">{tx(description)}</p>
+        </div>
+        {children}
+      </div>
     </section>
   );
 }
@@ -102,7 +148,7 @@ export function RegisterForm() {
   }
 
   return (
-    <AuthCard title="Create your account" description="A default INR account is created automatically after registration.">
+    <AuthCard title="Create your account" description="A default INR account is created automatically after registration." eyebrow="Start your workspace">
       <form onSubmit={onSubmit}>
         <label>{tx("Name")}<input name="name" autoComplete="name" required /></label>
         <label>{tx("Email")}<input name="email" type="email" autoComplete="email" required /></label>
@@ -139,7 +185,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <AuthCard title="Reset password" description="We prepare a secure single-use reset token that expires after 30 minutes.">
+    <AuthCard title="Reset password" description="We prepare a secure single-use reset token that expires after 30 minutes." eyebrow="Account recovery">
       <form onSubmit={onSubmit}>
         <label>{tx("Email")}<input name="email" type="email" autoComplete="email" required /></label>
         <button type="submit" disabled={state === "submitting"}>{state === "submitting" ? tx("Preparing link") : tx("Send reset link")}</button>
@@ -180,7 +226,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
   }
 
   return (
-    <AuthCard title="Choose a new password" description="Use at least 8 characters. The reset token can only be used once.">
+    <AuthCard title="Choose a new password" description="Use at least 8 characters. The reset token can only be used once." eyebrow="Password reset">
       <form onSubmit={onSubmit}>
         <label>{tx("New password")}<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
         <button type="submit" disabled={state === "submitting"}>{state === "submitting" ? tx("Updating password") : tx("Update password")}</button>

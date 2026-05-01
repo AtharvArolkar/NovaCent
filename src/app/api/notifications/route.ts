@@ -23,3 +23,14 @@ export async function PATCH(request: Request) {
     return handleApiError(error);
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { accountId } = await requireAccountAccess(accountIdFromRequest(request));
+    const db = await getDb();
+    const result = await db.collection(collections.notifications).deleteMany({ accountId });
+    return ok({ cleared: true, deletedCount: result.deletedCount });
+  } catch (error) {
+    return handleApiError(error);
+  }
+}

@@ -4,7 +4,7 @@ export const appConfig = {
   tagline: "Modern expense intelligence for personal accounts and shared parties.",
   baseCurrency: "INR",
   defaultLocale: "en",
-  supportedLocales: ["en", "es"],
+  supportedLocales: ["en", "es", "fr", "hi", "mr"],
   defaultBudgetAlertThreshold: 80,
   currencyProvider: "frankfurter"
 } as const;

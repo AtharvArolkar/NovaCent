@@ -6,6 +6,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { collections, getDb } from "@/lib/server/mongodb";
 import { credentialsSchema } from "@/lib/server/schemas";
 import { appConfig } from "@/lib/app-config";
+import type { Account } from "@/lib/domain";
 
 export interface AppSessionUser {
   id: string;
@@ -191,7 +192,7 @@ export async function requireAccountAccess(accountId?: string | null) {
     throw new Error("Forbidden: no account selected");
   }
 
-  const account = await db.collection(collections.accounts).findOne({ id: requestedAccountId, userId: user.id });
+  const account = await db.collection<Account>(collections.accounts).findOne({ id: requestedAccountId, userId: user.id });
 
   if (!account) {
     throw new Error("Forbidden: account is not available for this user");
@@ -208,4 +209,3 @@ export function accountIdFromRequest(request: Request) {
   const url = new URL(request.url);
   return request.headers.get("x-account-id") ?? url.searchParams.get("accountId");
 }
-

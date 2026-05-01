@@ -52,7 +52,7 @@ export const recurringExpenseSchema = z.object({
   startsAt: z.string().min(8),
   endsAt: z.string().min(8).optional(),
   nextRunAt: z.string().min(8).optional(),
-  autoCreate: z.coerce.boolean().default(false),
+  autoCreate: z.coerce.boolean().default(true),
   notes: z.string().max(1000).optional()
 });
 
@@ -122,6 +122,11 @@ export const splitSchema = z.object({
   })).min(1)
 });
 
+export const existingExpenseSplitSchema = z.object({
+  expenseIds: z.array(z.string().min(1)).min(1).max(25),
+  paidByParticipantId: z.string().min(1).optional()
+});
+
 export const settlementApprovalSchema = z.object({
   action: z.enum(["approve", "reject"]).default("approve"),
   reason: z.string().max(500).optional()
@@ -155,4 +160,10 @@ export const resetPasswordSchema = z.object({
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(8).max(128)
+});
+
+export const supportRequestSchema = z.object({
+  name: z.string().min(2).max(120),
+  type: z.enum(["add_feature", "report_issue", "praise"]),
+  comments: z.string().min(5).max(4000)
 });

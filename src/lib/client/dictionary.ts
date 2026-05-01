@@ -18,9 +18,11 @@ export const dictionary = {
     dashboard: "Dashboard",
     expenses: "Expenses",
     budgets: "Budgets",
+    recurring: "Recurring",
     parties: "Parties",
     importReview: "Import review",
     reports: "Reports",
+    support: "Support",
     settings: "Settings",
     account: "Account",
     theme: "Theme",
@@ -58,9 +60,11 @@ export const dictionary = {
     dashboard: "Panel",
     expenses: "Gastos",
     budgets: "Presupuestos",
+    recurring: "Recurrentes",
     parties: "Grupos",
     importReview: "Revisión de importación",
     reports: "Informes",
+    support: "Soporte",
     settings: "Ajustes",
     account: "Cuenta",
     theme: "Tema",
@@ -98,9 +102,11 @@ export const dictionary = {
     dashboard: "Tableau de bord",
     expenses: "Dépenses",
     budgets: "Budgets",
+    recurring: "Récurrents",
     parties: "Groupes",
     importReview: "Revue d'import",
     reports: "Rapports",
+    support: "Support",
     settings: "Paramètres",
     account: "Compte",
     theme: "Thème",
@@ -138,9 +144,11 @@ export const dictionary = {
     dashboard: "डैशबोर्ड",
     expenses: "खर्च",
     budgets: "बजट",
+    recurring: "आवर्ती",
     parties: "समूह",
     importReview: "आयात समीक्षा",
     reports: "रिपोर्ट",
+    support: "सहायता",
     settings: "सेटिंग्स",
     account: "खाता",
     theme: "थीम",
@@ -178,9 +186,11 @@ export const dictionary = {
     dashboard: "डॅशबोर्ड",
     expenses: "खर्च",
     budgets: "बजेट",
+    recurring: "आवर्ती",
     parties: "समूह",
     importReview: "आयात पुनरावलोकन",
     reports: "अहवाल",
+    support: "सहाय्य",
     settings: "सेटिंग्ज",
     account: "खाते",
     theme: "थीम",
@@ -268,6 +278,9 @@ export const phraseDictionary: Record<Language, Record<string, string>> = {
     Travel: "Viajes",
     Subscriptions: "Suscripciones",
     Health: "Salud",
+    Fuel: "Combustible",
+    "Loan/EMI": "Prestamo/EMI",
+    Others: "Otros",
     "New budget": "Nuevo presupuesto",
     "Edit budget": "Editar presupuesto",
     "Budget name or category": "Nombre o categoría del presupuesto",
@@ -541,6 +554,9 @@ export const phraseDictionary: Record<Language, Record<string, string>> = {
     Travel: "Voyage",
     Subscriptions: "Abonnements",
     Health: "Santé",
+    Fuel: "Carburant",
+    "Loan/EMI": "Pret/EMI",
+    Others: "Autres",
     "New budget": "Nouveau budget",
     "Edit budget": "Modifier le budget",
     "Budget name or category": "Nom ou catégorie du budget",
@@ -800,6 +816,9 @@ export const phraseDictionary: Record<Language, Record<string, string>> = {
     Travel: "यात्रा",
     Subscriptions: "सदस्यताएं",
     Health: "स्वास्थ्य",
+    Fuel: "ईंधन",
+    "Loan/EMI": "लोन/ईएमआई",
+    Others: "अन्य",
     "New budget": "नया बजट",
     "Edit budget": "बजट संपादित करें",
     "Active budgets": "सक्रिय बजट",
@@ -1073,6 +1092,9 @@ export const phraseDictionary: Record<Language, Record<string, string>> = {
     Travel: "प्रवास",
     Subscriptions: "सदस्यता",
     Health: "आरोग्य",
+    Fuel: "इंधन",
+    "Loan/EMI": "कर्ज/ईएमआय",
+    Others: "इतर",
     "New budget": "नवीन बजेट",
     "Edit budget": "बजेट संपादित करा",
     "Active budgets": "सक्रिय बजेट",
@@ -1275,6 +1297,1081 @@ export const phraseDictionary: Record<Language, Record<string, string>> = {
     Party: "समूह",
     "Category spend chart with": "श्रेणी खर्च चार्ट ज्यात",
     data: "डेटा"
+  }
+};
+
+export const supplementalPhraseDictionary: Record<Language, Record<string, string>> = {
+  en: {
+    Uncategorized: "Uncategorized",
+    "Included expenses": "Included expenses",
+    "No expenses included in this budget yet.": "No expenses included in this budget yet.",
+    "Report timeframe": "Report timeframe",
+    "Date range": "Date range",
+    From: "From",
+    To: "To",
+    "Past 15 days": "Past 15 days",
+    "1 month": "1 month",
+    "3 months": "3 months",
+    "1 year": "1 year",
+    "3 years": "3 years",
+    All: "All",
+    "Install app": "Install app",
+    "Add this workspace to your device for quicker offline access.": "Add this workspace to your device for quicker offline access.",
+    Install: "Install",
+    "Not now": "Not now",
+    "No report data for this timeframe": "No report data for this timeframe",
+    "Try All or a wider date range to include more transactions.": "Try All or a wider date range to include more transactions.",
+    "Open date picker": "Open date picker",
+    Clear: "Clear",
+    "Clear notifications": "Clear notifications",
+    "How to use NovaCent": "How to use NovaCent",
+    "Back to settings": "Back to settings",
+    "Help and guidance": "Help and guidance",
+    "Open guide": "Open guide",
+    "Quick start": "Quick start",
+    "Quick start checklist": "Quick start checklist",
+    "NovaCent guide sections": "NovaCent guide sections",
+    "NovaCent secure finance workspace": "NovaCent secure finance workspace",
+    "Personal finance, neatly connected.": "Personal finance, neatly connected.",
+    "Secure money workspace": "Secure money workspace",
+    "Your money workspace, ready when you are.": "Your money workspace, ready when you are.",
+    "Accounts, budgets, imports, parties, recurring expenses, and reports stay organized in one calm place.": "Accounts, budgets, imports, parties, recurring expenses, and reports stay organized in one calm place.",
+    "NovaCent highlights": "NovaCent highlights",
+    "Account scoped": "Account scoped",
+    "Only your selected account data is shown.": "Only your selected account data is shown.",
+    "Offline ready": "Offline ready",
+    "Supported changes can wait safely for sync.": "Supported changes can wait safely for sync.",
+    "Report friendly": "Report friendly",
+    "Every approved input feeds your charts.": "Every approved input feeds your charts.",
+    "Welcome back": "Welcome back",
+    "Start your workspace": "Start your workspace",
+    "Account recovery": "Account recovery",
+    "Password reset": "Password reset",
+    "Sign in to NovaCent": "Sign in to NovaCent",
+    manual: "manual",
+    import: "import",
+    recurring: "recurring",
+    party: "party",
+    trip: "trip",
+    settlement: "settlement"
+  },
+  es: {
+    "Monthy Budget": "Presupuesto mensual",
+    "Statement upload controls": "Controles de carga de extracto",
+    "Statement password": "Contrasena del extracto",
+    "Optional for locked PDFs": "Opcional para PDFs bloqueados",
+    "Ref no": "Referencia",
+    Withdrawal: "Retiro",
+    Deposit: "Deposito",
+    Reimbursements: "Reembolsos",
+    Uncategorized: "Sin categoria",
+    "Included expenses": "Gastos incluidos",
+    "No expenses included in this budget yet.": "Aun no hay gastos incluidos en este presupuesto.",
+    "Report timeframe": "Periodo del informe",
+    "Date range": "Rango de fechas",
+    From: "Desde",
+    To: "Hasta",
+    "Past 15 days": "Ultimos 15 dias",
+    "1 month": "1 mes",
+    "3 months": "3 meses",
+    "1 year": "1 ano",
+    "3 years": "3 anos",
+    All: "Todo",
+    "Install app": "Instalar app",
+    "Add this workspace to your device for quicker offline access.": "Agrega este espacio a tu dispositivo para acceso sin conexion mas rapido.",
+    Install: "Instalar",
+    "Not now": "Ahora no",
+    "No report data for this timeframe": "No hay datos para este periodo",
+    "Try All or a wider date range to include more transactions.": "Prueba Todo o un rango mas amplio para incluir mas transacciones.",
+    "Open date picker": "Abrir selector de fecha",
+    Clear: "Borrar",
+    "Clear notifications": "Borrar notificaciones",
+    "How to use NovaCent": "Como usar NovaCent",
+    "Back to settings": "Volver a ajustes",
+    "Help and guidance": "Ayuda y guia",
+    "Open guide": "Abrir guia",
+    "Quick start": "Inicio rapido",
+    "Quick start checklist": "Lista de inicio rapido",
+    "NovaCent guide sections": "Secciones de guia de NovaCent",
+    "NovaCent secure finance workspace": "Espacio financiero seguro de NovaCent",
+    "Personal finance, neatly connected.": "Finanzas personales, bien conectadas.",
+    "Secure money workspace": "Espacio financiero seguro",
+    "Your money workspace, ready when you are.": "Tu espacio de dinero, listo cuando tu lo estes.",
+    "Accounts, budgets, imports, parties, recurring expenses, and reports stay organized in one calm place.": "Cuentas, presupuestos, importaciones, grupos, gastos recurrentes e informes se mantienen ordenados en un solo lugar.",
+    "NovaCent highlights": "Puntos clave de NovaCent",
+    "Account scoped": "Por cuenta",
+    "Only your selected account data is shown.": "Solo se muestran los datos de la cuenta seleccionada.",
+    "Offline ready": "Listo sin conexion",
+    "Supported changes can wait safely for sync.": "Los cambios compatibles pueden esperar de forma segura a sincronizarse.",
+    "Report friendly": "Listo para informes",
+    "Every approved input feeds your charts.": "Cada dato aprobado alimenta tus graficos.",
+    "Welcome back": "Bienvenido de nuevo",
+    "Start your workspace": "Empieza tu espacio",
+    "Account recovery": "Recuperacion de cuenta",
+    "Password reset": "Restablecimiento de contrasena",
+    "Sign in to NovaCent": "Iniciar sesion en NovaCent",
+    manual: "manual",
+    import: "importacion",
+    recurring: "recurrente",
+    party: "grupo",
+    trip: "viaje",
+    settlement: "liquidacion",
+    "More details": "Mas detalles",
+    "This statement is password protected. Enter the statement password and upload again.": "Este extracto esta protegido con contrasena. Ingresa la contrasena y vuelve a cargarlo.",
+    "The statement password is incorrect. Please retry with the correct password.": "La contrasena del extracto es incorrecta. Intenta de nuevo con la contrasena correcta.",
+    "Create recurring rules that post due expenses automatically in the background.": "Crea reglas recurrentes que registran gastos vencidos automaticamente en segundo plano.",
+    "New recurring rule": "Nueva regla recurrente",
+    "Edit recurring rule": "Editar regla recurrente",
+    Description: "Descripcion",
+    Frequency: "Frecuencia",
+    Daily: "Diario",
+    Weekly: "Semanal",
+    Interval: "Intervalo",
+    "Start date": "Fecha inicial",
+    "End date": "Fecha final",
+    Notes: "Notas",
+    "Save recurring rule": "Guardar regla recurrente",
+    "Update recurring rule": "Actualizar regla recurrente",
+    "Recurring rule saved.": "Regla recurrente guardada.",
+    "Unable to save recurring rule.": "No se pudo guardar la regla recurrente.",
+    "Recurring rule updated.": "Regla recurrente actualizada.",
+    "Unable to update recurring rule.": "No se pudo actualizar la regla recurrente.",
+    "Recurring rules": "Reglas recurrentes",
+    "Next run": "Proxima ejecucion",
+    Edit: "Editar",
+    Pause: "Pausar",
+    Resume: "Reanudar",
+    End: "Finalizar",
+    active: "activa",
+    paused: "pausada",
+    ended: "finalizada",
+    daily: "diario",
+    weekly: "semanal",
+    monthly: "mensual",
+    yearly: "anual",
+    "No recurring rules yet": "Aun no hay reglas recurrentes",
+    "Create rules for expenses that should post automatically when due.": "Crea reglas para gastos que deben registrarse automaticamente al vencer.",
+    Percentages: "Porcentajes",
+    Shares: "Participaciones",
+    shares: "participaciones",
+    "Create party from selection": "Crear grupo desde seleccion",
+    "Add selected expenses to split": "Agregar gastos seleccionados a division",
+    "Existing party": "Grupo existente",
+    "Choose party": "Elegir grupo",
+    "Add to party split": "Agregar a division de grupo",
+    "Create new party instead": "Crear nuevo grupo",
+    "Selected expenses added to the party split.": "Gastos seleccionados agregados a la division del grupo.",
+    "Unable to add selected expenses. Add at least two participants to the party first.": "No se pudieron agregar. Agrega al menos dos participantes al grupo.",
+    "You have selected expenses waiting to be added to this party split.": "Tienes gastos seleccionados esperando agregarse a esta division.",
+    "Add staged expenses": "Agregar gastos preparados",
+    "Customer support": "Soporte al cliente",
+    "Send feature requests, issue reports, or praise to the NovaCent team.": "Envia solicitudes de funciones, reportes de problemas o elogios al equipo de NovaCent.",
+    Name: "Nombre",
+    "Request type": "Tipo de solicitud",
+    "Add feature": "Agregar funcion",
+    "Report issue": "Reportar problema",
+    Praise: "Elogio",
+    Comments: "Comentarios",
+    "Send support request": "Enviar solicitud",
+    "Support request saved.": "Solicitud de soporte guardada.",
+    "Unable to save support request.": "No se pudo guardar la solicitud de soporte."
+  },
+  fr: {
+    "Monthy Budget": "Budget mensuel",
+    "Statement upload controls": "Commandes d'import de releve",
+    "Statement password": "Mot de passe du releve",
+    "Optional for locked PDFs": "Optionnel pour les PDF verrouilles",
+    "Ref no": "Reference",
+    Withdrawal: "Retrait",
+    Deposit: "Depot",
+    Reimbursements: "Remboursements",
+    Uncategorized: "Non classe",
+    "Included expenses": "Depenses incluses",
+    "No expenses included in this budget yet.": "Aucune depense incluse dans ce budget pour l'instant.",
+    "Report timeframe": "Periode du rapport",
+    "Date range": "Plage de dates",
+    From: "De",
+    To: "A",
+    "Past 15 days": "15 derniers jours",
+    "1 month": "1 mois",
+    "3 months": "3 mois",
+    "1 year": "1 an",
+    "3 years": "3 ans",
+    All: "Tout",
+    "Install app": "Installer l'app",
+    "Add this workspace to your device for quicker offline access.": "Ajoutez cet espace a votre appareil pour un acces hors ligne plus rapide.",
+    Install: "Installer",
+    "Not now": "Pas maintenant",
+    "No report data for this timeframe": "Aucune donnee pour cette periode",
+    "Try All or a wider date range to include more transactions.": "Essayez Tout ou une plage plus large pour inclure plus de transactions.",
+    "Open date picker": "Ouvrir le selecteur de date",
+    Clear: "Effacer",
+    "Clear notifications": "Effacer les notifications",
+    "How to use NovaCent": "Comment utiliser NovaCent",
+    "Back to settings": "Retour aux parametres",
+    "Help and guidance": "Aide et guide",
+    "Open guide": "Ouvrir le guide",
+    "Quick start": "Demarrage rapide",
+    "Quick start checklist": "Liste de demarrage rapide",
+    "NovaCent guide sections": "Sections du guide NovaCent",
+    "NovaCent secure finance workspace": "Espace financier securise NovaCent",
+    "Personal finance, neatly connected.": "Finances personnelles, bien reliees.",
+    "Secure money workspace": "Espace financier securise",
+    "Your money workspace, ready when you are.": "Votre espace financier, pret quand vous l'etes.",
+    "Accounts, budgets, imports, parties, recurring expenses, and reports stay organized in one calm place.": "Comptes, budgets, imports, groupes, depenses recurrentes et rapports restent organises au meme endroit.",
+    "NovaCent highlights": "Points forts de NovaCent",
+    "Account scoped": "Par compte",
+    "Only your selected account data is shown.": "Seules les donnees du compte selectionne sont affichees.",
+    "Offline ready": "Pret hors ligne",
+    "Supported changes can wait safely for sync.": "Les modifications prises en charge peuvent attendre la synchronisation en securite.",
+    "Report friendly": "Pret pour les rapports",
+    "Every approved input feeds your charts.": "Chaque entree approuvee alimente vos graphiques.",
+    "Welcome back": "Bon retour",
+    "Start your workspace": "Demarrer votre espace",
+    "Account recovery": "Recuperation du compte",
+    "Password reset": "Reinitialisation du mot de passe",
+    "Sign in to NovaCent": "Se connecter a NovaCent",
+    manual: "manuel",
+    import: "import",
+    recurring: "recurrent",
+    party: "groupe",
+    trip: "voyage",
+    settlement: "reglement",
+    "More details": "Plus de details",
+    "This statement is password protected. Enter the statement password and upload again.": "Ce releve est protege par mot de passe. Saisissez-le et importez a nouveau.",
+    "The statement password is incorrect. Please retry with the correct password.": "Le mot de passe du releve est incorrect. Reessayez avec le bon mot de passe.",
+    "Create recurring rules that post due expenses automatically in the background.": "Creez des regles recurrentes qui publient automatiquement les depenses dues en arriere-plan.",
+    "New recurring rule": "Nouvelle regle recurrente",
+    "Edit recurring rule": "Modifier la regle recurrente",
+    Description: "Description",
+    Frequency: "Frequence",
+    Daily: "Quotidien",
+    Weekly: "Hebdomadaire",
+    Interval: "Intervalle",
+    "Start date": "Date de debut",
+    "End date": "Date de fin",
+    Notes: "Notes",
+    "Save recurring rule": "Enregistrer la regle recurrente",
+    "Update recurring rule": "Mettre a jour la regle recurrente",
+    "Recurring rule saved.": "Regle recurrente enregistree.",
+    "Unable to save recurring rule.": "Impossible d'enregistrer la regle recurrente.",
+    "Recurring rule updated.": "Regle recurrente mise a jour.",
+    "Unable to update recurring rule.": "Impossible de mettre a jour la regle recurrente.",
+    "Recurring rules": "Regles recurrentes",
+    "Next run": "Prochaine execution",
+    Edit: "Modifier",
+    Pause: "Suspendre",
+    Resume: "Reprendre",
+    End: "Terminer",
+    active: "active",
+    paused: "suspendue",
+    ended: "terminee",
+    daily: "quotidien",
+    weekly: "hebdomadaire",
+    monthly: "mensuel",
+    yearly: "annuel",
+    "No recurring rules yet": "Aucune regle recurrente pour l'instant",
+    "Create rules for expenses that should post automatically when due.": "Creez des regles pour les depenses qui doivent etre publiees automatiquement a echeance.",
+    Percentages: "Pourcentages",
+    Shares: "Parts",
+    shares: "parts",
+    "Create party from selection": "Creer un groupe depuis la selection",
+    "Add selected expenses to split": "Ajouter les depenses selectionnees au partage",
+    "Existing party": "Groupe existant",
+    "Choose party": "Choisir un groupe",
+    "Add to party split": "Ajouter au partage",
+    "Create new party instead": "Creer un nouveau groupe",
+    "Selected expenses added to the party split.": "Depenses selectionnees ajoutees au partage.",
+    "Unable to add selected expenses. Add at least two participants to the party first.": "Impossible d'ajouter ces depenses. Ajoutez d'abord deux participants.",
+    "You have selected expenses waiting to be added to this party split.": "Des depenses selectionnees attendent d'etre ajoutees a ce partage.",
+    "Add staged expenses": "Ajouter les depenses preparees",
+    "Customer support": "Support client",
+    "Send feature requests, issue reports, or praise to the NovaCent team.": "Envoyez des demandes de fonctionnalites, des signalements ou des compliments a l'equipe NovaCent.",
+    Name: "Nom",
+    "Request type": "Type de demande",
+    "Add feature": "Ajouter une fonctionnalite",
+    "Report issue": "Signaler un probleme",
+    Praise: "Felicitations",
+    Comments: "Commentaires",
+    "Send support request": "Envoyer la demande",
+    "Support request saved.": "Demande de support enregistree.",
+    "Unable to save support request.": "Impossible d'enregistrer la demande de support."
+  },
+  hi: {
+    "Monthy Budget": "मासिक बजट",
+    "Statement upload controls": "स्टेटमेंट अपलोड नियंत्रण",
+    "Statement password": "स्टेटमेंट पासवर्ड",
+    "Optional for locked PDFs": "लॉक PDF के लिए वैकल्पिक",
+    "Ref no": "रेफ नंबर",
+    Withdrawal: "निकासी",
+    Deposit: "जमा",
+    Reimbursements: "प्रतिपूर्ति",
+    Uncategorized: "अवर्गीकृत",
+    "Included expenses": "शामिल खर्च",
+    "No expenses included in this budget yet.": "इस बजट में अभी कोई खर्च शामिल नहीं है.",
+    "Report timeframe": "रिपोर्ट समयावधि",
+    "Date range": "तारीख सीमा",
+    From: "से",
+    To: "तक",
+    "Past 15 days": "पिछले 15 दिन",
+    "1 month": "1 महीना",
+    "3 months": "3 महीने",
+    "1 year": "1 साल",
+    "3 years": "3 साल",
+    All: "सभी",
+    "Install app": "ऐप इंस्टॉल करें",
+    "Add this workspace to your device for quicker offline access.": "तेज ऑफलाइन एक्सेस के लिए इस वर्कस्पेस को अपने डिवाइस में जोड़ें.",
+    Install: "इंस्टॉल",
+    "Not now": "अभी नहीं",
+    "No report data for this timeframe": "इस समयावधि के लिए रिपोर्ट डेटा नहीं है",
+    "Try All or a wider date range to include more transactions.": "अधिक लेनदेन शामिल करने के लिए सभी या बड़ी तारीख सीमा चुनें.",
+    "Open date picker": "तारीख पिकर खोलें",
+    Clear: "साफ करें",
+    "Clear notifications": "सूचनाएं साफ करें",
+    "How to use NovaCent": "NovaCent का उपयोग कैसे करें",
+    "Back to settings": "सेटिंग्स पर वापस जाएं",
+    "Help and guidance": "सहायता और मार्गदर्शन",
+    "Open guide": "गाइड खोलें",
+    "Quick start": "त्वरित शुरुआत",
+    "Quick start checklist": "त्वरित शुरुआत सूची",
+    "NovaCent guide sections": "NovaCent गाइड सेक्शन",
+    "NovaCent secure finance workspace": "NovaCent सुरक्षित वित्त कार्यक्षेत्र",
+    "Personal finance, neatly connected.": "निजी वित्त, साफ़ तरीके से जुड़ा हुआ.",
+    "Secure money workspace": "सुरक्षित वित्त कार्यक्षेत्र",
+    "Your money workspace, ready when you are.": "आपका वित्त कार्यक्षेत्र, जब आप तैयार हों.",
+    "Accounts, budgets, imports, parties, recurring expenses, and reports stay organized in one calm place.": "खाते, बजट, आयात, समूह, आवर्ती खर्च और रिपोर्ट एक शांत जगह पर व्यवस्थित रहते हैं.",
+    "NovaCent highlights": "NovaCent विशेषताएं",
+    "Account scoped": "खाता-आधारित",
+    "Only your selected account data is shown.": "केवल चुने हुए खाते का डेटा दिखाया जाता है.",
+    "Offline ready": "ऑफलाइन तैयार",
+    "Supported changes can wait safely for sync.": "समर्थित बदलाव सुरक्षित रूप से सिंक का इंतजार कर सकते हैं.",
+    "Report friendly": "रिपोर्ट के लिए तैयार",
+    "Every approved input feeds your charts.": "हर स्वीकृत इनपुट आपके चार्ट में शामिल होता है.",
+    "Welcome back": "वापसी पर स्वागत है",
+    "Start your workspace": "अपना कार्यक्षेत्र शुरू करें",
+    "Account recovery": "खाता पुनर्प्राप्ति",
+    "Password reset": "पासवर्ड रीसेट",
+    "Sign in to NovaCent": "NovaCent में साइन इन करें",
+    manual: "मैनुअल",
+    import: "आयात",
+    recurring: "आवर्ती",
+    party: "समूह",
+    trip: "यात्रा",
+    settlement: "निपटान",
+    "More details": "अधिक विवरण",
+    "This statement is password protected. Enter the statement password and upload again.": "यह स्टेटमेंट पासवर्ड से सुरक्षित है। पासवर्ड दर्ज करके फिर से अपलोड करें।",
+    "The statement password is incorrect. Please retry with the correct password.": "स्टेटमेंट पासवर्ड गलत है। सही पासवर्ड के साथ फिर कोशिश करें।",
+    "Create recurring rules that post due expenses automatically in the background.": "ऐसे आवर्ती नियम बनाएं जो देय खर्चों को बैकग्राउंड में अपने आप पोस्ट करें।",
+    "New recurring rule": "नई आवर्ती नियम",
+    "Edit recurring rule": "आवर्ती नियम संपादित करें",
+    Description: "विवरण",
+    Frequency: "आवृत्ति",
+    Daily: "दैनिक",
+    Weekly: "साप्ताहिक",
+    Interval: "अंतराल",
+    "Start date": "शुरू तारीख",
+    "End date": "अंत तारीख",
+    Notes: "नोट्स",
+    "Save recurring rule": "आवर्ती नियम सहेजें",
+    "Update recurring rule": "आवर्ती नियम अपडेट करें",
+    "Recurring rule saved.": "आवर्ती नियम सहेजा गया।",
+    "Unable to save recurring rule.": "आवर्ती नियम सहेजा नहीं जा सका।",
+    "Recurring rule updated.": "आवर्ती नियम अपडेट हो गया।",
+    "Unable to update recurring rule.": "आवर्ती नियम अपडेट नहीं हो सका।",
+    "Recurring rules": "आवर्ती नियम",
+    "Next run": "अगली बार",
+    Edit: "संपादित करें",
+    Pause: "रोकें",
+    Resume: "फिर शुरू करें",
+    End: "समाप्त",
+    active: "सक्रिय",
+    paused: "रुका हुआ",
+    ended: "समाप्त",
+    daily: "दैनिक",
+    weekly: "साप्ताहिक",
+    monthly: "मासिक",
+    yearly: "वार्षिक",
+    "No recurring rules yet": "अभी कोई आवर्ती नियम नहीं",
+    "Create rules for expenses that should post automatically when due.": "उन खर्चों के लिए नियम बनाएं जिन्हें देय होने पर अपने आप पोस्ट होना चाहिए।",
+    Percentages: "प्रतिशत",
+    Shares: "शेयर",
+    shares: "शेयर",
+    "Create party from selection": "चयन से समूह बनाएं",
+    "Add selected expenses to split": "चयनित खर्च विभाजन में जोड़ें",
+    "Existing party": "मौजूदा समूह",
+    "Choose party": "समूह चुनें",
+    "Add to party split": "समूह विभाजन में जोड़ें",
+    "Create new party instead": "नया समूह बनाएं",
+    "Add staged expenses": "तैयार खर्च जोड़ें",
+    "Customer support": "ग्राहक सहायता",
+    "Send feature requests, issue reports, or praise to the NovaCent team.": "NovaCent टीम को फीचर अनुरोध, समस्या रिपोर्ट या प्रशंसा भेजें।",
+    Name: "नाम",
+    "Request type": "अनुरोध प्रकार",
+    "Add feature": "फीचर जोड़ें",
+    "Report issue": "समस्या बताएं",
+    Praise: "प्रशंसा",
+    Comments: "टिप्पणी",
+    "Send support request": "सहायता अनुरोध भेजें"
+  },
+  mr: {
+    "Monthy Budget": "मासिक बजेट",
+    "Statement upload controls": "स्टेटमेंट अपलोड नियंत्रण",
+    "Statement password": "स्टेटमेंट पासवर्ड",
+    "Optional for locked PDFs": "लॉक PDF साठी ऐच्छिक",
+    "Ref no": "रेफ नंबर",
+    Withdrawal: "पैसे काढणे",
+    Deposit: "जमा",
+    Reimbursements: "परतावे",
+    Uncategorized: "अवर्गीकृत",
+    "Included expenses": "समाविष्ट खर्च",
+    "No expenses included in this budget yet.": "या बजेटमध्ये अजून कोणताही खर्च समाविष्ट नाही.",
+    "Report timeframe": "अहवाल कालावधी",
+    "Date range": "तारीख श्रेणी",
+    From: "पासून",
+    To: "पर्यंत",
+    "Past 15 days": "मागील 15 दिवस",
+    "1 month": "1 महिना",
+    "3 months": "3 महिने",
+    "1 year": "1 वर्ष",
+    "3 years": "3 वर्षे",
+    All: "सर्व",
+    "Install app": "अॅप इंस्टॉल करा",
+    "Add this workspace to your device for quicker offline access.": "जलद ऑफलाइन प्रवेशासाठी हे वर्कस्पेस तुमच्या डिव्हाइसवर जोडा.",
+    Install: "इंस्टॉल",
+    "Not now": "आत्ता नाही",
+    "No report data for this timeframe": "या कालावधीसाठी अहवाल डेटा नाही",
+    "Try All or a wider date range to include more transactions.": "अधिक व्यवहार समाविष्ट करण्यासाठी सर्व किंवा मोठी तारीख श्रेणी वापरा.",
+    "Open date picker": "तारीख निवडणारा उघडा",
+    Clear: "साफ करा",
+    "Clear notifications": "सूचना साफ करा",
+    "How to use NovaCent": "NovaCent कसे वापरावे",
+    "Back to settings": "सेटिंग्जवर परत जा",
+    "Help and guidance": "मदत आणि मार्गदर्शन",
+    "Open guide": "गाइड उघडा",
+    "Quick start": "जलद सुरुवात",
+    "Quick start checklist": "जलद सुरुवात यादी",
+    "NovaCent guide sections": "NovaCent गाइड विभाग",
+    "NovaCent secure finance workspace": "NovaCent सुरक्षित वित्त कार्यक्षेत्र",
+    "Personal finance, neatly connected.": "वैयक्तिक वित्त, नीट जोडलेले.",
+    "Secure money workspace": "सुरक्षित वित्त कार्यक्षेत्र",
+    "Your money workspace, ready when you are.": "तुमचे वित्त कार्यक्षेत्र, तुम्ही तयार असताना तयार.",
+    "Accounts, budgets, imports, parties, recurring expenses, and reports stay organized in one calm place.": "खाती, बजेट, आयात, समूह, आवर्ती खर्च आणि अहवाल एका शांत ठिकाणी नीट राहतात.",
+    "NovaCent highlights": "NovaCent वैशिष्ट्ये",
+    "Account scoped": "खात्यानुसार",
+    "Only your selected account data is shown.": "फक्त निवडलेल्या खात्याचा डेटा दाखवला जातो.",
+    "Offline ready": "ऑफलाइन तयार",
+    "Supported changes can wait safely for sync.": "समर्थित बदल सुरक्षितपणे सिंकची वाट पाहू शकतात.",
+    "Report friendly": "अहवालांसाठी तयार",
+    "Every approved input feeds your charts.": "प्रत्येक मंजूर इनपुट तुमच्या चार्टमध्ये जातो.",
+    "Welcome back": "पुन्हा स्वागत आहे",
+    "Start your workspace": "तुमचे कार्यक्षेत्र सुरू करा",
+    "Account recovery": "खाते पुनर्प्राप्ती",
+    "Password reset": "पासवर्ड रीसेट",
+    "Sign in to NovaCent": "NovaCent मध्ये साइन इन करा",
+    manual: "मॅन्युअल",
+    import: "आयात",
+    recurring: "आवर्ती",
+    party: "समूह",
+    trip: "प्रवास",
+    settlement: "सेटलमेंट",
+    "More details": "अधिक तपशील",
+    "This statement is password protected. Enter the statement password and upload again.": "हे स्टेटमेंट पासवर्डने सुरक्षित आहे. पासवर्ड टाकून पुन्हा अपलोड करा.",
+    "The statement password is incorrect. Please retry with the correct password.": "स्टेटमेंट पासवर्ड चुकीचा आहे. योग्य पासवर्डसह पुन्हा प्रयत्न करा.",
+    "Track limits, spot overspend early, and keep categories honest.": "मर्यादा ट्रॅक करा, जास्त खर्च लवकर ओळखा आणि श्रेणी अचूक ठेवा.",
+    "Create recurring rules that post due expenses automatically in the background.": "देय खर्च पार्श्वभूमीत आपोआप पोस्ट करणारे आवर्ती नियम तयार करा.",
+    "New recurring rule": "नवीन आवर्ती नियम",
+    "Edit recurring rule": "आवर्ती नियम संपादित करा",
+    Description: "वर्णन",
+    Frequency: "वारंवारता",
+    Daily: "दररोज",
+    Weekly: "दर आठवड्याला",
+    Interval: "मध्यांतर",
+    "Start date": "सुरू तारीख",
+    "End date": "शेवटची तारीख",
+    Notes: "नोट्स",
+    "Save recurring rule": "आवर्ती नियम जतन करा",
+    "Update recurring rule": "आवर्ती नियम अपडेट करा",
+    "Recurring rule saved.": "आवर्ती नियम जतन झाला.",
+    "Unable to save recurring rule.": "आवर्ती नियम जतन करता आला नाही.",
+    "Recurring rule updated.": "आवर्ती नियम अपडेट झाला.",
+    "Unable to update recurring rule.": "आवर्ती नियम अपडेट करता आला नाही.",
+    "Recurring rules": "आवर्ती नियम",
+    "Next run": "पुढील रन",
+    Edit: "संपादित करा",
+    Pause: "थांबवा",
+    Resume: "पुन्हा सुरू करा",
+    End: "समाप्त",
+    active: "सक्रिय",
+    paused: "थांबलेले",
+    ended: "समाप्त",
+    daily: "दररोज",
+    weekly: "दर आठवड्याला",
+    monthly: "मासिक",
+    yearly: "वार्षिक",
+    "No recurring rules yet": "अजून कोणतेही आवर्ती नियम नाहीत",
+    "Create rules for expenses that should post automatically when due.": "देय झाल्यावर आपोआप पोस्ट होणाऱ्या खर्चांसाठी नियम तयार करा.",
+    "Jan 1 to Dec 31": "1 जानेवारी ते 31 डिसेंबर",
+    "1st of this month to month end": "या महिन्याच्या 1 तारखेपासून महिन्याच्या शेवटपर्यंत",
+    Percentages: "टक्केवारी",
+    Shares: "शेअर्स",
+    shares: "शेअर्स",
+    "Create party from selection": "निवडीतून समूह तयार करा",
+    "Add selected expenses to split": "निवडलेले खर्च वाटणीत जोडा",
+    "Existing party": "विद्यमान समूह",
+    "Choose party": "समूह निवडा",
+    "Add to party split": "समूह वाटणीत जोडा",
+    "Create new party instead": "नवीन समूह तयार करा",
+    "Add staged expenses": "तयार खर्च जोडा",
+    "Customer support": "ग्राहक सहायता",
+    "Send feature requests, issue reports, or praise to the NovaCent team.": "NovaCent टीमला फीचर विनंती, समस्या अहवाल किंवा कौतुक पाठवा.",
+    Name: "नाव",
+    "Request type": "विनंती प्रकार",
+    "Add feature": "फीचर जोडा",
+    "Report issue": "समस्या नोंदवा",
+    Praise: "कौतुक",
+    Comments: "टिप्पण्या",
+    "Send support request": "सहाय्य विनंती पाठवा"
+  }
+};
+
+export type GuideContent = {
+  pageTitle: string;
+  pageDescription: string;
+  settingsDescription: string;
+  backToSettings: string;
+  openGuide: string;
+  quickStartTitle: string;
+  quickStartAria: string;
+  sectionsAria: string;
+  quickStart: Array<{ title: string; description: string }>;
+  sections: Array<{ title: string; description: string; steps: string[] }>;
+};
+
+export const guideContent: Record<Language, GuideContent> = {
+  en: {
+    pageTitle: "How to use NovaCent",
+    pageDescription: "A friendly walkthrough for tracking personal spending, imports, budgets, parties, recurring expenses, and reports.",
+    settingsDescription: "A simple step-by-step guide for expenses, budgets, statement imports, parties, recurring rules, reports, notifications, and offline use.",
+    backToSettings: "Back to settings",
+    openGuide: "Open guide",
+    quickStartTitle: "Quick start",
+    quickStartAria: "Quick start checklist",
+    sectionsAria: "NovaCent guide sections",
+    quickStart: [
+      {
+        title: "Choose the right account",
+        description: "Use the account switcher before entering anything, because every expense, budget, import, party, and report is account-scoped."
+      },
+      {
+        title: "Record or import spending",
+        description: "Add expenses manually for daily spending, or upload a statement and approve only the rows you want to save."
+      },
+      {
+        title: "Review budgets and reports",
+        description: "Use budgets for limits and reports for patterns. Shared party settlements are reflected in your final personal spend."
+      }
+    ],
+    sections: [
+      {
+        title: "Start with your account workspace",
+        description: "NovaCent keeps every account separate, so the first thing to check is the account switcher at the top or in the mobile menu.",
+        steps: [
+          "Pick the account you want to work in before adding expenses, budgets, parties, or imports.",
+          "Use the language and theme controls whenever you want a different reading experience.",
+          "Watch the online status. If you are offline, NovaCent keeps supported changes locally and syncs them when you are back online."
+        ]
+      },
+      {
+        title: "Add daily expenses",
+        description: "Use Expenses for quick manual entries and for reviewing what is already in your ledger.",
+        steps: [
+          "Open Expenses and use Quick add at the top of the page.",
+          "Enter merchant, category, amount, currency, and date. The date defaults to today.",
+          "Use search to find older entries by merchant, category, or owner.",
+          "Delete unlocked expenses only after confirming. Settlement rows and settled party expenses stay protected."
+        ]
+      },
+      {
+        title: "Track budgets",
+        description: "Budgets help you see whether this month or year is still under control.",
+        steps: [
+          "Create a monthly or yearly budget and choose whether it tracks overall spend or a single category.",
+          "Monthly budgets run from the 1st of the current month to month end. Yearly budgets run from Jan 1 to Dec 31.",
+          "Expand a budget to see exactly which expenses are included in its calculation.",
+          "Set an alert percentage if you want a custom warning point. The default is 80%."
+        ]
+      },
+      {
+        title: "Import bank statements",
+        description: "Use Import review when you want NovaCent to read statement rows before saving them to your ledger.",
+        steps: [
+          "Upload a supported statement file. If the PDF is locked, enter the statement password before upload.",
+          "Review extracted rows before approval. Nothing is saved as an expense until you approve it.",
+          "Choose a category from the dropdown or leave the row Uncategorized.",
+          "Use the possible duplicates filter when another statement may contain rows you already imported.",
+          "Approve valid rows and delete rows that should not enter the ledger."
+        ]
+      },
+      {
+        title: "Share expenses with parties",
+        description: "Parties are for shared expenses with registered friends or non-registered placeholders.",
+        steps: [
+          "Create a party with a clear name, then open it.",
+          "Search for a friend by name or email. If no registered user exists, add the entered name as a non-registered person.",
+          "Add party expenses and choose even, manual amount, percentage, or share-based split.",
+          "Registered participants request settlement approval. Non-registered placeholders settle directly.",
+          "Converted party expenses still affect the overall ledger according to the final personal spend."
+        ]
+      },
+      {
+        title: "Automate recurring expenses",
+        description: "Recurring rules are for bills or expenses that should post automatically in the background.",
+        steps: [
+          "Create a recurring rule with merchant, category, amount, currency, frequency, start date, and optional end date.",
+          "Pause, resume, edit, or end a rule when the real-world bill changes.",
+          "Recurring expenses feed the normal ledger, budgets, and reports once they are posted."
+        ]
+      },
+      {
+        title: "Read reports",
+        description: "Reports turn the ledger into charts for spend, cash flow, budget variance, merchants, parties, and currencies.",
+        steps: [
+          "Use the timeframe selector for past 15 days, 1 month, 3 months, 1 year, 3 years, All, or a custom date range.",
+          "Check Spend by category to understand where money is going.",
+          "Use Cash flow trend to compare income, spend, and saved amount over time.",
+          "Export CSV for spreadsheet work or use Export PDF for a printable report."
+        ]
+      },
+      {
+        title: "Keep an eye on notifications and support",
+        description: "Notifications collect budget alerts, imports, settlement requests, and other important updates.",
+        steps: [
+          "Open the bell icon to review unread notifications.",
+          "Use Mark read when you have reviewed them, or Clear to remove old notifications.",
+          "Use Support to send feature requests, issue reports, or praise to the NovaCent team."
+        ]
+      }
+    ]
+  },
+  es: {
+    pageTitle: "Como usar NovaCent",
+    pageDescription: "Una guia sencilla para controlar gastos personales, importaciones, presupuestos, grupos, gastos recurrentes e informes.",
+    settingsDescription: "Una guia paso a paso para gastos, presupuestos, importacion de extractos, grupos, reglas recurrentes, informes, notificaciones y uso sin conexion.",
+    backToSettings: "Volver a ajustes",
+    openGuide: "Abrir guia",
+    quickStartTitle: "Inicio rapido",
+    quickStartAria: "Lista de inicio rapido",
+    sectionsAria: "Secciones de guia de NovaCent",
+    quickStart: [
+      {
+        title: "Elige la cuenta correcta",
+        description: "Usa el selector de cuenta antes de ingresar datos, porque cada gasto, presupuesto, importacion, grupo e informe pertenece a una cuenta."
+      },
+      {
+        title: "Registra o importa gastos",
+        description: "Agrega gastos manuales para el dia a dia, o sube un extracto y aprueba solo las filas que quieras guardar."
+      },
+      {
+        title: "Revisa presupuestos e informes",
+        description: "Usa presupuestos para limites e informes para patrones. Los acuerdos de grupos se reflejan en tu gasto personal final."
+      }
+    ],
+    sections: [
+      {
+        title: "Empieza con tu espacio de cuenta",
+        description: "NovaCent mantiene cada cuenta separada, asi que primero revisa el selector de cuenta arriba o en el menu movil.",
+        steps: [
+          "Elige la cuenta en la que quieres trabajar antes de agregar gastos, presupuestos, grupos o importaciones.",
+          "Usa los controles de idioma y tema cuando quieras una experiencia de lectura diferente.",
+          "Mira el estado en linea. Si estas sin conexion, NovaCent guarda los cambios admitidos localmente y los sincroniza al volver."
+        ]
+      },
+      {
+        title: "Agrega gastos diarios",
+        description: "Usa Gastos para entradas manuales rapidas y para revisar lo que ya esta en tu libro.",
+        steps: [
+          "Abre Gastos y usa Agregar rapido en la parte superior.",
+          "Ingresa comercio, categoria, importe, moneda y fecha. La fecha se establece en hoy por defecto.",
+          "Usa la busqueda para encontrar entradas antiguas por comercio, categoria o propietario.",
+          "Elimina gastos desbloqueados solo despues de confirmar. Los acuerdos y gastos de grupo saldados quedan protegidos."
+        ]
+      },
+      {
+        title: "Controla presupuestos",
+        description: "Los presupuestos te ayudan a ver si el mes o el ano siguen bajo control.",
+        steps: [
+          "Crea un presupuesto mensual o anual y elige si controla el gasto total o una sola categoria.",
+          "Los presupuestos mensuales van del dia 1 al fin del mes. Los anuales van del 1 de enero al 31 de diciembre.",
+          "Expande un presupuesto para ver exactamente que gastos entran en el calculo.",
+          "Define un porcentaje de alerta si quieres un aviso personalizado. El valor predeterminado es 80%."
+        ]
+      },
+      {
+        title: "Importa extractos bancarios",
+        description: "Usa Revision de importacion cuando quieras que NovaCent lea filas del extracto antes de guardarlas.",
+        steps: [
+          "Sube un archivo admitido. Si el PDF esta bloqueado, ingresa la contrasena antes de subirlo.",
+          "Revisa las filas extraidas antes de aprobarlas. Nada se guarda como gasto hasta que lo apruebes.",
+          "Elige una categoria en el desplegable o deja la fila como Sin categoria.",
+          "Usa el filtro de posibles duplicados si otro extracto puede contener filas ya importadas.",
+          "Aprueba filas validas y elimina las que no deben entrar al libro."
+        ]
+      },
+      {
+        title: "Comparte gastos con grupos",
+        description: "Los grupos sirven para gastos compartidos con amigos registrados o personas no registradas.",
+        steps: [
+          "Crea un grupo con un nombre claro y luego abrelo.",
+          "Busca un amigo por nombre o email. Si no existe un usuario registrado, agrega el nombre como persona no registrada.",
+          "Agrega gastos de grupo y elige division igual, monto manual, porcentaje o partes.",
+          "Los participantes registrados solicitan aprobacion de liquidacion. Las personas no registradas se saldan directamente.",
+          "Los gastos convertidos de grupo siguen afectando el libro general segun tu gasto personal final."
+        ]
+      },
+      {
+        title: "Automatiza gastos recurrentes",
+        description: "Las reglas recurrentes son para facturas o gastos que deben publicarse automaticamente en segundo plano.",
+        steps: [
+          "Crea una regla con comercio, categoria, importe, moneda, frecuencia, fecha inicial y fecha final opcional.",
+          "Pausa, reanuda, edita o finaliza una regla cuando cambie la factura real.",
+          "Los gastos recurrentes alimentan el libro, presupuestos e informes cuando se publican."
+        ]
+      },
+      {
+        title: "Lee informes",
+        description: "Los informes convierten el libro en graficos de gasto, flujo de caja, presupuesto, comercios, grupos y monedas.",
+        steps: [
+          "Usa el selector de periodo para 15 dias, 1 mes, 3 meses, 1 ano, 3 anos, Todo o un rango personalizado.",
+          "Revisa Gasto por categoria para entender adonde va el dinero.",
+          "Usa Flujo de caja para comparar ingresos, gastos y ahorro en el tiempo.",
+          "Exporta CSV para trabajar en hojas de calculo o PDF para un informe imprimible."
+        ]
+      },
+      {
+        title: "Revisa notificaciones y soporte",
+        description: "Las notificaciones reunen alertas de presupuesto, importaciones, liquidaciones y avisos importantes.",
+        steps: [
+          "Abre el icono de campana para revisar notificaciones no leidas.",
+          "Usa Marcar leidas cuando las hayas revisado, o Borrar para quitar notificaciones antiguas.",
+          "Usa Soporte para enviar solicitudes de funciones, reportes de problemas o elogios al equipo de NovaCent."
+        ]
+      }
+    ]
+  },
+  fr: {
+    pageTitle: "Comment utiliser NovaCent",
+    pageDescription: "Un guide simple pour suivre les depenses personnelles, imports, budgets, groupes, depenses recurrentes et rapports.",
+    settingsDescription: "Un guide etape par etape pour les depenses, budgets, imports de releves, groupes, regles recurrentes, rapports, notifications et usage hors ligne.",
+    backToSettings: "Retour aux parametres",
+    openGuide: "Ouvrir le guide",
+    quickStartTitle: "Demarrage rapide",
+    quickStartAria: "Liste de demarrage rapide",
+    sectionsAria: "Sections du guide NovaCent",
+    quickStart: [
+      {
+        title: "Choisir le bon compte",
+        description: "Utilisez le selecteur de compte avant de saisir quoi que ce soit, car chaque depense, budget, import, groupe et rapport est lie a un compte."
+      },
+      {
+        title: "Saisir ou importer les depenses",
+        description: "Ajoutez les depenses du quotidien manuellement, ou importez un releve et approuvez seulement les lignes a conserver."
+      },
+      {
+        title: "Verifier budgets et rapports",
+        description: "Utilisez les budgets pour les limites et les rapports pour les tendances. Les reglements de groupe se refletent dans votre depense personnelle finale."
+      }
+    ],
+    sections: [
+      {
+        title: "Commencer par l'espace du compte",
+        description: "NovaCent garde chaque compte separe, donc verifiez d'abord le selecteur de compte en haut ou dans le menu mobile.",
+        steps: [
+          "Choisissez le compte a utiliser avant d'ajouter des depenses, budgets, groupes ou imports.",
+          "Utilisez les controles de langue et de theme pour changer votre experience de lecture.",
+          "Surveillez le statut en ligne. Hors ligne, NovaCent garde les changements pris en charge localement puis les synchronise."
+        ]
+      },
+      {
+        title: "Ajouter les depenses quotidiennes",
+        description: "Utilisez Depenses pour les saisies rapides et pour verifier le grand livre existant.",
+        steps: [
+          "Ouvrez Depenses et utilisez l'ajout rapide en haut de page.",
+          "Saisissez marchand, categorie, montant, devise et date. La date est aujourd'hui par defaut.",
+          "Utilisez la recherche pour retrouver des lignes par marchand, categorie ou proprietaire.",
+          "Supprimez les depenses deverrouillees seulement apres confirmation. Les reglements et depenses de groupe reglees restent proteges."
+        ]
+      },
+      {
+        title: "Suivre les budgets",
+        description: "Les budgets montrent si le mois ou l'annee restent sous controle.",
+        steps: [
+          "Creez un budget mensuel ou annuel et choisissez le suivi global ou une categorie.",
+          "Les budgets mensuels vont du 1er au dernier jour du mois. Les budgets annuels vont du 1er janvier au 31 decembre.",
+          "Depliez un budget pour voir les depenses incluses dans le calcul.",
+          "Definissez un pourcentage d'alerte personnalise si besoin. La valeur par defaut est 80%."
+        ]
+      },
+      {
+        title: "Importer les releves bancaires",
+        description: "Utilisez Revue d'import pour faire lire les lignes du releve par NovaCent avant enregistrement.",
+        steps: [
+          "Importez un fichier pris en charge. Si le PDF est verrouille, saisissez le mot de passe avant l'import.",
+          "Verifiez les lignes extraites avant approbation. Rien n'est enregistre comme depense avant votre accord.",
+          "Choisissez une categorie ou laissez la ligne Non classee.",
+          "Utilisez le filtre de doublons possibles si un autre releve peut contenir les memes lignes.",
+          "Approuvez les lignes valides et supprimez celles qui ne doivent pas entrer dans le grand livre."
+        ]
+      },
+      {
+        title: "Partager des depenses avec des groupes",
+        description: "Les groupes servent aux depenses partagees avec des amis inscrits ou des participants externes.",
+        steps: [
+          "Creez un groupe avec un nom clair, puis ouvrez-le.",
+          "Recherchez un ami par nom ou email. Si aucun utilisateur inscrit n'existe, ajoutez le nom comme participant externe.",
+          "Ajoutez des depenses de groupe et choisissez partage egal, montant manuel, pourcentage ou parts.",
+          "Les participants inscrits demandent une approbation de reglement. Les externes sont regles directement.",
+          "Les depenses de groupe converties continuent d'affecter le grand livre selon votre depense personnelle finale."
+        ]
+      },
+      {
+        title: "Automatiser les depenses recurrentes",
+        description: "Les regles recurrentes servent aux factures ou depenses qui doivent se publier automatiquement.",
+        steps: [
+          "Creez une regle avec marchand, categorie, montant, devise, frequence, date de debut et date de fin facultative.",
+          "Suspendez, reprenez, modifiez ou terminez une regle lorsque la facture reelle change.",
+          "Les depenses recurrentes alimentent le grand livre, les budgets et les rapports une fois publiees."
+        ]
+      },
+      {
+        title: "Lire les rapports",
+        description: "Les rapports transforment le grand livre en graphiques de depenses, tresorerie, budgets, marchands, groupes et devises.",
+        steps: [
+          "Utilisez le selecteur de periode pour 15 jours, 1 mois, 3 mois, 1 an, 3 ans, Tout ou une plage personnalisee.",
+          "Consultez Depenses par categorie pour comprendre ou part l'argent.",
+          "Utilisez Flux de tresorerie pour comparer revenus, depenses et epargne dans le temps.",
+          "Exportez en CSV pour tableur ou en PDF pour un rapport imprimable."
+        ]
+      },
+      {
+        title: "Surveiller notifications et support",
+        description: "Les notifications regroupent alertes de budget, imports, reglements et informations importantes.",
+        steps: [
+          "Ouvrez l'icone de cloche pour voir les notifications non lues.",
+          "Utilisez Marquer comme lu apres lecture, ou Effacer pour retirer les anciennes notifications.",
+          "Utilisez Support pour envoyer demandes de fonctionnalite, signalements ou compliments a l'equipe NovaCent."
+        ]
+      }
+    ]
+  },
+  hi: {
+    pageTitle: "NovaCent का उपयोग कैसे करें",
+    pageDescription: "निजी खर्च, आयात, बजट, समूह, आवर्ती खर्च और रिपोर्ट समझने के लिए सरल गाइड.",
+    settingsDescription: "खर्च, बजट, स्टेटमेंट आयात, समूह, आवर्ती नियम, रिपोर्ट, सूचनाएं और ऑफलाइन उपयोग के लिए आसान चरणबद्ध गाइड.",
+    backToSettings: "सेटिंग्स पर वापस जाएं",
+    openGuide: "गाइड खोलें",
+    quickStartTitle: "त्वरित शुरुआत",
+    quickStartAria: "त्वरित शुरुआत सूची",
+    sectionsAria: "NovaCent गाइड सेक्शन",
+    quickStart: [
+      {
+        title: "सही खाता चुनें",
+        description: "कुछ भी जोड़ने से पहले खाता स्विचर देखें, क्योंकि हर खर्च, बजट, आयात, समूह और रिपोर्ट किसी एक खाते से जुड़ी होती है."
+      },
+      {
+        title: "खर्च जोड़ें या आयात करें",
+        description: "रोज के खर्च मैनुअली जोड़ें, या स्टेटमेंट अपलोड करके केवल वही पंक्तियां मंज़ूर करें जिन्हें सहेजना है."
+      },
+      {
+        title: "बजट और रिपोर्ट देखें",
+        description: "सीमा के लिए बजट और खर्च के पैटर्न समझने के लिए रिपोर्ट इस्तेमाल करें. साझा समूह निपटान आपके अंतिम निजी खर्च में दिखते हैं."
+      }
+    ],
+    sections: [
+      {
+        title: "अपने खाते के कार्यक्षेत्र से शुरू करें",
+        description: "NovaCent हर खाते को अलग रखता है, इसलिए पहले ऊपर या मोबाइल मेनू में खाता बदलने वाला चयनक देखें.",
+        steps: [
+          "खर्च, बजट, समूह या आयात जोड़ने से पहले वह खाता चुनें जिसमें काम करना है.",
+          "जब पढ़ने का अनुभव बदलना हो तो भाषा और थीम नियंत्रण इस्तेमाल करें.",
+          "ऑनलाइन स्थिति देखें. ऑफलाइन होने पर NovaCent समर्थित बदलाव स्थानीय रूप से रखता है और ऑनलाइन होने पर समन्वय करता है."
+        ]
+      },
+      {
+        title: "रोज के खर्च जोड़ें",
+        description: "खर्च पेज त्वरित मैनुअल प्रविष्टियों और खाता-बही समीक्षा के लिए है.",
+        steps: [
+          "खर्च पेज खोलें और ऊपर त्वरित जोड़ का इस्तेमाल करें.",
+          "व्यापारी, श्रेणी, राशि, मुद्रा और तारीख भरें. तारीख अपने आप आज की रहती है.",
+          "पुरानी प्रविष्टियां व्यापारी, श्रेणी या मालिक से खोजने के लिए खोज का इस्तेमाल करें.",
+          "लॉक नहीं किए गए खर्च पुष्टि के बाद ही हटाएं. निपटान पंक्तियां और निपटाए गए समूह खर्च सुरक्षित रहते हैं."
+        ]
+      },
+      {
+        title: "बजट पर नज़र रखें",
+        description: "बजट से पता चलता है कि महीना या साल नियंत्रण में है या नहीं.",
+        steps: [
+          "मासिक या वार्षिक बजट बनाएं और चुनें कि वह कुल खर्च पर नज़र रखेगा या किसी एक श्रेणी पर.",
+          "मासिक बजट मौजूदा महीने की 1 तारीख से महीने के अंत तक चलता है. वार्षिक बजट 1 जनवरी से 31 दिसंबर तक चलता है.",
+          "किस खर्च को गणना में लिया गया है, यह देखने के लिए बजट खोलकर देखें.",
+          "अपनी चेतावनी सीमा के लिए अलर्ट प्रतिशत सेट करें. डिफ़ॉल्ट 80% है."
+        ]
+      },
+      {
+        title: "बैंक स्टेटमेंट आयात करें",
+        description: "आयात समीक्षा तब इस्तेमाल करें जब NovaCent स्टेटमेंट पंक्तियों को खाता-बही में सहेजने से पहले पढ़े.",
+        steps: [
+          "समर्थित स्टेटमेंट फ़ाइल अपलोड करें. PDF लॉक हो तो अपलोड से पहले स्टेटमेंट पासवर्ड डालें.",
+          "मंज़ूर करने से पहले निकाली गई पंक्तियों की समीक्षा करें. मंज़ूर किए बिना कोई पंक्ति खर्च नहीं बनती.",
+          "ड्रॉपडाउन से श्रेणी चुनें या पंक्ति को अवर्गीकृत रहने दें.",
+          "अगर दूसरे स्टेटमेंट में पहले से आयात की गई पंक्तियां हो सकती हैं, तो संभावित दोहराव फ़िल्टर इस्तेमाल करें.",
+          "मान्य पंक्तियां मंज़ूर करें और जो खाता-बही में नहीं जानी चाहिए उन्हें हटाएं."
+        ]
+      },
+      {
+        title: "समूहों में खर्च साझा करें",
+        description: "समूह पंजीकृत दोस्तों या बिना पंजीकरण वाले अस्थायी प्रतिभागियों के साथ साझा खर्च के लिए हैं.",
+        steps: [
+          "स्पष्ट नाम के साथ समूह बनाएं और उसे खोलें.",
+          "नाम या ईमेल से दोस्त खोजें. पंजीकृत उपयोगकर्ता न मिले तो डाला गया नाम बिना पंजीकरण वाले व्यक्ति की तरह जोड़ें.",
+          "समूह खर्च जोड़ें और समान, मैनुअल राशि, प्रतिशत या हिस्सों पर आधारित विभाजन चुनें.",
+          "पंजीकृत प्रतिभागी निपटान मंज़ूरी का अनुरोध करते हैं. बिना पंजीकरण वाले अस्थायी प्रतिभागी सीधे निपट जाते हैं.",
+          "बदले गए समूह खर्च अंतिम निजी खर्च के हिसाब से पूरी खाता-बही को प्रभावित करते हैं."
+        ]
+      },
+      {
+        title: "आवर्ती खर्च स्वचालित करें",
+        description: "आवर्ती नियम बिलों या ऐसे खर्चों के लिए हैं जो पृष्ठभूमि में अपने आप दर्ज होने चाहिए.",
+        steps: [
+          "व्यापारी, श्रेणी, राशि, मुद्रा, आवृत्ति, शुरू तारीख और वैकल्पिक अंत तारीख के साथ नियम बनाएं.",
+          "वास्तविक बिल बदलने पर नियम को रोकें, फिर शुरू करें, संपादित करें या समाप्त करें.",
+          "दर्ज होने के बाद आवर्ती खर्च सामान्य खाता-बही, बजट और रिपोर्ट में शामिल होते हैं."
+        ]
+      },
+      {
+        title: "रिपोर्ट पढ़ें",
+        description: "रिपोर्ट खाता-बही को खर्च, नकदी प्रवाह, बजट अंतर, व्यापारियों, समूहों और मुद्राओं के चार्ट में बदलती हैं.",
+        steps: [
+          "पिछले 15 दिन, 1 महीना, 3 महीने, 1 साल, 3 साल, सभी या अपनी तारीख सीमा चुनने के लिए समयावधि चयनक इस्तेमाल करें.",
+          "पैसा कहां जा रहा है समझने के लिए श्रेणी के अनुसार खर्च देखें.",
+          "आय, खर्च और बचत की तुलना करने के लिए नकदी प्रवाह रुझान देखें.",
+          "स्प्रेडशीट के लिए CSV निर्यात करें या छपाई योग्य रिपोर्ट के लिए PDF निर्यात करें."
+        ]
+      },
+      {
+        title: "सूचनाएं और सहायता देखें",
+        description: "सूचनाएं बजट अलर्ट, आयात, निपटान अनुरोध और जरूरी अपडेट को एक जगह रखती हैं.",
+        steps: [
+          "अपठित सूचनाएं देखने के लिए घंटी चिह्न खोलें.",
+          "समीक्षा के बाद पढ़ा हुआ मार्क करें इस्तेमाल करें, या पुरानी सूचनाएं हटाने के लिए साफ करें इस्तेमाल करें.",
+          "सुविधा अनुरोध, समस्या रिपोर्ट या प्रशंसा भेजने के लिए सहायता इस्तेमाल करें."
+        ]
+      }
+    ]
+  },
+  mr: {
+    pageTitle: "NovaCent कसे वापरावे",
+    pageDescription: "वैयक्तिक खर्च, आयात, बजेट, समूह, आवर्ती खर्च आणि अहवाल समजण्यासाठी सोपी गाइड.",
+    settingsDescription: "खर्च, बजेट, स्टेटमेंट आयात, समूह, आवर्ती नियम, अहवाल, सूचना आणि ऑफलाइन वापरासाठी सोपी चरणबद्ध गाइड.",
+    backToSettings: "सेटिंग्जवर परत जा",
+    openGuide: "गाइड उघडा",
+    quickStartTitle: "जलद सुरुवात",
+    quickStartAria: "जलद सुरुवात यादी",
+    sectionsAria: "NovaCent गाइड विभाग",
+    quickStart: [
+      {
+        title: "योग्य खाते निवडा",
+        description: "काहीही जोडण्यापूर्वी खाते बदलणारा पर्याय वापरा, कारण प्रत्येक खर्च, बजेट, आयात, समूह आणि अहवाल एका खात्याशी जोडलेला असतो."
+      },
+      {
+        title: "खर्च नोंदवा किंवा आयात करा",
+        description: "दररोजचे खर्च स्वतः जोडा, किंवा स्टेटमेंट अपलोड करून फक्त जतन करायच्या ओळी मंजूर करा."
+      },
+      {
+        title: "बजेट आणि अहवाल पहा",
+        description: "मर्यादांसाठी बजेट आणि खर्चाचे नमुने समजण्यासाठी अहवाल वापरा. सामायिक समूह निपटारे तुमच्या अंतिम वैयक्तिक खर्चात दिसतात."
+      }
+    ],
+    sections: [
+      {
+        title: "तुमच्या खाते कार्यक्षेत्रापासून सुरू करा",
+        description: "NovaCent प्रत्येक खाते वेगळे ठेवते, म्हणून वर किंवा मोबाइल मेनूमधील खाते बदलणारा पर्याय आधी तपासा.",
+        steps: [
+          "खर्च, बजेट, समूह किंवा आयात जोडण्यापूर्वी काम करायचे खाते निवडा.",
+          "वेगळा वाचन अनुभव हवा असल्यास भाषा आणि थीम नियंत्रण वापरा.",
+          "ऑनलाइन स्थिती पहा. ऑफलाइन असताना NovaCent समर्थित बदल स्थानिक पातळीवर ठेवते आणि ऑनलाइन झाल्यावर समन्वय करते."
+        ]
+      },
+      {
+        title: "दररोजचे खर्च जोडा",
+        description: "खर्च पान जलद मॅन्युअल नोंदी आणि खर्च वहीची समीक्षा यासाठी आहे.",
+        steps: [
+          "खर्च पान उघडा आणि वरचा जलद जोडा पर्याय वापरा.",
+          "व्यापारी, श्रेणी, रक्कम, चलन आणि तारीख भरा. तारीख आपोआप आजची असते.",
+          "जुन्या नोंदी व्यापारी, श्रेणी किंवा मालकाने शोधण्यासाठी शोध वापरा.",
+          "लॉक नसलेले खर्च पुष्टीकरणानंतरच हटवा. निपटारा ओळी आणि निपटलेले समूह खर्च सुरक्षित राहतात."
+        ]
+      },
+      {
+        title: "बजेटवर लक्ष ठेवा",
+        description: "बजेटमुळे महिना किंवा वर्ष अजून नियंत्रणात आहे का ते दिसते.",
+        steps: [
+          "मासिक किंवा वार्षिक बजेट तयार करा आणि ते एकूण खर्चावर लक्ष ठेवेल की एका श्रेणीवर ते निवडा.",
+          "मासिक बजेट चालू महिन्याच्या 1 तारखेपासून महिन्याच्या शेवटपर्यंत चालते. वार्षिक बजेट 1 जानेवारी ते 31 डिसेंबर चालते.",
+          "गणनेत कोणते खर्च घेतले आहेत हे पाहण्यासाठी बजेट उघडून पहा.",
+          "स्वतःची चेतावणी मर्यादा हवी असल्यास अलर्ट टक्केवारी सेट करा. डीफॉल्ट 80% आहे."
+        ]
+      },
+      {
+        title: "बँक स्टेटमेंट आयात करा",
+        description: "स्टेटमेंट ओळी खर्च वहीत जतन करण्यापूर्वी NovaCent ने वाचाव्यात यासाठी आयात समीक्षा वापरा.",
+        steps: [
+          "समर्थित स्टेटमेंट फाइल अपलोड करा. PDF लॉक असेल तर अपलोडपूर्वी स्टेटमेंट पासवर्ड टाका.",
+          "मंजूर करण्यापूर्वी काढलेल्या ओळींची समीक्षा करा. मंजूर केल्याशिवाय काहीही खर्च म्हणून जतन होत नाही.",
+          "ड्रॉपडाउनमधून श्रेणी निवडा किंवा ओळ अवर्गीकृत ठेवा.",
+          "दुसऱ्या स्टेटमेंटमध्ये आधी आयात केलेल्या ओळी असू शकतात तर संभाव्य पुनरावृत्ती फिल्टर वापरा.",
+          "मान्य ओळी मंजूर करा आणि खर्च वहीत नको असलेल्या ओळी हटवा."
+        ]
+      },
+      {
+        title: "समूहांमध्ये खर्च सामायिक करा",
+        description: "समूह नोंदणीकृत मित्र किंवा नोंदणी नसलेल्या तात्पुरत्या सहभागींसोबत सामायिक खर्चासाठी आहेत.",
+        steps: [
+          "स्पष्ट नावाने समूह तयार करा आणि उघडा.",
+          "नाव किंवा ईमेलने मित्र शोधा. नोंदणीकृत वापरकर्ता नसेल तर टाकलेले नाव नोंदणी नसलेली व्यक्ती म्हणून जोडा.",
+          "समूह खर्च जोडा आणि समान, मॅन्युअल रक्कम, टक्केवारी किंवा हिस्स्यावर आधारित वाटणी निवडा.",
+          "नोंदणीकृत सहभागी निपटारा मंजुरीची विनंती करतात. नोंदणी नसलेले तात्पुरते सहभागी थेट निपटतात.",
+          "बदललेले समूह खर्च अंतिम वैयक्तिक खर्चानुसार एकूण खर्च वहीवर परिणाम करतात."
+        ]
+      },
+      {
+        title: "आवर्ती खर्च स्वयंचलित करा",
+        description: "आवर्ती नियम बिलांसाठी किंवा पार्श्वभूमीत आपोआप नोंद होणाऱ्या खर्चांसाठी आहेत.",
+        steps: [
+          "व्यापारी, श्रेणी, रक्कम, चलन, वारंवारता, सुरू तारीख आणि ऐच्छिक शेवटची तारीख यांसह नियम तयार करा.",
+          "खरा बिल बदलल्यास नियम थांबवा, पुन्हा सुरू करा, संपादित करा किंवा समाप्त करा.",
+          "नोंद झाल्यावर आवर्ती खर्च सामान्य खर्च वही, बजेट आणि अहवालात येतात."
+        ]
+      },
+      {
+        title: "अहवाल वाचा",
+        description: "अहवाल खर्च वहीला खर्च, रोख प्रवाह, बजेट फरक, व्यापारी, समूह आणि चलनांचे चार्टमध्ये बदलतात.",
+        steps: [
+          "मागील 15 दिवस, 1 महिना, 3 महिने, 1 वर्ष, 3 वर्षे, सर्व किंवा स्वतःची तारीख श्रेणी निवडण्यासाठी कालावधी निवडणारा पर्याय वापरा.",
+          "पैसे कुठे जात आहेत हे समजण्यासाठी श्रेणीनुसार खर्च पहा.",
+          "उत्पन्न, खर्च आणि बचत तुलना करण्यासाठी रोख प्रवाहाचा कल वापरा.",
+          "स्प्रेडशीटसाठी CSV निर्यात करा किंवा छापता येणाऱ्या अहवालासाठी PDF निर्यात करा."
+        ]
+      },
+      {
+        title: "सूचना आणि सहाय्य पहा",
+        description: "सूचना बजेट अलर्ट, आयात, निपटारा विनंत्या आणि महत्त्वाचे अपडेट एकत्र ठेवतात.",
+        steps: [
+          "न वाचलेल्या सूचना पाहण्यासाठी घंटी चिन्ह उघडा.",
+          "समीक्षा झाल्यावर वाचलेले मार्क करा वापरा, किंवा जुन्या सूचना काढण्यासाठी साफ करा वापरा.",
+          "सुविधा विनंती, समस्या अहवाल किंवा कौतुक पाठवण्यासाठी सहाय्य वापरा."
+        ]
+      }
+    ]
   }
 };
 

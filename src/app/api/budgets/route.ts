@@ -44,7 +44,8 @@ export async function POST(request: Request) {
       updatedAt: new Date().toISOString()
     };
     await db.collection(collections.budgets).insertOne(budget);
-    return created({ budget });
+    const [hydratedBudget] = await hydrateBudgetSpend(db, accountId, [budget]);
+    return created({ budget: hydratedBudget ?? budget });
   } catch (error) {
     return handleApiError(error);
   }

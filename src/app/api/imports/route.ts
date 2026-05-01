@@ -1,6 +1,6 @@
 import { accountIdFromRequest, requireAccountAccess } from "@/lib/server/auth";
 import { collections, getDb } from "@/lib/server/mongodb";
-import { parseStatementFile } from "@/lib/server/import-parser";
+import { parseStatementFile, StatementPasswordError } from "@/lib/server/import-parser";
 import { created, handleApiError, ok, problem } from "@/lib/server/http";
 import { markPossibleImportDuplicates } from "@/lib/server/import-duplicates";
 import { createNotification } from "@/lib/server/notifications";
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     const { accountId, user } = await requireAccountAccess(accountIdFromRequest(request));
     const formData = await request.formData();
     const file = formData.get("file");
+    const statementPassword = String(formData.get("statementPassword") ?? "").trim() || undefined;
 
     if (!(file instanceof File)) {
       return problem("A statement file is required.", 400);
@@ -48,7 +49,39 @@ export async function POST(request: Request) {
     const db = await getDb();
     const batchId = crypto.randomUUID();
     const rules = await db.collection<CategoryRule>(collections.categoryRules).find({ accountId }).toArray();
-    const parsedRows = await parseStatementFile(file, batchId, rules);
+    let parsedRows: Awaited<ReturnType<typeof parseStatementFile>>;
+    try {
+      parsedRows = await parseStatementFile(file, batchId, rules, { statementPassword });
+    } catch (error) {
+      if (error instanceof StatementPasswordError) {
+        const now = new Date().toISOString();
+        const failedBatch = {
+          id: batchId,
+          accountId,
+          fileName: file.name,
+          status: "failed",
+          rows: [],
+          failureReason: error.reason,
+          failureMessage: error.message,
+          createdAt: now,
+          updatedAt: now,
+          originalFileDeleted: true
+        };
+        await db.collection(collections.importBatches).insertOne(failedBatch);
+        await createNotification({
+          accountId,
+          userId: user.id,
+          title: "Statement import needs password",
+          body: error.message,
+          tone: "warning",
+          eventType: "import_review",
+          entityType: "importBatch",
+          entityId: batchId
+        });
+        return problem(error.message, error.reason === "required" ? 422 : 401, { batch: failedBatch, reason: error.reason });
+      }
+      throw error;
+    }
     const rows = await markPossibleImportDuplicates(accountId, parsedRows);
     const now = new Date().toISOString();
     const batch = {

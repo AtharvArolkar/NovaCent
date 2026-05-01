@@ -1,5 +1,6 @@
 import { addMinutes } from "date-fns";
 import { collections, getDb } from "@/lib/server/mongodb";
+import { sendEmail, smtpConfigured } from "@/lib/server/email";
 import { handleApiError, ok } from "@/lib/server/http";
 import { resetRequestSchema } from "@/lib/server/schemas";
 
@@ -25,13 +26,29 @@ export async function POST(request: Request) {
     });
 
     const resetUrl = `${process.env.NEXTAUTH_URL ?? "http://localhost:3000"}/reset-password?token=${token}`;
+    if (smtpConfigured()) {
+      try {
+        await sendEmail({
+          to: user.email,
+          subject: "Reset your NovaCent password",
+          text: [
+            "We received a request to reset your NovaCent password.",
+            "",
+            `Open this link within 30 minutes: ${resetUrl}`,
+            "",
+            "If you did not request this, you can ignore this email."
+          ].join("\n")
+        });
+      } catch {
+        return ok(genericResponse);
+      }
+    }
 
     return ok({
       ...genericResponse,
-      developmentResetUrl: process.env.SMTP_HOST ? undefined : resetUrl
+      developmentResetUrl: smtpConfigured() ? undefined : resetUrl
     });
   } catch (error) {
     return handleApiError(error);
   }
 }
-

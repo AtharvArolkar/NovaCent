@@ -1,19 +1,46 @@
 {
   "name": "NovaCent",
   "short_name": "NovaCent",
+  "id": "/",
   "description": "Offline-capable expense tracking, shared party settlements, reporting, imports, and currency snapshots.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#f8fafc",
   "theme_color": "#0f766e",
   "orientation": "portrait-primary",
+  "categories": ["finance", "productivity", "utilities"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add expense",
+      "short_name": "Expense",
+      "description": "Open NovaCent expenses.",
+      "url": "/expenses",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Import review",
+      "short_name": "Import",
+      "description": "Review imported statement rows.",
+      "url": "/import-review",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Reports",
+      "short_name": "Reports",
+      "description": "Open NovaCent reports.",
+      "url": "/reports",
+      "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
     }
   ]
 }
