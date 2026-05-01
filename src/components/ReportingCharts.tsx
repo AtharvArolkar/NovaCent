@@ -29,11 +29,6 @@ import type {
 import { usePreferences } from "@/lib/client/preferences";
 
 const palette = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--accent-alt)"];
-const money = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0,
-});
 const tooltipStyle = {
   backgroundColor: "var(--surface)",
   border: "1px solid var(--border)",
@@ -45,9 +40,18 @@ const tooltipTextStyle = {
   color: "var(--text)"
 };
 
-function valueLabel(value: number | string | Array<number | string>) {
+function formatCurrency(amount: number, currency = "INR") {
+  const currencyCode = currency.toUpperCase();
+  try {
+    return `${new Intl.NumberFormat("en-IN", { style: "currency", currency: currencyCode, maximumFractionDigits: 0 }).format(amount)} ${currencyCode}`;
+  } catch {
+    return `${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(amount)} ${currencyCode}`;
+  }
+}
+
+function valueLabel(value: number | string | Array<number | string>, currency = "INR") {
   if (Array.isArray(value)) return value.join(" - ");
-  return typeof value === "number" ? money.format(value) : value;
+  return typeof value === "number" ? formatCurrency(value, currency) : value;
 }
 
 function ChartFrame({
@@ -125,12 +129,13 @@ export function AccessibleDataTable({
 }
 
 export function CategoryBreakdownChart({ data }: { data: LabeledAmount[] }) {
-  const { tx } = usePreferences();
+  const { defaultCurrency, tx } = usePreferences();
+  const formatValue = (value: number | string | Array<number | string>) => valueLabel(value, defaultCurrency);
   return (
     <>
       <ChartFrame
         title="Category mix"
-        ariaLabel={`Category spend chart with ${data.map((row) => `${tx(row.label)} ${money.format(row.value)}`).join(", ")}`}
+        ariaLabel={`Category spend chart with ${data.map((row) => `${tx(row.label)} ${formatCurrency(row.value, defaultCurrency)}`).join(", ")}`}
       >
         <ResponsiveContainer width="100%" height={280}>
           <PieChart>
@@ -139,7 +144,7 @@ export function CategoryBreakdownChart({ data }: { data: LabeledAmount[] }) {
                 <Cell fill={palette[index % palette.length]} key={row.label} />
               ))}
             </Pie>
-            <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
+            <Tooltip contentStyle={tooltipStyle} formatter={formatValue} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
             <Legend />
           </PieChart>
         </ResponsiveContainer>
@@ -148,7 +153,7 @@ export function CategoryBreakdownChart({ data }: { data: LabeledAmount[] }) {
         caption="Category spend totals"
         columns={[
           { key: "label", header: "Category" },
-          { key: "value", header: "Spend", numeric: true, format: (value) => money.format(Number(value)) },
+          { key: "value", header: "Spend", numeric: true, format: (value) => formatCurrency(Number(value), defaultCurrency) },
         ]}
         rows={data}
       />
@@ -157,7 +162,8 @@ export function CategoryBreakdownChart({ data }: { data: LabeledAmount[] }) {
 }
 
 export function CashFlowTrendChart({ data }: { data: CashFlowPoint[] }) {
-  const { tx } = usePreferences();
+  const { defaultCurrency, tx } = usePreferences();
+  const formatValue = (value: number | string | Array<number | string>) => valueLabel(value, defaultCurrency);
   const rows = data.map((row) => ({ ...row, saved: row.income - row.spend }));
   return (
     <>
@@ -167,7 +173,7 @@ export function CashFlowTrendChart({ data }: { data: CashFlowPoint[] }) {
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" />
             <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} width={42} />
-            <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
+            <Tooltip contentStyle={tooltipStyle} formatter={formatValue} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
             <Legend />
             <Area dataKey="income" fill="var(--chart-2-soft)" name={tx("Income")} stroke="var(--chart-2)" type="monotone" />
             <Bar dataKey="spend" fill="var(--chart-1)" name={tx("Spend")} radius={[6, 6, 0, 0]} />
@@ -179,9 +185,9 @@ export function CashFlowTrendChart({ data }: { data: CashFlowPoint[] }) {
         caption="Monthly income, spend, and saved report"
         columns={[
           { key: "label", header: "Month" },
-          { key: "income", header: "Income", numeric: true, format: (value) => money.format(Number(value)) },
-          { key: "spend", header: "Spend", numeric: true, format: (value) => money.format(Number(value)) },
-          { key: "saved", header: "Saved", numeric: true, format: (value) => money.format(Number(value)) },
+          { key: "income", header: "Income", numeric: true, format: (value) => formatCurrency(Number(value), defaultCurrency) },
+          { key: "spend", header: "Spend", numeric: true, format: (value) => formatCurrency(Number(value), defaultCurrency) },
+          { key: "saved", header: "Saved", numeric: true, format: (value) => formatCurrency(Number(value), defaultCurrency) },
         ]}
         rows={rows}
       />
@@ -190,7 +196,8 @@ export function CashFlowTrendChart({ data }: { data: CashFlowPoint[] }) {
 }
 
 export function BudgetVarianceChart({ data }: { data: BudgetVariancePoint[] }) {
-  const { tx } = usePreferences();
+  const { defaultCurrency, tx } = usePreferences();
+  const formatValue = (value: number | string | Array<number | string>) => valueLabel(value, defaultCurrency);
   return (
     <>
       <ChartFrame title="Budget variance" ariaLabel="Budget variance chart comparing actual spend with budget limit">
@@ -199,7 +206,7 @@ export function BudgetVarianceChart({ data }: { data: BudgetVariancePoint[] }) {
             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
             <XAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} type="number" />
             <YAxis dataKey="label" type="category" width={96} />
-            <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
+            <Tooltip contentStyle={tooltipStyle} formatter={formatValue} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
             <Legend />
             <Bar dataKey="budget" fill="var(--muted)" name={tx("Budget")} radius={[0, 6, 6, 0]} />
             <Bar dataKey="actual" fill="var(--chart-2)" name={tx("Actual")} radius={[0, 6, 6, 0]} />
@@ -210,9 +217,9 @@ export function BudgetVarianceChart({ data }: { data: BudgetVariancePoint[] }) {
         caption="Budget variance by category"
         columns={[
           { key: "label", header: "Category" },
-          { key: "budget", header: "Budget", numeric: true, format: (value) => money.format(Number(value)) },
-          { key: "actual", header: "Actual", numeric: true, format: (value) => money.format(Number(value)) },
-          { key: "remaining", header: "Remaining", numeric: true, format: (value) => money.format(Number(value)) },
+          { key: "budget", header: "Budget", numeric: true, format: (value) => formatCurrency(Number(value), defaultCurrency) },
+          { key: "actual", header: "Actual", numeric: true, format: (value) => formatCurrency(Number(value), defaultCurrency) },
+          { key: "remaining", header: "Remaining", numeric: true, format: (value) => formatCurrency(Number(value), defaultCurrency) },
           { key: "usage", header: "Used", numeric: true, format: (value) => `${value}%` },
         ]}
         rows={data}
@@ -222,7 +229,8 @@ export function BudgetVarianceChart({ data }: { data: BudgetVariancePoint[] }) {
 }
 
 export function MerchantTrendsChart({ data }: { data: MerchantTrendPoint[] }) {
-  const { tx } = usePreferences();
+  const { defaultCurrency, tx } = usePreferences();
+  const formatValue = (value: number | string | Array<number | string>) => valueLabel(value, defaultCurrency);
   return (
     <ChartFrame title="Merchant trend lanes" ariaLabel="Merchant and category spending trends by month">
       <ResponsiveContainer width="100%" height={300}>
@@ -230,7 +238,7 @@ export function MerchantTrendsChart({ data }: { data: MerchantTrendPoint[] }) {
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="label" />
           <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} width={42} />
-          <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
+          <Tooltip contentStyle={tooltipStyle} formatter={formatValue} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
           <Legend />
           <Line dataKey="food" name={tx("Food merchants")} stroke="var(--chart-2)" strokeWidth={3} type="monotone" />
           <Line dataKey="travel" name={tx("Travel merchants")} stroke="var(--chart-1)" strokeWidth={3} type="monotone" />
@@ -251,7 +259,8 @@ export function SummaryBarsChart({
   title: string;
   label: string;
 }) {
-  const { tx } = usePreferences();
+  const { defaultCurrency, tx } = usePreferences();
+  const formatValue = (value: number | string | Array<number | string>) => valueLabel(value, defaultCurrency);
   return (
     <>
       <ChartFrame title={title} ariaLabel={label}>
@@ -260,7 +269,7 @@ export function SummaryBarsChart({
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" />
             <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} width={42} />
-            <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
+            <Tooltip contentStyle={tooltipStyle} formatter={formatValue} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
             <Bar dataKey="value" fill="var(--chart-3)" radius={[6, 6, 0, 0]}>
               {data.map((row, index) => (
                 <Cell fill={palette[index % palette.length]} key={row.label} />
@@ -273,7 +282,7 @@ export function SummaryBarsChart({
         caption={`${tx(title)} ${tx("data")}`}
         columns={[
           { key: "label", header: "Label" },
-          { key: "value", header: "Amount", numeric: true, format: (value) => money.format(Number(value)) },
+          { key: "value", header: "Amount", numeric: true, format: (value) => formatCurrency(Number(value), defaultCurrency) },
         ]}
         rows={data}
       />
@@ -282,7 +291,8 @@ export function SummaryBarsChart({
 }
 
 export function PartySummaryChart({ data }: { data: PartySummaryPoint[] }) {
-  const { tx } = usePreferences();
+  const { defaultCurrency, tx } = usePreferences();
+  const formatValue = (value: number | string | Array<number | string>) => valueLabel(value, defaultCurrency);
   return (
     <>
       <ChartFrame title="Party balances" ariaLabel="Party outstanding and settled balance comparison">
@@ -291,7 +301,7 @@ export function PartySummaryChart({ data }: { data: PartySummaryPoint[] }) {
             <CartesianGrid strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="label" />
             <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} width={42} />
-            <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
+            <Tooltip contentStyle={tooltipStyle} formatter={formatValue} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
             <Legend />
             <Area dataKey="outstanding" fill="var(--chart-5-soft)" name={tx("Outstanding")} stroke="var(--chart-5)" type="monotone" />
             <Area dataKey="settled" fill="var(--chart-2-soft)" name={tx("Settled")} stroke="var(--chart-2)" type="monotone" />
@@ -302,8 +312,8 @@ export function PartySummaryChart({ data }: { data: PartySummaryPoint[] }) {
         caption="Party outstanding and settled balances"
         columns={[
           { key: "label", header: "Party" },
-          { key: "outstanding", header: "Outstanding", numeric: true, format: (value) => money.format(Number(value)) },
-          { key: "settled", header: "Settled", numeric: true, format: (value) => money.format(Number(value)) },
+          { key: "outstanding", header: "Outstanding", numeric: true, format: (value) => formatCurrency(Number(value), defaultCurrency) },
+          { key: "settled", header: "Settled", numeric: true, format: (value) => formatCurrency(Number(value), defaultCurrency) },
         ]}
         rows={data}
       />

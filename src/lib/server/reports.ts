@@ -26,6 +26,15 @@ function expenseBaseAmount(expense: Expense) {
   return amountFrom(expense.base) || amountFrom(expense.original) || amountFrom((expense as Expense & { amount?: unknown }).amount);
 }
 
+function spendImpactAmount(expense: Expense) {
+  const amount = expenseBaseAmount(expense);
+  if (expense.source === "settlement") {
+    return amount;
+  }
+
+  return Math.max(amount, 0);
+}
+
 function expenseOriginalAmount(expense: Expense) {
   return amountFrom(expense.original) || expenseBaseAmount(expense);
 }
@@ -56,7 +65,7 @@ function reportCategoryFor(expense: Expense, expensesById: Map<string, Expense>,
 }
 
 export function buildReportSummary(expenses: Expense[], budgets: Budget[], trips: Trip[], splits: Split[] = [], relatedExpenses: Expense[] = []): ReportSummary {
-  const total = expenses.reduce((sum, expense) => sum + expenseBaseAmount(expense), 0);
+  const total = Math.max(0, roundMoney(expenses.reduce((sum, expense) => sum + spendImpactAmount(expense), 0)));
   const pendingSyncCount = expenses.filter((expense) => expense.syncStatus === "pending").length;
   const budgetTotal = budgets.reduce((sum, budget) => sum + budgetLimitAmount(budget), 0);
   const budgetSpent = budgets.reduce((sum, budget) => sum + amountFrom(budget.spent), 0);
@@ -71,7 +80,7 @@ export function buildReportSummary(expenses: Expense[], budgets: Budget[], trips
   for (const expense of expenses) {
     const reportCategory = reportCategoryFor(expense, expensesById, splitsById);
     const baseAmount = expenseBaseAmount(expense);
-    byCategory.set(reportCategory, (byCategory.get(reportCategory) ?? 0) + baseAmount);
+    byCategory.set(reportCategory, (byCategory.get(reportCategory) ?? 0) + spendImpactAmount(expense));
     const month = expenseMonthLabel(expense);
     const monthBucket = byMonth.get(month) ?? { amount: 0, income: 0, spend: 0 };
     monthBucket.amount += baseAmount;

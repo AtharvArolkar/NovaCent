@@ -261,6 +261,100 @@ const asAmount = (money: Money | number | undefined) => {
   return money?.amount ?? 0;
 };
 
+const displayCurrencyFor = (currency?: string) => currency?.toUpperCase() || "INR";
+
+const clientRateCache = new Map<string, number>();
+
+async function clientCurrencyRate(fromCurrency: string | undefined, toCurrency: string | undefined) {
+  const from = displayCurrencyFor(fromCurrency);
+  const to = displayCurrencyFor(toCurrency);
+  if (from === to) return 1;
+
+  const key = `${from}:${to}`;
+  const cached = clientRateCache.get(key);
+  if (cached !== undefined) return cached;
+
+  try {
+    const params = new URLSearchParams({ from, to, amount: "1" });
+    const payload = await requestJson<{ rate?: { rate?: number }; convertedAmount?: number }>(`/api/currency/rate?${params.toString()}`);
+    const rate = Number(payload.rate?.rate ?? payload.convertedAmount);
+    if (Number.isFinite(rate) && rate > 0) {
+      clientRateCache.set(key, rate);
+      return rate;
+    }
+  } catch {
+    // Keep summaries usable offline or when rates are unavailable.
+  }
+
+  return 1;
+}
+
+async function convertClientAmount(amount: number, fromCurrency: string | undefined, toCurrency: string | undefined) {
+  const rate = await clientCurrencyRate(fromCurrency, toCurrency);
+  return Math.round(amount * rate * 100) / 100;
+}
+
+const expenseCalculationMoney = (expense: Pick<Expense, "amount" | "currency" | "baseAmount" | "baseCurrency">) => ({
+  amount: expense.baseAmount ?? expense.amount,
+  currency: expense.baseCurrency ?? expense.currency
+});
+
+const spendImpactAmount = async (expense: Pick<Expense, "amount" | "currency" | "baseAmount" | "baseCurrency" | "source">, targetCurrency = "INR") => {
+  const calculationMoney = expenseCalculationMoney(expense);
+  const amount = await convertClientAmount(calculationMoney.amount, calculationMoney.currency, targetCurrency);
+  if (expense.source === "settlement") {
+    return amount;
+  }
+
+  return Math.max(amount, 0);
+};
+
+const totalSpendImpact = async (expenseRows: Array<Pick<Expense, "amount" | "currency" | "baseAmount" | "baseCurrency" | "source">>, targetCurrency = "INR") => {
+  const impacts = await Promise.all(expenseRows.map((expense) => spendImpactAmount(expense, targetCurrency)));
+  return Math.max(0, Math.round(impacts.reduce((sum, amount) => sum + amount, 0) * 100) / 100);
+};
+
+async function totalRemainingBudget(budgetRows: Array<Pick<Budget, "limit" | "spent" | "currency">>, targetCurrency = "INR") {
+  const converted = await Promise.all(
+    budgetRows.map(async (budget) => {
+      const remaining = Math.max(budget.limit - budget.spent, 0);
+      return convertClientAmount(remaining, budget.currency, targetCurrency);
+    })
+  );
+  return Math.round(converted.reduce((sum, amount) => sum + amount, 0) * 100) / 100;
+}
+
+async function convertBudgetForDisplay(budget: Budget, targetCurrency = "INR") {
+  const sourceCurrency = budget.currency ?? "INR";
+  const target = displayCurrencyFor(targetCurrency);
+  const includedExpenses = budget.includedExpenses
+    ? await Promise.all(
+        budget.includedExpenses.map(async (expense) => ({
+          ...expense,
+          amount: await convertClientAmount(expense.amount, expense.currency ?? sourceCurrency, target),
+          currency: target
+        }))
+      )
+    : undefined;
+
+  return {
+    ...budget,
+    limit: await convertClientAmount(budget.limit, sourceCurrency, target),
+    spent: await convertClientAmount(budget.spent, sourceCurrency, target),
+    currency: target,
+    includedExpenses
+  };
+}
+
+async function convertBudgetsForDisplay(budgetRows: Budget[], targetCurrency = "INR") {
+  return Promise.all(budgetRows.map((budget) => convertBudgetForDisplay(budget, targetCurrency)));
+}
+
+const normalizeAccountName = (name?: string) => {
+  const resolvedName = name?.trim() || "Account";
+  return resolvedName === "Primary INR Account" ? "Primary Account" : resolvedName;
+};
+
 const withAccountQuery = (path: string, accountId?: string) => {
   if (!accountId) return path;
   const separator = path.includes("?") ? "&" : "?";
@@ -293,25 +387,33 @@ async function withFallback<T>(live: () => Promise<T>, mock: () => Promise<T>) {
 
 const toAccount = (account: LiveAccount): Account => ({
   id: account.id ?? crypto.randomUUID(),
-  name: account.name ?? "Account",
+  name: normalizeAccountName(account.name),
   currency: account.baseCurrency ?? account.currency ?? "INR",
   type: "personal"
 });
 
-const toExpense = (expense: LiveExpense): Expense => ({
-  id: expense.id ?? crypto.randomUUID(),
-  date: (expense.spentAt ?? new Date().toISOString()).slice(0, 10),
-  merchant: expense.merchant ?? "Unknown merchant",
-  category: expense.categoryName ?? "Uncategorized",
-  amount: asAmount(expense.base ?? expense.original),
-  owner: expense.source ?? "Account",
-  status: expense.syncStatus === "pending" ? "pending" : expense.syncStatus === "failed" || expense.syncStatus === "conflict" ? "needs-review" : "cleared",
-  source: expense.source,
-  tripId: expense.tripId,
-  partyId: expense.partyId,
-  settlementId: expense.settlementId,
-  canDelete: expense.source !== "settlement" && !expense.settlementId
-});
+const toExpense = (expense: LiveExpense): Expense => {
+  const original = expense.original ?? expense.base;
+  const base = expense.base ?? expense.original;
+
+  return {
+    id: expense.id ?? crypto.randomUUID(),
+    date: (expense.spentAt ?? new Date().toISOString()).slice(0, 10),
+    merchant: expense.merchant ?? "Unknown merchant",
+    category: expense.categoryName ?? "Uncategorized",
+    amount: asAmount(original),
+    currency: original?.currency ?? "INR",
+    baseAmount: base ? asAmount(base) : undefined,
+    baseCurrency: base?.currency,
+    owner: expense.source ?? "Account",
+    status: expense.syncStatus === "pending" ? "pending" : expense.syncStatus === "failed" || expense.syncStatus === "conflict" ? "needs-review" : "cleared",
+    source: expense.source,
+    tripId: expense.tripId,
+    partyId: expense.partyId,
+    settlementId: expense.settlementId,
+    canDelete: expense.source !== "settlement" && !expense.settlementId
+  };
+};
 
 const toBudget = (budget: LiveBudget): Budget => ({
   id: budget.id ?? crypto.randomUUID(),
@@ -337,6 +439,7 @@ const toParty = (party: LiveParty): Party => ({
   id: party.id ?? crypto.randomUUID(),
   name: party.name ?? "Party",
   balance: asAmount(party.balance),
+  balanceCurrency: typeof party.balance === "number" ? undefined : party.balance?.currency,
   members: party.participants?.map((participant) => participant.displayName ?? "Participant") ?? []
 });
 
@@ -394,6 +497,8 @@ const toImportRow = (row: LiveImportRow, batch: LiveImportBatch): ImportRow => {
     reference: row.reference,
     merchant: row.description ?? row.merchant ?? "Unknown merchant",
     amount,
+    currency: row.original?.currency ?? row.withdrawalAmount?.currency ?? row.depositAmount?.currency ?? "INR",
+    direction: row.direction,
     withdrawalAmount,
     depositAmount,
     confidence: row.confidence ?? 0,
@@ -443,6 +548,7 @@ const toPendingExpense = (input: ExpenseCreateInput, clientMutationId: string): 
   merchant: input.merchant,
   category: input.categoryName,
   amount: input.amount,
+  currency: input.currency,
   owner: "Pending sync",
   status: "pending"
 });
@@ -485,12 +591,14 @@ export async function getAccounts() {
   );
 }
 
-export async function getOverview(accountId?: string) {
+export async function getOverview(accountId?: string, targetCurrency = "INR") {
   return withFallback(
     async () => {
-      const [expenseRows, budgetRows, importRows] = await Promise.all([getExpenses(accountId), getBudgets(accountId), getImportRows(accountId)]);
-      const totalSpend = expenseRows.reduce((sum, expense) => sum + expense.amount, 0);
-      const remainingBudget = budgetRows.reduce((sum, budget) => sum + Math.max(budget.limit - budget.spent, 0), 0);
+      const [expenseRows, budgetRows, importRows] = await Promise.all([getExpenses(accountId), getBudgets(accountId, targetCurrency), getImportRows(accountId)]);
+      const [totalSpend, remainingBudget] = await Promise.all([
+        totalSpendImpact(expenseRows, targetCurrency),
+        totalRemainingBudget(budgetRows, targetCurrency)
+      ]);
       return {
         totalSpend,
         remainingBudget,
@@ -502,8 +610,10 @@ export async function getOverview(accountId?: string) {
     },
     async () => {
       await wait();
-      const totalSpend = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-      const remainingBudget = budgets.reduce((sum, budget) => sum + Math.max(budget.limit - budget.spent, 0), 0);
+      const [totalSpend, remainingBudget] = await Promise.all([
+        totalSpendImpact(expenses, targetCurrency),
+        totalRemainingBudget(budgets, targetCurrency)
+      ]);
       return {
         totalSpend,
         remainingBudget,
@@ -634,20 +744,20 @@ export async function syncPendingOutbox(accountId?: string) {
   return { synced, failed };
 }
 
-export async function getBudgets(accountId?: string) {
+export async function getBudgets(accountId?: string, targetCurrency = "INR") {
   return withFallback(
     async () => {
       const payload = await requestJson<{ budgets: LiveBudget[] }>("/api/budgets", accountId);
-      return payload.budgets.map(toBudget);
+      return convertBudgetsForDisplay(payload.budgets.map(toBudget), targetCurrency);
     },
     async () => {
       await wait();
-      return budgets;
+      return convertBudgetsForDisplay(budgets, targetCurrency);
     }
   );
 }
 
-export async function createBudget(accountId: string, input: BudgetCreateInput) {
+export async function createBudget(accountId: string, input: BudgetCreateInput, targetCurrency = input.currency) {
   return withFallback(
     async () => {
       const payload = {
@@ -662,16 +772,16 @@ export async function createBudget(accountId: string, input: BudgetCreateInput) 
         method: "POST",
         body: JSON.stringify(payload)
       });
-      return toBudget(result.budget);
+      return convertBudgetForDisplay(toBudget(result.budget), targetCurrency);
     },
     async () => {
       await wait();
-      return toLocalBudget(input);
+      return convertBudgetForDisplay(toLocalBudget(input), targetCurrency);
     }
   );
 }
 
-export async function updateBudget(accountId: string, budgetId: string, input: BudgetCreateInput) {
+export async function updateBudget(accountId: string, budgetId: string, input: BudgetCreateInput, targetCurrency = input.currency) {
   return withFallback(
     async () => {
       const payload = {
@@ -686,11 +796,11 @@ export async function updateBudget(accountId: string, budgetId: string, input: B
         method: "PATCH",
         body: JSON.stringify(payload)
       });
-      return toBudget(result.budget);
+      return convertBudgetForDisplay(toBudget(result.budget), targetCurrency);
     },
     async () => {
       await wait();
-      return { ...toLocalBudget(input), id: budgetId };
+      return convertBudgetForDisplay({ ...toLocalBudget(input), id: budgetId }, targetCurrency);
     }
   );
 }
@@ -1056,24 +1166,28 @@ export async function uploadStatement(accountId: string, file: File, statementPa
   return (payload.batch.rows ?? []).map((row) => toImportRow(row, payload.batch));
 }
 
+const IMPORT_REVIEW_BATCH_SIZE = 100;
+
+function importReviewPayload(row: ImportRow, action: "approve" | "delete", categoryName?: string) {
+  const resolvedCategoryName = categoryName?.trim() || row.suggestedCategory || "Uncategorized";
+  return {
+    rowId: row.id,
+    action,
+    ...(action === "approve" ? { categoryId: categoryIdFor(resolvedCategoryName), categoryName: resolvedCategoryName } : {}),
+    confirmDuplicate: row.isPossibleDuplicate && action === "approve",
+    overrideReason: row.isPossibleDuplicate && action === "approve" ? "Confirmed during import review" : undefined
+  };
+}
+
 export async function reviewImportRow(accountId: string, row: ImportRow, action: "approve" | "delete", options: { categoryName?: string } = {}) {
   if (useMocks || !row.batchId) {
     return { approved: action === "approve" ? 1 : 0, deleted: action === "delete" ? 1 : 0 };
   }
 
-  const categoryName = options.categoryName?.trim() || row.suggestedCategory || "Uncategorized";
   const response = await requestJson<{ approvedExpenses?: unknown[]; deletedRows?: number }>(`/api/imports/${row.batchId}/approve`, accountId, {
     method: "POST",
     body: JSON.stringify({
-      rows: [
-        {
-          rowId: row.id,
-          action,
-          ...(action === "approve" ? { categoryId: categoryIdFor(categoryName), categoryName } : {}),
-          confirmDuplicate: row.isPossibleDuplicate && action === "approve",
-          overrideReason: row.isPossibleDuplicate && action === "approve" ? "Confirmed during import review" : undefined
-        }
-      ]
+      rows: [importReviewPayload(row, action, options.categoryName)]
     })
   });
 
@@ -1081,6 +1195,43 @@ export async function reviewImportRow(accountId: string, row: ImportRow, action:
     approved: response.approvedExpenses?.length ?? 0,
     deleted: response.deletedRows ?? 0
   };
+}
+
+export async function reviewImportRows(accountId: string, rows: Array<{ row: ImportRow; categoryName?: string }>, action: "approve" | "delete") {
+  if (!rows.length) return { approved: 0, deleted: 0 };
+
+  if (useMocks) {
+    return { approved: action === "approve" ? rows.length : 0, deleted: action === "delete" ? rows.length : 0 };
+  }
+
+  const rowsWithoutBatch = rows.filter(({ row }) => !row.batchId).length;
+  const grouped = new Map<string, Array<{ row: ImportRow; categoryName?: string }>>();
+
+  for (const item of rows) {
+    if (!item.row.batchId) continue;
+    const group = grouped.get(item.row.batchId) ?? [];
+    group.push(item);
+    grouped.set(item.row.batchId, group);
+  }
+
+  let approved = action === "approve" ? rowsWithoutBatch : 0;
+  let deleted = action === "delete" ? rowsWithoutBatch : 0;
+
+  for (const [batchId, group] of grouped) {
+    for (let index = 0; index < group.length; index += IMPORT_REVIEW_BATCH_SIZE) {
+      const chunk = group.slice(index, index + IMPORT_REVIEW_BATCH_SIZE);
+      const response = await requestJson<{ approvedExpenses?: unknown[]; deletedRows?: number }>(`/api/imports/${batchId}/approve`, accountId, {
+        method: "POST",
+        body: JSON.stringify({
+          rows: chunk.map(({ row, categoryName }) => importReviewPayload(row, action, categoryName))
+        })
+      });
+      approved += response.approvedExpenses?.length ?? 0;
+      deleted += response.deletedRows ?? 0;
+    }
+  }
+
+  return { approved, deleted };
 }
 
 const fallbackReportData = (): ReportingChartData => ({
@@ -1115,7 +1266,52 @@ const fallbackReportData = (): ReportingChartData => ({
   ]
 });
 
-export async function getReports(accountId?: string, range: ReportRangeInput = {}): Promise<ReportingChartData> {
+async function convertLabeledRows(rows: ReportingChartData["categories"], sourceCurrency: string, targetCurrency: string) {
+  return Promise.all(rows.map(async (row) => ({ ...row, value: await convertClientAmount(row.value, sourceCurrency, targetCurrency) })));
+}
+
+async function convertReportData(data: ReportingChartData, sourceCurrency: string, targetCurrency: string): Promise<ReportingChartData> {
+  return {
+    categories: await convertLabeledRows(data.categories, sourceCurrency, targetCurrency),
+    cashflow: await Promise.all(
+      data.cashflow.map(async (row) => ({
+        ...row,
+        income: await convertClientAmount(row.income, sourceCurrency, targetCurrency),
+        spend: await convertClientAmount(row.spend, sourceCurrency, targetCurrency)
+      }))
+    ),
+    budgetVariance: await Promise.all(
+      data.budgetVariance.map(async (row) => ({
+        ...row,
+        budget: await convertClientAmount(row.budget, sourceCurrency, targetCurrency),
+        actual: await convertClientAmount(row.actual, sourceCurrency, targetCurrency),
+        remaining: await convertClientAmount(row.remaining, sourceCurrency, targetCurrency)
+      }))
+    ),
+    merchantTrends: await Promise.all(
+      data.merchantTrends.map(async (row) => ({
+        ...row,
+        food: await convertClientAmount(row.food, sourceCurrency, targetCurrency),
+        travel: await convertClientAmount(row.travel, sourceCurrency, targetCurrency),
+        shopping: await convertClientAmount(row.shopping, sourceCurrency, targetCurrency),
+        subscriptions: await convertClientAmount(row.subscriptions, sourceCurrency, targetCurrency)
+      }))
+    ),
+    trips: await convertLabeledRows(data.trips, sourceCurrency, targetCurrency),
+    parties: await Promise.all(
+      data.parties.map(async (row) => ({
+        ...row,
+        outstanding: await convertClientAmount(row.outstanding, sourceCurrency, targetCurrency),
+        settled: await convertClientAmount(row.settled, sourceCurrency, targetCurrency)
+      }))
+    ),
+    currencies: await Promise.all(
+      data.currencies.map(async (row) => ({ ...row, value: await convertClientAmount(row.value, row.label, targetCurrency) }))
+    )
+  };
+}
+
+export async function getReports(accountId?: string, range: ReportRangeInput = {}, targetCurrency = "INR"): Promise<ReportingChartData> {
   return withFallback(
     async () => {
       const params = new URLSearchParams();
@@ -1130,9 +1326,11 @@ export async function getReports(accountId?: string, range: ReportRangeInput = {
           merchantTrends?: Array<{ month: string; food: number; travel: number; shopping: number; subscriptions: number }>;
           partyBalances?: Array<{ party: string; outstanding: number; settled: number }>;
           currencyExposure?: Array<{ currency: string; amount: number }>;
+          totalSpent?: { amount: number; currency: string };
         };
       }>(path, accountId);
-      return {
+      const reportCurrency = payload.report.totalSpent?.currency ?? "INR";
+      const reportData = {
         categories: payload.report.categoryBreakdown?.map((row) => ({ label: row.category, value: row.amount })) ?? [],
         cashflow: payload.report.monthlyTrend?.map((row) => ({
           label: row.month,
@@ -1157,10 +1355,11 @@ export async function getReports(accountId?: string, range: ReportRangeInput = {
         parties: payload.report.partyBalances?.map((row) => ({ label: row.party, outstanding: row.outstanding, settled: row.settled })) ?? [],
         currencies: payload.report.currencyExposure?.map((row) => ({ label: row.currency, value: row.amount })) ?? []
       };
+      return convertReportData(reportData, reportCurrency, targetCurrency);
     },
     async () => {
       await wait();
-      return fallbackReportData();
+      return convertReportData(fallbackReportData(), "INR", targetCurrency);
     }
   );
 }

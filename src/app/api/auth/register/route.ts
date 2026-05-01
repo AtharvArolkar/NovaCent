@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     await db.collection(collections.accounts).insertOne({
       id: accountId,
       userId,
-      name: "Primary INR Account",
+      name: "Primary Account",
       baseCurrency: appConfig.baseCurrency,
       isDefault: true,
       createdAt: now,
@@ -45,4 +45,3 @@ export async function POST(request: Request) {
     return handleApiError(error);
   }
 }
-

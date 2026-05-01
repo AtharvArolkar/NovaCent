@@ -39,7 +39,7 @@ async function ensureDefaultAccount(user: StoredUser) {
   await db.collection(collections.accounts).insertOne({
     id: accountId,
     userId: user.id,
-    name: "Primary INR Account",
+    name: "Primary Account",
     baseCurrency: appConfig.baseCurrency,
     isDefault: true,
     createdAt: now,

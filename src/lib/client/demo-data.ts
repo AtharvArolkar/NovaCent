@@ -11,6 +11,9 @@ export type Expense = {
   merchant: string;
   category: string;
   amount: number;
+  currency?: string;
+  baseAmount?: number;
+  baseCurrency?: string;
   owner: string;
   status: "cleared" | "pending" | "needs-review";
   source?: string;
@@ -55,6 +58,7 @@ export type Party = {
   id: string;
   name: string;
   balance: number;
+  balanceCurrency?: string;
   members: string[];
 };
 
@@ -66,6 +70,8 @@ export type ImportRow = {
   reference?: string;
   merchant: string;
   amount: number;
+  currency?: string;
+  direction?: "withdrawal" | "deposit";
   withdrawalAmount?: number;
   depositAmount?: number;
   confidence: number;
@@ -74,7 +80,7 @@ export type ImportRow = {
 };
 
 export const accounts: Account[] = [
-  { id: "primary-inr", name: "Primary INR Account", currency: "INR", type: "personal" },
+  { id: "primary-inr", name: "Primary Account", currency: "INR", type: "personal" },
   { id: "family", name: "Family Shared View", currency: "INR", type: "family" },
   { id: "travel-wallet", name: "Travel Wallet", currency: "INR", type: "personal" }
 ];

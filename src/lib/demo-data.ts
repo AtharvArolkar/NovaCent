@@ -18,7 +18,7 @@ export const demoAccounts: Account[] = [
   {
     id: "acc-primary",
     userId: "demo-user",
-    name: "Primary INR Account",
+    name: "Primary Account",
     baseCurrency: appConfig.baseCurrency,
     isDefault: true,
     createdAt: now,

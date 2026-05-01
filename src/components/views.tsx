@@ -3,12 +3,12 @@
 import { FormEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { CalendarDays } from "lucide-react";
 import Link from "next/link";
-import { addExistingExpensesToParty, addPartyParticipant, approvePartySettlement, createBudget, createExpense, createParty, createPartyExpense, createRecurringExpenseRule, deleteBudget, deleteExpense, deleteParty, deletePartyExpense, getAccounts, getBudgets, getExpenses, getImportRows, getOverview, getParties, getPartyDetail, getRecurringExpenses, getReports, markPartySplitSettled, reportDataToCsv, reviewImportRow, searchUsers, submitSupportRequest, syncPendingOutbox, updateBudget, updateRecurringExpenseRule, uploadStatement } from "@/lib/client/expense-service";
+import { addExistingExpensesToParty, addPartyParticipant, approvePartySettlement, createBudget, createExpense, createParty, createPartyExpense, createRecurringExpenseRule, deleteBudget, deleteExpense, deleteParty, deletePartyExpense, getAccounts, getBudgets, getExpenses, getImportRows, getOverview, getParties, getPartyDetail, getRecurringExpenses, getReports, markPartySplitSettled, reportDataToCsv, reviewImportRow, reviewImportRows, searchUsers, submitSupportRequest, syncPendingOutbox, updateBudget, updateRecurringExpenseRule, uploadStatement } from "@/lib/client/expense-service";
 import type { PartyDetail, PartyParticipant, PartyParticipantInput, PartySettlement, PartySplit, RecurringExpenseInput, RecurringExpenseRule, ReportRangeInput, SupportRequestInput, UserSearchResult } from "@/lib/client/expense-service";
 import type { Account, Budget, Expense, ImportRow, Party } from "@/lib/client/demo-data";
 import { guideContent, languages, type Language } from "@/lib/client/dictionary";
 import type { ReportingChartData } from "@/lib/reporting";
-import { usePreferences } from "@/lib/client/preferences";
+import { currencyOptions, usePreferences } from "@/lib/client/preferences";
 import {
   BudgetVarianceChart,
   CashFlowTrendChart,
@@ -20,23 +20,64 @@ import {
 } from "./ReportingCharts";
 import { EmptyState, MetricCard, PageHeader, Panel, ProgressBar, StatusPill } from "./ui";
 
-const money = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" });
-
 function formatCurrency(amount: number, currency = "INR") {
+  const currencyCode = currency.toUpperCase();
   try {
-    return new Intl.NumberFormat("en-IN", { style: "currency", currency }).format(amount);
+    return `${new Intl.NumberFormat("en-IN", { style: "currency", currency: currencyCode }).format(amount)} ${currencyCode}`;
   } catch {
-    return `${money.format(amount)} ${currency}`;
+    return `${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(amount)} ${currencyCode}`;
   }
 }
 
-function signedImportAmount(row: ImportRow) {
+function moneyFlowClass(amount: number) {
+  return amount < 0 ? "positive" : amount > 0 ? "negative" : "muted-note";
+}
+
+function formatMoneyFlow(amount: number, currency = "INR") {
+  if (amount === 0) {
+    return formatCurrency(0, currency);
+  }
+
+  const sign = amount < 0 ? "+" : "-";
+  return `${sign}${formatCurrency(Math.abs(amount), currency)}`;
+}
+
+function signedAmountClass(amount: number) {
+  return amount > 0 ? "positive" : amount < 0 ? "negative" : "muted-note";
+}
+
+function formatSignedAmount(amount: number, currency = "INR") {
+  if (amount === 0) {
+    return formatCurrency(0, currency);
+  }
+
+  const sign = amount > 0 ? "+" : "-";
+  return `${sign}${formatCurrency(Math.abs(amount), currency)}`;
+}
+
+function formatOutflowAmount(amount: number, currency = "INR") {
+  return amount === 0 ? formatCurrency(0, currency) : `-${formatCurrency(Math.abs(amount), currency)}`;
+}
+
+function formatInflowAmount(amount: number, currency = "INR") {
+  return amount === 0 ? formatCurrency(0, currency) : `+${formatCurrency(Math.abs(amount), currency)}`;
+}
+
+function signedImportAmount(row: ImportRow, fallbackCurrency = "INR") {
   const amount = importAmountValue(row);
   const sign = amount >= 0 ? "+" : "-";
-  return `${sign}${money.format(Math.abs(amount))}`;
+  return `${sign}${formatCurrency(Math.abs(amount), row.currency ?? fallbackCurrency)}`;
 }
 
 function importAmountValue(row: ImportRow) {
+  if (row.direction === "deposit") {
+    return Math.abs(row.depositAmount ?? row.amount);
+  }
+
+  if (row.direction === "withdrawal") {
+    return -Math.abs(row.withdrawalAmount ?? row.amount);
+  }
+
   const amount = row.depositAmount
     ? row.depositAmount
     : row.withdrawalAmount
@@ -178,8 +219,98 @@ function reportRangeForPreset(preset: ReportRangePreset): ReportRangeInput & { p
 
 type SubmitState = "idle" | "saving" | "saved" | "failed";
 
-function confirmDelete(message: string) {
-  return typeof window !== "undefined" && window.confirm(message);
+type ConfirmationRequest = {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  onConfirm: () => void | Promise<void>;
+};
+
+function ConfirmationDialog({
+  request,
+  onCancel,
+  onConfirm,
+  isConfirming
+}: {
+  request: ConfirmationRequest;
+  onCancel: () => void;
+  onConfirm: () => void;
+  isConfirming: boolean;
+}) {
+  const { tx } = usePreferences();
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    confirmButtonRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onCancel]);
+
+  return (
+    <div className="confirm-dialog-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget) {
+        onCancel();
+      }
+    }}>
+      <section className="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-description">
+        <div>
+          <p className="eyebrow">{tx("Confirmation")}</p>
+          <h2 id="confirm-dialog-title">{tx(request.title)}</h2>
+          <p id="confirm-dialog-description">{tx(request.message)}</p>
+          <p className="muted-note">{tx("This action cannot be undone.")}</p>
+        </div>
+        <div className="confirm-dialog-actions">
+          <button className="secondary-button" type="button" disabled={isConfirming} onClick={onCancel}>{tx("Cancel")}</button>
+          <button ref={confirmButtonRef} className="danger-button" type="button" disabled={isConfirming} onClick={onConfirm}>{tx(request.confirmLabel ?? "Delete")}</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function CurrencyOptions() {
+  return (
+    <>
+      {currencyOptions.map((currency) => (
+        <option key={currency} value={currency}>{currency}</option>
+      ))}
+    </>
+  );
+}
+
+function useConfirmationDialog() {
+  const [request, setRequest] = useState<ConfirmationRequest | null>(null);
+  const [isConfirming, setIsConfirming] = useState(false);
+
+  const closeConfirmation = useCallback(() => {
+    if (isConfirming) return;
+    setRequest(null);
+  }, [isConfirming]);
+
+  const confirmRequest = useCallback(async () => {
+    if (!request || isConfirming) return;
+    setIsConfirming(true);
+    try {
+      await request.onConfirm();
+    } finally {
+      setIsConfirming(false);
+      setRequest(null);
+    }
+  }, [isConfirming, request]);
+
+  const confirmationDialog = request ? (
+    <ConfirmationDialog request={request} onCancel={closeConfirmation} onConfirm={() => void confirmRequest()} isConfirming={isConfirming} />
+  ) : null;
+
+  return { requestConfirmation: setRequest, confirmationDialog };
 }
 
 function focusFirstFormField(form: HTMLFormElement | null) {
@@ -198,6 +329,15 @@ function budgetPeriodLabel(period?: "monthly" | "yearly") {
 
 function budgetPeriodWindow(period?: "monthly" | "yearly") {
   return period === "yearly" ? "Jan 1 to Dec 31" : "1st of this month to month end";
+}
+
+function budgetUsagePercent(budget: Pick<Budget, "spent" | "limit">) {
+  return budget.limit > 0 ? Math.round((budget.spent / budget.limit) * 100) : 0;
+}
+
+function budgetUsageToneClass(budget: Pick<Budget, "spent" | "limit" | "alertThreshold">) {
+  const alertThreshold = budget.alertThreshold ?? 80;
+  return budgetUsagePercent(budget) >= alertThreshold ? "negative" : "positive";
 }
 
 function useAsyncData<T>(loader: () => Promise<T>, initial: T) {
@@ -291,7 +431,7 @@ function ExpenseTable({
                 <td>{expense.merchant}</td>
                 <td>{tx(expense.category)}</td>
                 <td>{expense.owner}</td>
-                <td className="numeric">{money.format(expense.amount)}</td>
+                <td className={`numeric ${moneyFlowClass(expense.amount)}`}>{formatMoneyFlow(expense.amount, expense.currency ?? "INR")}</td>
                 <td><StatusPill tone={expense.status === "cleared" ? "good" : expense.status === "pending" ? "warn" : "bad"}>{tx(expense.status)}</StatusPill></td>
                 {showActions ? (
                   <td>
@@ -316,15 +456,15 @@ function BudgetList({ rows }: { rows: Budget[] }) {
   return (
     <div className="stack">
       {rows.map((budget) => {
-        const percent = Math.round((budget.spent / budget.limit) * 100);
+        const percent = budgetUsagePercent(budget);
         return (
           <article className="budget-row" key={budget.id}>
             <div>
               <h3>{tx(budget.category)}</h3>
               <p className="budget-money-line">
-                <strong>{money.format(budget.spent)}</strong>
+                <strong className={budgetUsageToneClass(budget)}>{formatCurrency(budget.spent, budget.currency ?? "INR")}</strong>
                 <span>{tx("of")}</span>
-                <strong>{money.format(budget.limit)}</strong>
+                <strong>{formatCurrency(budget.limit, budget.currency ?? "INR")}</strong>
               </p>
             </div>
             <ProgressBar label={`${tx(budget.category)} ${tx("spend")}`} value={percent} />
@@ -336,15 +476,15 @@ function BudgetList({ rows }: { rows: Budget[] }) {
 }
 
 function BarList({ title, rows }: { title: string; rows: { label: string; value: number }[] }) {
-  const { tx } = usePreferences();
+  const { defaultCurrency, tx } = usePreferences();
   const max = Math.max(...rows.map((row) => row.value), 1);
   return (
-    <div className="chart-alt" role="img" aria-label={`${tx(title)} ${tx("bar chart")}. ${rows.map((row) => `${tx(row.label)}: ${money.format(row.value)}`).join(", ")}`}>
+    <div className="chart-alt" role="img" aria-label={`${tx(title)} ${tx("bar chart")}. ${rows.map((row) => `${tx(row.label)}: ${formatCurrency(row.value, defaultCurrency)}`).join(", ")}`}>
       {rows.map((row) => (
         <div className="bar-row" key={row.label}>
           <span>{tx(row.label)}</span>
           <div><i style={{ width: `${(row.value / max) * 100}%` }} /></div>
-          <b>{money.format(row.value)}</b>
+          <b>{formatCurrency(row.value, defaultCurrency)}</b>
         </div>
       ))}
     </div>
@@ -352,8 +492,8 @@ function BarList({ title, rows }: { title: string; rows: { label: string; value:
 }
 
 export function DashboardView() {
-  const { accountId, t, tx } = usePreferences();
-  const loadOverview = useCallback(() => getOverview(accountId), [accountId]);
+  const { accountId, defaultCurrency, t, tx } = usePreferences();
+  const loadOverview = useCallback(() => getOverview(accountId, defaultCurrency), [accountId, defaultCurrency]);
   const { data, loading, reload } = useAsyncData(loadOverview, { totalSpend: 0, remainingBudget: 0, monthlyRunway: 0, pendingImports: 0, budgets: [], expenses: [] });
   const [syncState, setSyncState] = useState<SubmitState>("idle");
 
@@ -385,8 +525,8 @@ export function DashboardView() {
       {syncState === "saved" ? <p className="success-note" role="status">{tx("Sync complete.")}</p> : null}
       {syncState === "failed" ? <p className="error-note" role="alert">{tx("Unable to sync right now.")}</p> : null}
       <section className="metric-grid" aria-label={tx("Key account metrics")}>
-        <MetricCard label={t("totalSpend")} value={money.format(data.totalSpend)} detail="Across visible transactions this month" />
-        <MetricCard label={t("remainingBudget")} value={money.format(data.remainingBudget)} detail="Available across active envelopes" />
+        <MetricCard label={t("totalSpend")} value={formatCurrency(data.totalSpend, defaultCurrency)} detail="Across visible transactions this month" />
+        <MetricCard label={t("remainingBudget")} value={formatCurrency(data.remainingBudget, defaultCurrency)} detail="Available across active envelopes" />
         <MetricCard label={t("monthlyRunway")} value={`${data.monthlyRunway} ${tx("days")}`} detail="At the current seven-day average" />
         <MetricCard label={t("pendingImports")} value={String(data.pendingImports)} detail="Rows waiting for review" />
       </section>
@@ -399,7 +539,7 @@ export function DashboardView() {
 }
 
 export function ExpensesView() {
-  const { accountId, t, tx } = usePreferences();
+  const { accountId, defaultCurrency, t, tx } = usePreferences();
   const loadExpenses = useCallback(() => getExpenses(accountId), [accountId]);
   const { data, setData, error, reload } = useAsyncData(loadExpenses, []);
   const { data: partyOptions } = useAsyncData(useCallback(() => getParties(accountId), [accountId]), [] as Party[]);
@@ -410,6 +550,7 @@ export function ExpensesView() {
   const [selectedSplitPartyId, setSelectedSplitPartyId] = useState("");
   const [splitAddState, setSplitAddState] = useState<SubmitState>("idle");
   const quickAddRef = useRef<HTMLFormElement>(null);
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const filtered = useMemo(
     () => data.filter((expense) => `${expense.merchant} ${expense.category} ${expense.owner}`.toLowerCase().includes(query.toLowerCase())),
     [data, query]
@@ -461,7 +602,7 @@ export function ExpensesView() {
     const categoryName = String(form.get("category") ?? "Uncategorized");
     const amount = Number(form.get("amount"));
     const spentAt = String(form.get("date") ?? new Date().toISOString().slice(0, 10));
-    const currency = String(form.get("currency") ?? "INR");
+    const currency = String(form.get("currency") ?? defaultCurrency);
 
     try {
       const expense = await createExpense(accountId, { merchant, categoryName, amount, currency, spentAt });
@@ -473,20 +614,27 @@ export function ExpensesView() {
     }
   }
 
-  async function onDeleteExpense(expense: Expense) {
-    if (!confirmDelete(`${tx("Delete")} ${expense.merchant} ${tx("from expenses? This cannot be undone.")}`)) return;
-    setDeleteState("saving");
-    try {
-      await deleteExpense(accountId, expense.id);
-      setData((rows) => rows.filter((row) => row.id !== expense.id));
-      setDeleteState("saved");
-    } catch {
-      setDeleteState("failed");
-    }
+  function onDeleteExpense(expense: Expense) {
+    requestConfirmation({
+      title: "Confirm delete",
+      message: `${tx("Delete")} ${expense.merchant} ${tx("from expenses?")}`,
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setDeleteState("saving");
+        try {
+          await deleteExpense(accountId, expense.id);
+          setData((rows) => rows.filter((row) => row.id !== expense.id));
+          setDeleteState("saved");
+        } catch {
+          setDeleteState("failed");
+        }
+      }
+    });
   }
 
   return (
     <>
+      {confirmationDialog}
       <PageHeader
         title={t("expenses")}
         description="Search, add, and review every transaction before it hits reports."
@@ -512,7 +660,7 @@ export function ExpensesView() {
           <label>{tx("Merchant")}<input name="merchant" required /></label>
           <label>{tx("Category")}<select name="category"><CategoryOptions /></select></label>
           <label>{tx("Amount")}<input name="amount" type="number" min="0" step="0.01" required /></label>
-          <label>{tx("Currency")}<select name="currency"><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
+          <label>{tx("Currency")}<select name="currency" defaultValue={defaultCurrency}><CurrencyOptions /></select></label>
           <DateField label="Date" name="date" defaultValue={todayInputValue()} required />
           <button className="form-submit" type="submit" disabled={submitState === "saving"}>{submitState === "saving" ? tx("Saving") : t("save")}</button>
         </form>
@@ -538,14 +686,15 @@ export function ExpensesView() {
 }
 
 export function BudgetsView() {
-  const { accountId, t, tx } = usePreferences();
-  const loadBudgets = useCallback(() => getBudgets(accountId), [accountId]);
+  const { accountId, defaultCurrency, t, tx } = usePreferences();
+  const loadBudgets = useCallback(() => getBudgets(accountId, defaultCurrency), [accountId, defaultCurrency]);
   const { data, setData } = useAsyncData(loadBudgets, [] as Budget[]);
   const [showBudgetForm, setShowBudgetForm] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [budgetState, setBudgetState] = useState<SubmitState>("idle");
   const [budgetDeleteState, setBudgetDeleteState] = useState<SubmitState>("idle");
   const budgetFormRef = useRef<HTMLFormElement>(null);
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
 
   async function onCreateBudget(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -555,7 +704,7 @@ export function BudgetsView() {
     const categoryName = String(form.get("categoryName") ?? "").trim();
     const scope = String(form.get("scope") ?? "overall") as "overall" | "category";
     const limit = Number(form.get("limit"));
-    const currency = String(form.get("currency") ?? "INR");
+    const currency = String(form.get("currency") ?? defaultCurrency);
     const period = String(form.get("period") ?? "monthly") as "monthly" | "yearly";
     const alertThreshold = Number(form.get("alertThreshold") || 80);
 
@@ -565,8 +714,8 @@ export function BudgetsView() {
       }
       const budgetInput = { categoryName, scope, limit, currency, period, alertThreshold };
       const budget = editingBudget
-        ? await updateBudget(accountId, editingBudget.id, budgetInput)
-        : await createBudget(accountId, budgetInput);
+        ? await updateBudget(accountId, editingBudget.id, budgetInput, defaultCurrency)
+        : await createBudget(accountId, budgetInput, defaultCurrency);
       setData((rows) =>
         editingBudget
           ? rows.map((row) => (row.id === editingBudget.id ? budget : row))
@@ -581,20 +730,27 @@ export function BudgetsView() {
     }
   }
 
-  async function onDeleteBudget(budget: Budget) {
-    if (!confirmDelete(`${tx("Delete")} ${tx(budget.category)} ${tx("budget?")}`)) return;
-    setBudgetDeleteState("saving");
-    try {
-      await deleteBudget(accountId, budget.id);
-      setData((rows) => rows.filter((row) => row.id !== budget.id));
-      setBudgetDeleteState("saved");
-    } catch {
-      setBudgetDeleteState("failed");
-    }
+  function onDeleteBudget(budget: Budget) {
+    requestConfirmation({
+      title: "Confirm delete",
+      message: `${tx("Delete")} ${tx(budget.category)} ${tx("budget?")}`,
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setBudgetDeleteState("saving");
+        try {
+          await deleteBudget(accountId, budget.id);
+          setData((rows) => rows.filter((row) => row.id !== budget.id));
+          setBudgetDeleteState("saved");
+        } catch {
+          setBudgetDeleteState("failed");
+        }
+      }
+    });
   }
 
   return (
     <>
+      {confirmationDialog}
       <PageHeader
         title={t("budgets")}
         description="Track limits, spot overspend early, and keep categories honest."
@@ -619,7 +775,7 @@ export function BudgetsView() {
             <label>{tx("Tracks")}<select name="scope" defaultValue={editingBudget?.scope ?? "overall"}><option value="overall">{tx("Overall spend")}</option><option value="category">{tx("Single category")}</option></select></label>
             <label>{tx("Limit")}<input name="limit" type="number" min="1" step="0.01" defaultValue={editingBudget?.limit ?? ""} required /></label>
             <label>{tx("Period")}<select name="period" defaultValue={editingBudget?.period ?? "monthly"}><option value="monthly">{tx("Monthly")}</option><option value="yearly">{tx("Yearly")}</option></select></label>
-            <label>{tx("Currency")}<select name="currency" defaultValue={editingBudget?.currency ?? "INR"}><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
+            <label>{tx("Currency")}<select name="currency" defaultValue={editingBudget?.currency ?? defaultCurrency}><CurrencyOptions /></select></label>
             <label>{tx("Alert at %")}<input name="alertThreshold" type="number" min="1" max="100" defaultValue={editingBudget?.alertThreshold ?? 80} required /></label>
             <div className="inline-actions budget-form-actions">
               <button className="form-submit" type="submit" disabled={budgetState === "saving"}>{budgetState === "saving" ? tx("Saving") : editingBudget ? tx("Update budget") : tx("Save budget")}</button>
@@ -640,7 +796,7 @@ export function BudgetsView() {
       <Panel title="Active budgets">
         <div className="stack">
           {data.map((budget) => {
-            const percent = Math.round((budget.spent / budget.limit) * 100);
+            const percent = budgetUsagePercent(budget);
             const period = budget.period ?? "monthly";
             const includedExpenses = budget.includedExpenses ?? [];
             return (
@@ -650,9 +806,9 @@ export function BudgetsView() {
                     <h3>{tx(budget.category)}</h3>
                     <p>{budget.scope === "overall" ? tx("Overall spend") : tx("Single category")}</p>
                     <p className="budget-money-line">
-                      <strong>{formatCurrency(budget.spent, budget.currency)}</strong>
+                      <strong className={budgetUsageToneClass(budget)}>{formatCurrency(budget.spent, budget.currency ?? "INR")}</strong>
                       <span>{tx("of")}</span>
-                      <strong>{formatCurrency(budget.limit, budget.currency)}</strong>
+                      <strong>{formatCurrency(budget.limit, budget.currency ?? "INR")}</strong>
                       <span>{period === "yearly" ? tx("this year") : tx("this month")}</span>
                     </p>
                     <small>{tx(budgetPeriodWindow(period))}</small>
@@ -681,7 +837,9 @@ export function BudgetsView() {
                             <strong>{expense.merchant}</strong>
                             <small>{tx(expense.category)}{expense.source ? ` · ${tx(expense.source)}` : ""}</small>
                           </div>
-                          <span className={expense.amount < 0 ? "negative" : "positive"}>{formatCurrency(expense.amount, expense.currency ?? budget.currency)}</span>
+                          <span className={moneyFlowClass(expense.amount)}>
+                            {formatMoneyFlow(expense.amount, expense.currency ?? budget.currency)}
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -699,7 +857,7 @@ export function BudgetsView() {
 }
 
 export function RecurringExpensesView() {
-  const { accountId, t, tx } = usePreferences();
+  const { accountId, defaultCurrency, t, tx } = usePreferences();
   const loadRecurring = useCallback(() => getRecurringExpenses(accountId), [accountId]);
   const { data, setData, error } = useAsyncData(loadRecurring, [] as RecurringExpenseRule[]);
   const [showForm, setShowForm] = useState(false);
@@ -717,7 +875,7 @@ export function RecurringExpensesView() {
       description: String(form.get("description") ?? "").trim() || undefined,
       categoryName: String(form.get("category") ?? "Food"),
       amount: Number(form.get("amount")),
-      currency: String(form.get("currency") ?? "INR"),
+      currency: String(form.get("currency") ?? defaultCurrency),
       frequency: String(form.get("frequency") ?? "monthly") as RecurringExpenseRule["frequency"],
       interval: Number(form.get("interval") || 1),
       startsAt: String(form.get("startsAt") ?? todayInputValue()),
@@ -793,7 +951,7 @@ export function RecurringExpensesView() {
             <label>{tx("Description")}<input name="description" defaultValue={editingRule?.description ?? ""} /></label>
             <label>{tx("Category")}<select name="category" defaultValue={editingRule?.categoryName ?? "Food"}><CategoryOptions /></select></label>
             <label>{tx("Amount")}<input name="amount" type="number" min="0.01" step="0.01" defaultValue={editingRule?.amount ?? ""} required /></label>
-            <label>{tx("Currency")}<select name="currency" defaultValue={editingRule?.currency ?? "INR"}><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
+            <label>{tx("Currency")}<select name="currency" defaultValue={editingRule?.currency ?? defaultCurrency}><CurrencyOptions /></select></label>
             <label>{tx("Frequency")}<select name="frequency" defaultValue={editingRule?.frequency ?? "monthly"}><option value="daily">{tx("Daily")}</option><option value="weekly">{tx("Weekly")}</option><option value="monthly">{tx("Monthly")}</option><option value="yearly">{tx("Yearly")}</option></select></label>
             <label>{tx("Interval")}<input name="interval" type="number" min="1" max="36" defaultValue={editingRule?.interval ?? 1} required /></label>
             <DateField label="Start date" name="startsAt" defaultValue={editingRule?.startsAt ?? todayInputValue()} required />
@@ -819,7 +977,7 @@ export function RecurringExpensesView() {
             <article className="budget-row managed-row" key={rule.id}>
               <div>
                 <h3>{rule.merchant}</h3>
-                <p>{tx(rule.categoryName)} · {money.format(rule.amount)} · {tx(rule.frequency)}</p>
+                <p>{tx(rule.categoryName)} · {formatCurrency(rule.amount, rule.currency)} · {tx(rule.frequency)}</p>
                 <p>{tx("Next run")}: {rule.nextRunAt}</p>
                 <StatusPill tone={rule.status === "active" ? "good" : rule.status === "paused" ? "warn" : "bad"}>{tx(rule.status)}</StatusPill>
               </div>
@@ -854,20 +1012,26 @@ export function ImportReviewView() {
   const [statementPassword, setStatementPassword] = useState("");
   const [importError, setImportError] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<Record<string, string>>({});
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
+  const duplicateKeyForRow = useCallback((row: ImportRow) => `${row.merchant.trim().toLowerCase()}|${row.amount}`, []);
   const duplicateKeys = useMemo(() => {
     const counts = new Map<string, number>();
     for (const row of data) {
-      const key = `${row.merchant.trim().toLowerCase()}|${row.amount}`;
+      const key = duplicateKeyForRow(row);
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
     return counts;
-  }, [data]);
+  }, [data, duplicateKeyForRow]);
+  const isDuplicateImportRow = useCallback(
+    (row: ImportRow) => row.isPossibleDuplicate || (duplicateKeys.get(duplicateKeyForRow(row)) ?? 0) > 1,
+    [duplicateKeyForRow, duplicateKeys]
+  );
   const visibleRows = useMemo(
     () =>
       duplicateFilter === "duplicates"
-        ? data.filter((row) => row.isPossibleDuplicate || (duplicateKeys.get(`${row.merchant.trim().toLowerCase()}|${row.amount}`) ?? 0) > 1)
+        ? data.filter(isDuplicateImportRow)
         : data,
-    [data, duplicateFilter, duplicateKeys]
+    [data, duplicateFilter, isDuplicateImportRow]
   );
   const categoryForRow = useCallback(
     (row: ImportRow) => (selectedCategories[row.id] ?? row.suggestedCategory ?? "").trim() || "Uncategorized",
@@ -887,20 +1051,74 @@ export function ImportReviewView() {
     });
     setImportState("done");
   }, [accountId, categoryForRow, reload]);
-  const deleteImportRow = useCallback(async (row: ImportRow) => {
+  const approveImportRows = useCallback(async (rows: ImportRow[]) => {
+    if (!rows.length) return;
     setImportState("saving");
-    await reviewImportRow(accountId, row, "delete");
-    setData((rows) => rows.filter((candidate) => candidate.id !== row.id));
-    setSelectedCategories((current) => {
-      const next = { ...current };
-      delete next[row.id];
-      return next;
+    setImportError("");
+    try {
+      await reviewImportRows(accountId, rows.map((row) => ({ row, categoryName: categoryForRow(row) })), "approve");
+      await reload();
+      setSelectedCategories((current) => {
+        const next = { ...current };
+        for (const row of rows) {
+          delete next[row.id];
+        }
+        return next;
+      });
+      setImportState("done");
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "Unable to approve import rows.");
+      setImportState("failed");
+    }
+  }, [accountId, categoryForRow, reload]);
+  const deleteImportRow = useCallback((row: ImportRow) => {
+    requestConfirmation({
+      title: "Confirm delete",
+      message: `${tx("Delete")} ${row.merchant}?`,
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setImportState("saving");
+        setImportError("");
+        try {
+          await reviewImportRow(accountId, row, "delete");
+          setData((rows) => rows.filter((candidate) => candidate.id !== row.id));
+          setSelectedCategories((current) => {
+            const next = { ...current };
+            delete next[row.id];
+            return next;
+          });
+          setImportState("done");
+        } catch (error) {
+          setImportError(error instanceof Error ? error.message : "Unable to delete import rows.");
+          setImportState("failed");
+        }
+      }
     });
-    setImportState("done");
-  }, [accountId, setData]);
+  }, [accountId, requestConfirmation, setData, tx]);
+  const deleteImportRows = useCallback(async (rows: ImportRow[]) => {
+    if (!rows.length) return;
+    setImportState("saving");
+    setImportError("");
+    try {
+      await reviewImportRows(accountId, rows.map((row) => ({ row })), "delete");
+      await reload();
+      setSelectedCategories((current) => {
+        const next = { ...current };
+        for (const row of rows) {
+          delete next[row.id];
+        }
+        return next;
+      });
+      setImportState("done");
+    } catch (error) {
+      setImportError(error instanceof Error ? error.message : "Unable to delete import rows.");
+      setImportState("failed");
+    }
+  }, [accountId, reload]);
 
   return (
     <>
+      {confirmationDialog}
       <PageHeader
         title={tx("Import review")}
         description="Triage low-confidence rows before posting them into the ledger."
@@ -952,13 +1170,45 @@ export function ImportReviewView() {
       <Panel
         title="Rows needing attention"
         aside={
-          <div className="segmented-control" aria-label={tx("Import row filter")}>
-            <button type="button" className={duplicateFilter === "all" ? "active" : ""} aria-pressed={duplicateFilter === "all"} onClick={() => setDuplicateFilter("all")}>
-              {tx("All")}
-            </button>
-            <button type="button" className={duplicateFilter === "duplicates" ? "active" : ""} aria-pressed={duplicateFilter === "duplicates"} onClick={() => setDuplicateFilter("duplicates")}>
-              {tx("Possible duplicates")}
-            </button>
+          <div className="import-review-panel-actions">
+            <div className="segmented-control import-filter-control" aria-label={tx("Import row filter")}>
+              <button type="button" className={duplicateFilter === "all" ? "active" : ""} aria-pressed={duplicateFilter === "all"} onClick={() => setDuplicateFilter("all")}>
+                {tx("All")}
+              </button>
+              <button type="button" className={duplicateFilter === "duplicates" ? "active" : ""} aria-pressed={duplicateFilter === "duplicates"} onClick={() => setDuplicateFilter("duplicates")}>
+                {tx("Possible duplicates")}
+              </button>
+            </div>
+            <div className="import-bulk-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={importState === "saving" || !data.some((row) => !isDuplicateImportRow(row))}
+                onClick={() => void approveImportRows(data.filter((row) => !isDuplicateImportRow(row)))}
+              >
+                {tx("Approve except duplicates")}
+              </button>
+              <button
+                type="button"
+                disabled={importState === "saving" || !data.length}
+                onClick={() => void approveImportRows(data)}
+              >
+                {tx("Approve all")}
+              </button>
+              <button
+                className="danger-button import-delete-all-button"
+                type="button"
+                disabled={importState === "saving" || !data.length}
+                onClick={() => requestConfirmation({
+                  title: "Confirm delete",
+                  message: tx("Delete all import rows?"),
+                  confirmLabel: "Delete all",
+                  onConfirm: () => deleteImportRows(data)
+                })}
+              >
+                {tx("Delete all")}
+              </button>
+            </div>
           </div>
         }
       >
@@ -1069,7 +1319,7 @@ export function ImportReviewView() {
 }
 
 export function PartiesView() {
-  const { accountId, t, tx } = usePreferences();
+  const { accountId, defaultCurrency, t, tx } = usePreferences();
   const loadParties = useCallback(() => getParties(accountId), [accountId]);
   const { data, setData } = useAsyncData(loadParties, [] as Party[]);
   const [showPartyForm, setShowPartyForm] = useState(false);
@@ -1093,6 +1343,7 @@ export function PartiesView() {
   const [searchedFriendQuery, setSearchedFriendQuery] = useState("");
   const [splitMode, setSplitMode] = useState<"even" | "manual" | "percentage" | "shares">("even");
   const [paidByParticipantId, setPaidByParticipantId] = useState("");
+  const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
 
   const participantById = useMemo(() => {
     const participants = new Map<string, PartyParticipant>();
@@ -1276,7 +1527,7 @@ export function PartiesView() {
     const merchant = String(form.get("merchant") ?? "").trim();
     const categoryName = String(form.get("category") ?? "Food");
     const amount = Number(form.get("amount"));
-    const currency = String(form.get("currency") ?? "INR");
+    const currency = String(form.get("currency") ?? defaultCurrency);
     const spentAt = String(form.get("date") ?? todayInputValue());
     const paidBy = String(form.get("paidBy") ?? paidByParticipantId);
     const participants = partyDetail.participants;
@@ -1430,43 +1681,60 @@ export function PartiesView() {
     }
   }
 
-  async function onDeleteSelectedParty() {
-    if (!partyDetail || !confirmDelete(`${tx("Delete")} ${partyDetail.name} ${tx("and all unlocked party expenses?")}`)) return;
-    setPartyDeleteState("saving");
-    try {
-      await deleteParty(accountId, partyDetail.id);
-      setData((current) => current.filter((party) => party.id !== partyDetail.id));
-      setSelectedPartyId("");
-      setPartyDetail(null);
-      setPartyDeleteState("saved");
-    } catch {
-      setPartyDeleteState("failed");
-    }
+  function onDeleteSelectedParty() {
+    if (!partyDetail) return;
+    const partyToDelete = partyDetail;
+    requestConfirmation({
+      title: "Confirm delete",
+      message: `${tx("Delete")} ${partyToDelete.name} ${tx("and all unlocked party expenses?")}`,
+      confirmLabel: "Delete party",
+      onConfirm: async () => {
+        setPartyDeleteState("saving");
+        try {
+          await deleteParty(accountId, partyToDelete.id);
+          setData((current) => current.filter((party) => party.id !== partyToDelete.id));
+          setSelectedPartyId("");
+          setPartyDetail(null);
+          setPartyDeleteState("saved");
+        } catch {
+          setPartyDeleteState("failed");
+        }
+      }
+    });
   }
 
-  async function onDeletePartyExpense(expense: Expense) {
-    if (!partyDetail || !confirmDelete(`${tx("Delete")} ${expense.merchant} ${tx("from this party and the overall expense ledger?")}`)) return;
-    setPartyExpenseDeleteState("saving");
-    try {
-      await deletePartyExpense(accountId, partyDetail.id, expense.id);
-      setPartyDetail((current) => {
-        if (!current) return current;
-        const removedSplitIds = current.splits.filter((split) => split.expenseId === expense.id).map((split) => split.id);
-        return {
-          ...current,
-          expenses: current.expenses.filter((candidate) => candidate.id !== expense.id),
-          splits: current.splits.filter((split) => split.expenseId !== expense.id),
-          settlements: current.settlements.filter((settlement) => !removedSplitIds.includes(settlement.splitId))
-        };
-      });
-      setPartyExpenseDeleteState("saved");
-    } catch {
-      setPartyExpenseDeleteState("failed");
-    }
+  function onDeletePartyExpense(expense: Expense) {
+    if (!partyDetail) return;
+    const partyId = partyDetail.id;
+    requestConfirmation({
+      title: "Confirm delete",
+      message: `${tx("Delete")} ${expense.merchant} ${tx("from this party and the overall expense ledger?")}`,
+      confirmLabel: "Delete",
+      onConfirm: async () => {
+        setPartyExpenseDeleteState("saving");
+        try {
+          await deletePartyExpense(accountId, partyId, expense.id);
+          setPartyDetail((current) => {
+            if (!current) return current;
+            const removedSplitIds = current.splits.filter((split) => split.expenseId === expense.id).map((split) => split.id);
+            return {
+              ...current,
+              expenses: current.expenses.filter((candidate) => candidate.id !== expense.id),
+              splits: current.splits.filter((split) => split.expenseId !== expense.id),
+              settlements: current.settlements.filter((settlement) => !removedSplitIds.includes(settlement.splitId))
+            };
+          });
+          setPartyExpenseDeleteState("saved");
+        } catch {
+          setPartyExpenseDeleteState("failed");
+        }
+      }
+    });
   }
 
   return (
     <>
+      {confirmationDialog}
       <PageHeader
         title={t("parties")}
         description="Track shared expenses, external participants, and settlements that need approval."
@@ -1515,7 +1783,7 @@ export function PartiesView() {
                 >
                   <h3>{party.name}</h3>
                   <p>{party.members.join(", ")}</p>
-                  <strong className={party.balance >= 0 ? "positive" : "negative"}>{money.format(party.balance)}</strong>
+                  <strong className={signedAmountClass(party.balance)}>{formatSignedAmount(party.balance, party.balanceCurrency ?? defaultCurrency)}</strong>
                   <span>{tx("Open party")}</span>
                 </button>
               ))}
@@ -1602,7 +1870,7 @@ export function PartiesView() {
                 <label>{tx("Merchant")}<input name="merchant" required /></label>
                 <label>{tx("Category")}<select name="category"><CategoryOptions /></select></label>
                 <label>{tx("Amount")}<input name="amount" type="number" min="0.01" step="0.01" required /></label>
-                <label>{tx("Currency")}<select name="currency"><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
+                <label>{tx("Currency")}<select name="currency" defaultValue={defaultCurrency}><CurrencyOptions /></select></label>
                 <DateField label="Date" name="date" defaultValue={todayInputValue()} required />
                 <label>{tx("Paid by")}<select name="paidBy" value={paidByParticipantId} onChange={(event) => setPaidByParticipantId(event.target.value)} required>{partyDetail.participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.displayName}</option>)}</select></label>
                 <label>{tx("Split mode")}<select value={splitMode} onChange={(event) => setSplitMode(event.target.value as "even" | "manual" | "percentage" | "shares")}><option value="even">{tx("Even split")}</option><option value="manual">{tx("Manual amounts")}</option><option value="percentage">{tx("Percentages")}</option><option value="shares">{tx("Shares")}</option></select></label>
@@ -1645,7 +1913,7 @@ export function PartiesView() {
                           <td>{expense.date}</td>
                           <td>{expense.merchant}</td>
                           <td>{tx(expense.category)}</td>
-                          <td className="numeric">{money.format(expense.amount)}</td>
+                          <td className={`numeric ${moneyFlowClass(expense.amount)}`}>{formatMoneyFlow(expense.amount, expense.currency ?? "INR")}</td>
                           <td>
                             {partyDetail.canManage && !locked ? (
                               <button className="danger-button" type="button" onClick={() => void onDeletePartyExpense(expense)}>{tx("Delete")}</button>
@@ -1679,7 +1947,7 @@ export function PartiesView() {
                           <td>{expense?.merchant ?? tx("Party expense")}</td>
                           <td>{payer?.displayName ?? tx("Unknown")}</td>
                           <td>{participant?.displayName ?? tx("Participant")}</td>
-                          <td className="numeric">{money.format(split.amount)}</td>
+                          <td className="numeric negative">{formatOutflowAmount(split.amount, split.currency)}</td>
                           <td><StatusPill tone={split.status === "open" ? "warn" : "good"}>{split.status === "open" ? tx("open") : tx("approval pending")}</StatusPill></td>
                           <td>
                             {canMarkSettled ? <button type="button" onClick={() => void markSplitSettled(split)}>{tx("Mark settled")}</button> : <span className="muted-note">{split.status === "open" ? `${tx("Waiting for")} ${participant?.displayName ?? tx("Participant")}` : tx("Waiting approval")}</span>}
@@ -1701,7 +1969,7 @@ export function PartiesView() {
                     return (
                       <article className="detail-card" key={settlement.id}>
                         <h3>{participant?.displayName ?? tx("Participant")} {tx("marked settled")}</h3>
-                        <p>{money.format(settlement.amount)} {tx("needs approval from")} {approvalParticipant?.displayName ?? tx("the payer")} {tx("before the split closes.")}</p>
+                        <p><span className="positive">{formatInflowAmount(settlement.amount, settlement.currency)}</span> {tx("needs approval from")} {approvalParticipant?.displayName ?? tx("the payer")} {tx("before the split closes.")}</p>
                         {canReviewLocally ? (
                           <div className="inline-actions">
                             <button type="button" onClick={() => void reviewSettlement(settlement, "approve")}>{tx("Approve")}</button>
@@ -1724,11 +1992,11 @@ export function PartiesView() {
 }
 
 export function ReportsView() {
-  const { accountId, t, tx } = usePreferences();
+  const { accountId, defaultCurrency, t, tx } = usePreferences();
   const [reportRange, setReportRange] = useState(() => reportRangeForPreset("1y"));
   const loadReports = useCallback(
-    () => getReports(accountId, { startDate: reportRange.startDate, endDate: reportRange.endDate }),
-    [accountId, reportRange.endDate, reportRange.startDate]
+    () => getReports(accountId, { startDate: reportRange.startDate, endDate: reportRange.endDate }, defaultCurrency),
+    [accountId, defaultCurrency, reportRange.endDate, reportRange.startDate]
   );
   const { data, loading, error } = useAsyncData(loadReports, emptyReportData);
   const hasReportData = data.categories.length || data.cashflow.length || data.budgetVariance.length || data.merchantTrends.length || data.parties.length || data.currencies.length;
@@ -1800,8 +2068,8 @@ export function ReportsView() {
       {error ? <p className="error-note" role="alert">{tx(error)}</p> : null}
       {!loading && !error && !hasReportData ? <EmptyState title="No report data for this timeframe" description="Try All or a wider date range to include more transactions." /> : null}
       <section className="report-summary" aria-label={tx("Report summary metrics")}>
-        <MetricCard label="Tracked spend" value={money.format(data.categories.reduce((sum, row) => sum + row.value, 0))} detail="Across active report categories" />
-        <MetricCard label="Cash retained" value={money.format(data.cashflow.reduce((sum, row) => sum + row.income - row.spend, 0))} detail="Income minus spend in visible months" />
+        <MetricCard label="Tracked spend" value={formatCurrency(data.categories.reduce((sum, row) => sum + row.value, 0), defaultCurrency)} detail="Across active report categories" />
+        <MetricCard label="Cash retained" value={formatCurrency(data.cashflow.reduce((sum, row) => sum + row.income - row.spend, 0), defaultCurrency)} detail="Income minus spend in visible months" />
         <MetricCard label="Largest budget usage" value={`${Math.max(...data.budgetVariance.map((row) => row.usage), 0)}%`} detail="Highest active category utilization" />
         <MetricCard label="Currencies" value={String(data.currencies.length)} detail="Original spend currencies represented" />
       </section>
@@ -1919,7 +2187,7 @@ export function HowToUseView() {
 }
 
 export function SettingsView() {
-  const { accountId, setAccountId, theme, setTheme, language, setLanguage, t, tx } = usePreferences();
+  const { accountId, setAccountId, defaultCurrency, setDefaultCurrency, theme, setTheme, language, setLanguage, t, tx } = usePreferences();
   const howToUseContent = guideContent[language];
   const { data: accountOptions } = useAsyncData(getAccounts, [] as Account[]);
   const [saveState, setSaveState] = useState<SubmitState>("idle");
@@ -1929,7 +2197,7 @@ export function SettingsView() {
       <PageHeader title={t("settings")} description="Workspace preferences, sync posture, and localization readiness." />
       <Panel title="Preferences">
         <form
-          className="form-grid"
+          className="form-grid preferences-form"
           onSubmit={(event) => {
             event.preventDefault();
             setSaveState("saved");
@@ -1938,8 +2206,11 @@ export function SettingsView() {
           <label>{t("account")}<select value={accountId} onChange={(event) => setAccountId(event.target.value)}>{accountOptions.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
           <label>{t("theme")}<select value={theme} onChange={(event) => setTheme(event.target.value as "light" | "dark")}><option value="light">{t("light")}</option><option value="dark">{t("dark")}</option></select></label>
           <label>{t("language")}<select value={language} onChange={(event) => setLanguage(event.target.value as Language)}>{Object.entries(languages).map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label>
-          <label>{tx("Default currency")}<select><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
-          <button className="form-submit" type="submit">{t("save")}</button>
+          <label>{tx("Default currency")}<select value={defaultCurrency} onChange={(event) => setDefaultCurrency(event.target.value as typeof defaultCurrency)}><CurrencyOptions /></select></label>
+          <div className="preferences-actions">
+            <p className="muted-note">{tx("This is used for new entries. Existing expenses keep the currency they were saved with.")}</p>
+            <button className="form-submit" type="submit">{t("save")}</button>
+          </div>
         </form>
         {saveState === "saved" ? <p className="success-note" role="status">{tx("Preferences saved on this device.")}</p> : null}
       </Panel>

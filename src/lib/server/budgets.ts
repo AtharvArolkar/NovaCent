@@ -1,6 +1,7 @@
 import type { Db } from "mongodb";
 import type { Budget, BudgetIncludedExpense, BudgetPeriod, BudgetScope, Expense, Split } from "@/lib/domain";
 import { collections, getDb } from "@/lib/server/mongodb";
+import { getCurrencyRate } from "@/lib/server/currency";
 import { createNotification } from "@/lib/server/notifications";
 
 function roundMoney(amount: number) {
@@ -48,16 +49,69 @@ function categoryKeys(categoryId?: string, categoryName?: string) {
   ].filter(Boolean);
 }
 
-function includedExpenseFrom(expense: Expense, category: { categoryName?: string }): BudgetIncludedExpense {
+type CurrencyRateCache = Map<string, number>;
+
+function normalizeCurrency(currency?: string) {
+  return currency?.toUpperCase() || "INR";
+}
+
+async function rateForCurrency(fromCurrency: string, toCurrency: string, cache: CurrencyRateCache) {
+  const from = normalizeCurrency(fromCurrency);
+  const to = normalizeCurrency(toCurrency);
+  if (from === to) return 1;
+
+  const key = `${from}:${to}`;
+  const cached = cache.get(key);
+  if (cached !== undefined) return cached;
+
+  try {
+    const rate = await getCurrencyRate(from, to);
+    cache.set(key, rate.rate);
+    return rate.rate;
+  } catch {
+    return undefined;
+  }
+}
+
+async function expenseAmountInCurrency(expense: Expense, targetCurrency: string, cache: CurrencyRateCache) {
+  const target = normalizeCurrency(targetCurrency);
+  const originalCurrency = normalizeCurrency(expense.original?.currency);
+  const baseCurrency = normalizeCurrency(expense.base?.currency);
+
+  if (originalCurrency === target) {
+    return roundMoney(Number(expense.original?.amount ?? 0));
+  }
+
+  if (baseCurrency === target) {
+    return roundMoney(Number(expense.base?.amount ?? 0));
+  }
+
+  const rate = await rateForCurrency(originalCurrency, target, cache);
+  if (rate === undefined) {
+    return roundMoney(Number(expense.base?.amount ?? expense.original?.amount ?? 0));
+  }
+  return roundMoney(Number(expense.original?.amount ?? 0) * rate);
+}
+
+async function includedExpenseFrom(expense: Expense, category: { categoryName?: string }, targetCurrency: string, cache: CurrencyRateCache): Promise<BudgetIncludedExpense> {
   return {
     id: expense.id,
     date: expense.spentAt.slice(0, 10),
     merchant: expense.merchant,
     categoryName: category.categoryName ?? expense.categoryName,
-    amount: roundMoney(expense.base.amount),
-    currency: expense.base.currency,
+    amount: roundMoney(await budgetSpendImpactAmount(expense, targetCurrency, cache)),
+    currency: normalizeCurrency(targetCurrency),
     source: expense.source
   };
+}
+
+async function budgetSpendImpactAmount(expense: Expense, targetCurrency: string, cache: CurrencyRateCache = new Map()) {
+  const amount = await expenseAmountInCurrency(expense, targetCurrency, cache);
+  if (expense.source === "settlement") {
+    return amount;
+  }
+
+  return Math.max(amount, 0);
 }
 
 function addSpend(
@@ -83,7 +137,7 @@ function budgetCategoryFor(expense: Expense, expensesById: Map<string, Expense>,
   };
 }
 
-async function budgetCalculationByCategory(db: Db, accountId: string, period: BudgetPeriod = "monthly") {
+async function budgetCalculationByCategory(db: Db, accountId: string, period: BudgetPeriod = "monthly", targetCurrency = "INR") {
   const expenses = await db.collection<Expense>(collections.expenses).find({ accountId, excludeFromLedger: { $ne: true } }).sort({ spentAt: -1, createdAt: -1 }).toArray();
   const periodExpenses = expenses.filter((expense) => expenseInPeriod(expense, period));
   const settlementSplitIds = Array.from(
@@ -100,10 +154,16 @@ async function budgetCalculationByCategory(db: Db, accountId: string, period: Bu
   const splitsById = new Map(splits.map((split) => [split.id, split]));
   const spendByCategory = new Map<string, number>();
   const expensesByCategory = new Map<string, BudgetIncludedExpense[]>();
+  const rateCache: CurrencyRateCache = new Map();
 
   for (const expense of periodExpenses) {
+    const impactAmount = await budgetSpendImpactAmount(expense, targetCurrency, rateCache);
+    if (impactAmount === 0) {
+      continue;
+    }
+
     const category = budgetCategoryFor(expense, expensesById, splitsById);
-    const includedExpense = includedExpenseFrom(expense, category);
+    const includedExpense = await includedExpenseFrom(expense, category, targetCurrency, rateCache);
     addSpend(spendByCategory, expensesByCategory, "scope:overall", includedExpense);
     for (const key of categoryKeys(category.categoryId, category.categoryName)) {
       addSpend(spendByCategory, expensesByCategory, key, includedExpense);
@@ -114,18 +174,20 @@ async function budgetCalculationByCategory(db: Db, accountId: string, period: Bu
 }
 
 export async function hydrateBudgetSpend(db: Db, accountId: string, budgets: Budget[]) {
-  const periodSpend = new Map<BudgetPeriod, Awaited<ReturnType<typeof budgetCalculationByCategory>>>();
-  const spendForPeriod = async (period: BudgetPeriod) => {
-    const existing = periodSpend.get(period);
+  const periodSpend = new Map<string, Awaited<ReturnType<typeof budgetCalculationByCategory>>>();
+  const spendForPeriod = async (period: BudgetPeriod, currency: string) => {
+    const key = `${period}:${normalizeCurrency(currency)}`;
+    const existing = periodSpend.get(key);
     if (existing) return existing;
-    const next = await budgetCalculationByCategory(db, accountId, period);
-    periodSpend.set(period, next);
+    const next = await budgetCalculationByCategory(db, accountId, period, currency);
+    periodSpend.set(key, next);
     return next;
   };
 
   const hydratedBudgets = await Promise.all(budgets.map(async (budget) => {
     const period = budget.period ?? "monthly";
-    const { spendByCategory, expensesByCategory } = await spendForPeriod(period);
+    const currency = normalizeCurrency(budget.limit.currency);
+    const { spendByCategory, expensesByCategory } = await spendForPeriod(period, currency);
     const scope = budgetScope(budget);
     const categoryKey = scope === "overall"
       ? "scope:overall"
@@ -140,7 +202,7 @@ export async function hydrateBudgetSpend(db: Db, accountId: string, budgets: Bud
         amount: Math.max(0, roundMoney(
           spendByCategory.get(categoryKey) ?? 0
         )),
-        currency: budget.limit.currency
+        currency
       },
       includedExpenses: expensesByCategory.get(categoryKey) ?? []
     };
@@ -150,7 +212,7 @@ export async function hydrateBudgetSpend(db: Db, accountId: string, budgets: Bud
 }
 
 export async function calculatedBudgetSpent(db: Db, input: { accountId: string; scope?: BudgetScope; categoryId: string; categoryName?: string; currency: string; period?: BudgetPeriod }) {
-  const { spendByCategory } = await budgetCalculationByCategory(db, input.accountId, input.period ?? "monthly");
+  const { spendByCategory } = await budgetCalculationByCategory(db, input.accountId, input.period ?? "monthly", input.currency);
   return {
     amount: Math.max(0, roundMoney(
       input.scope === "overall"
@@ -159,12 +221,13 @@ export async function calculatedBudgetSpent(db: Db, input: { accountId: string; 
           spendByCategory.get(`name:${normalizedCategoryName(input.categoryName)}`) ??
           0
     )),
-    currency: input.currency
+    currency: normalizeCurrency(input.currency)
   };
 }
 
 export async function applyExpenseBudgetImpact(expense: Expense, userId?: string) {
-  if (expense.excludeFromLedger || expense.source === "settlement" || expense.base.amount <= 0) {
+  const storedCalculationAmount = Number(expense.base?.amount ?? expense.original?.amount ?? 0);
+  if (expense.excludeFromLedger || expense.source === "settlement" || storedCalculationAmount <= 0) {
     return;
   }
 
@@ -189,13 +252,18 @@ export async function applyExpenseBudgetImpact(expense: Expense, userId?: string
       continue;
     }
 
+    const impactAmount = await budgetSpendImpactAmount(expense, budget.limit.currency);
+    if (impactAmount <= 0) {
+      continue;
+    }
+
     const previousSpent = Number(budget.spent?.amount ?? 0);
-    const nextSpent = Math.round((previousSpent + expense.base.amount) * 100) / 100;
+    const nextSpent = Math.round((previousSpent + impactAmount) * 100) / 100;
     await db.collection(collections.budgets).updateOne(
       { id: budget.id, accountId: expense.accountId },
       {
         $set: {
-          spent: { amount: nextSpent, currency: budget.limit.currency },
+          spent: { amount: nextSpent, currency: normalizeCurrency(budget.limit.currency) },
           updatedAt: new Date().toISOString()
         }
       }
@@ -222,7 +290,8 @@ export async function applyExpenseBudgetImpact(expense: Expense, userId?: string
 }
 
 export async function reverseExpenseBudgetImpact(expense: Expense) {
-  if (expense.excludeFromLedger || expense.source === "settlement" || expense.base.amount <= 0) {
+  const storedCalculationAmount = Number(expense.base?.amount ?? expense.original?.amount ?? 0);
+  if (expense.excludeFromLedger || expense.source === "settlement" || storedCalculationAmount <= 0) {
     return;
   }
 
@@ -247,13 +316,18 @@ export async function reverseExpenseBudgetImpact(expense: Expense) {
       return;
     }
 
+    const impactAmount = await budgetSpendImpactAmount(expense, budget.limit.currency);
+    if (impactAmount <= 0) {
+      return;
+    }
+
     const previousSpent = Number(budget.spent?.amount ?? 0);
-    const nextSpent = Math.max(0, Math.round((previousSpent - expense.base.amount) * 100) / 100);
+    const nextSpent = Math.max(0, Math.round((previousSpent - impactAmount) * 100) / 100);
     await db.collection(collections.budgets).updateOne(
       { id: budget.id, accountId: expense.accountId },
       {
         $set: {
-          spent: { amount: nextSpent, currency: budget.limit.currency },
+          spent: { amount: nextSpent, currency: normalizeCurrency(budget.limit.currency) },
           updatedAt: new Date().toISOString()
         }
       }

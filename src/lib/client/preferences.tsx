@@ -4,10 +4,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { dictionary, languages, phraseDictionary, supplementalPhraseDictionary, type DictionaryKey, type Language } from "./dictionary";
 
 type Theme = "light" | "dark";
+export const currencyOptions = ["INR", "USD", "EUR", "AED"] as const;
+export type CurrencyCode = (typeof currencyOptions)[number];
 
 type PreferencesContextValue = {
   accountId: string;
   setAccountId: (accountId: string) => void;
+  defaultCurrency: CurrencyCode;
+  setDefaultCurrency: (currency: CurrencyCode) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
   language: Language;
@@ -33,6 +37,7 @@ const legacyCachePrefixes = ["expense-tracker"];
 const pwaInstallDismissedAtKey = "novacent-pwa-install-dismissed-at";
 const pwaInstallDismissMs = 7 * 24 * 60 * 60 * 1000;
 const isLanguage = (value: unknown): value is Language => typeof value === "string" && value in languages;
+const isCurrencyCode = (value: unknown): value is CurrencyCode => typeof value === "string" && currencyOptions.includes(value as CurrencyCode);
 
 function pwaInstallDismissedRecently() {
   const dismissedAt = Number(window.localStorage.getItem(pwaInstallDismissedAtKey) ?? 0);
@@ -45,6 +50,7 @@ function isStandalonePwa() {
 
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
   const [accountId, setAccountId] = useState(useMocks ? "primary-inr" : "");
+  const [defaultCurrency, setDefaultCurrency] = useState<CurrencyCode>("INR");
   const [theme, setTheme] = useState<Theme>("light");
   const [language, setLanguage] = useState<Language>("en");
   const [isOnline, setIsOnline] = useState(true);
@@ -56,8 +62,9 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     const stored = window.localStorage.getItem("rupee-flow-preferences");
     if (stored) {
-      const parsed = JSON.parse(stored) as Partial<Pick<PreferencesContextValue, "accountId" | "theme" | "language">>;
+      const parsed = JSON.parse(stored) as Partial<Pick<PreferencesContextValue, "accountId" | "defaultCurrency" | "theme" | "language">>;
       if (parsed.accountId && (useMocks || !demoAccountIds.has(parsed.accountId))) setAccountId(parsed.accountId);
+      if (isCurrencyCode(parsed.defaultCurrency)) setDefaultCurrency(parsed.defaultCurrency);
       if (parsed.theme === "light" || parsed.theme === "dark") setTheme(parsed.theme);
       if (isLanguage(parsed.language)) setLanguage(parsed.language);
     }
@@ -67,8 +74,8 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     if (!preferencesLoaded) return;
-    window.localStorage.setItem("rupee-flow-preferences", JSON.stringify({ accountId, theme, language }));
-  }, [accountId, theme, language, preferencesLoaded]);
+    window.localStorage.setItem("rupee-flow-preferences", JSON.stringify({ accountId, defaultCurrency, theme, language }));
+  }, [accountId, defaultCurrency, theme, language, preferencesLoaded]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
@@ -152,6 +159,8 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     () => ({
       accountId,
       setAccountId,
+      defaultCurrency,
+      setDefaultCurrency,
       theme,
       setTheme,
       language,
@@ -164,7 +173,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       t: (key) => dictionary[language][key],
       tx: (text) => phraseDictionary[language][text] ?? supplementalPhraseDictionary[language][text] ?? text
     }),
-    [accountId, theme, language, isOnline, deferredInstallPrompt, isPwaInstalled, installPromptDismissed, promptPwaInstall, dismissPwaInstall]
+    [accountId, defaultCurrency, theme, language, isOnline, deferredInstallPrompt, isPwaInstalled, installPromptDismissed, promptPwaInstall, dismissPwaInstall]
   );
 
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
