@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { dictionary, type DictionaryKey, type Language } from "./dictionary";
+import { dictionary, languages, phraseDictionary, type DictionaryKey, type Language } from "./dictionary";
 
 type Theme = "light" | "dark";
 
@@ -14,12 +14,14 @@ type PreferencesContextValue = {
   setLanguage: (language: Language) => void;
   isOnline: boolean;
   t: (key: DictionaryKey) => string;
+  tx: (text: string) => string;
 };
 
 const PreferencesContext = createContext<PreferencesContextValue | null>(null);
 const useMocks = process.env.NEXT_PUBLIC_USE_MOCKS === "true";
 const demoAccountIds = new Set(["primary-inr", "family", "travel-wallet"]);
 const legacyCachePrefixes = ["expense-tracker"];
+const isLanguage = (value: unknown): value is Language => typeof value === "string" && value in languages;
 
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
   const [accountId, setAccountId] = useState(useMocks ? "primary-inr" : "");
@@ -34,7 +36,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       const parsed = JSON.parse(stored) as Partial<Pick<PreferencesContextValue, "accountId" | "theme" | "language">>;
       if (parsed.accountId && (useMocks || !demoAccountIds.has(parsed.accountId))) setAccountId(parsed.accountId);
       if (parsed.theme === "light" || parsed.theme === "dark") setTheme(parsed.theme);
-      if (parsed.language === "en" || parsed.language === "es") setLanguage(parsed.language);
+      if (isLanguage(parsed.language)) setLanguage(parsed.language);
     }
     setPreferencesLoaded(true);
   }, []);
@@ -85,7 +87,8 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       language,
       setLanguage,
       isOnline,
-      t: (key) => dictionary[language][key]
+      t: (key) => dictionary[language][key],
+      tx: (text) => phraseDictionary[language][text] ?? text
     }),
     [accountId, theme, language, isOnline]
   );

@@ -31,10 +31,10 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Status | Feature |
 | --- | --- |
 | Implemented | Email/password registration and sign-in. |
-| Implemented | Logout action from the authenticated app shell. |
+| Implemented | Logout action from the authenticated app shell sidebar/footer. |
 | Implemented | Google OAuth wiring with placeholder credentials until real Google keys are configured. |
 | Implemented | Forgot-password, reset-password, and change-password APIs and screens. |
-| Implemented | Authenticated app header displays `Hello <first name>`, using the first word of the profile name with email/user fallback. |
+| Implemented | Authenticated navigation panel displays `Hi <first name>` at the bottom, using the formatted first word of the profile name with email/user fallback. |
 | Implemented | Default INR account creation for new users. |
 | Implemented | Multiple account support with a global account switcher. |
 | Implemented | Global account preference sanitization in live mode so stale demo account ids do not drive refresh-time API calls. |
@@ -45,10 +45,14 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Status | Feature |
 | --- | --- |
 | Implemented | NovaCent branding through centralized app configuration. |
-| Implemented | Central translation dictionary for changing app text from one file. |
+| Implemented | Central translation dictionary for changing app text from one file, with English, Spanish, French, Hindi, and Marathi language options. |
+| Implemented | App-shell, auth screens, dashboard, expenses, budgets, imports, parties, reports, settings, chart captions, empty states, and common action/status labels are wired through the central translation helpers. |
+| Implemented | Translation audit coverage includes confirmation dialogs, placeholders, chart accessibility labels, table captions, notification labels, and mobile drawer controls. |
 | Implemented | Light/dark theme switching. |
 | Implemented | Responsive app shell with sidebar navigation and top account controls. |
-| Implemented | Mobile navigation collapses behind a menu button and header controls reflow into compact grids on smaller screens. |
+| Implemented | Mobile navigation opens as a right-side slide-in drawer from the hamburger menu, while header controls reflow into compact grids on smaller screens. |
+| Implemented | Mobile app shell uses a compact brand bar with notifications beside the hamburger menu; account, language, and theme controls move into the bottom of the navigation drawer to keep page content higher. |
+| Implemented | Settings moved from the main nav list to a square gear shortcut beside the wider logout button in the navigation footer. |
 | Implemented | Responsive hardening for top-bar actions, page actions, forms, tables, charts, participant chips, and mobile action buttons. |
 | Implemented | Refreshed multi-accent visual system with blue, teal, violet, amber, and rose tokens instead of a single green-heavy palette. |
 | Implemented | Reports and charts use shared chart color tokens for clearer category, cashflow, budget, party, and currency visuals. |
@@ -76,6 +80,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | --- | --- |
 | Implemented | Budget create, list, progress, and delete workflows. |
 | Implemented | Budget edit workflow for category, limit, period, currency, and alert threshold. |
+| Implemented | Budget create/edit form uses an aligned responsive action row for Save and Cancel controls. |
 | Implemented | Budget delete confirmation. |
 | Implemented | Monthly and yearly budget periods. Monthly budgets run from the 1st of the current month to month end; yearly budgets run from Jan 1 to Dec 31. Budget spend is recalculated for the active month/year and includes existing matching expenses when a budget is listed, created, or edited. |
 | Implemented | Overall spend budgets track every visible expense in the active month/year, while single-category budgets track only their matching category. |

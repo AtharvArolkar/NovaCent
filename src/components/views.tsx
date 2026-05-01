@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { addPartyParticipant, approvePartySettlement, createBudget, createExpense, createParty, createPartyExpense, deleteBudget, deleteExpense, deleteParty, deletePartyExpense, getAccounts, getBudgets, getExpenses, getImportRows, getOverview, getParties, getPartyDetail, getReports, markPartySplitSettled, reportDataToCsv, reviewImportRow, searchUsers, syncPendingOutbox, updateBudget, uploadStatement } from "@/lib/client/expense-service";
 import type { PartyDetail, PartyParticipant, PartyParticipantInput, PartySettlement, PartySplit, UserSearchResult } from "@/lib/client/expense-service";
 import type { Account, Budget, Expense, ImportRow, Party } from "@/lib/client/demo-data";
+import { languages, type Language } from "@/lib/client/dictionary";
 import type { ReportingChartData } from "@/lib/reporting";
 import { usePreferences } from "@/lib/client/preferences";
 import {
@@ -95,25 +96,27 @@ function useAsyncData<T>(loader: () => Promise<T>, initial: T) {
 }
 
 function LoadingNote({ label }: { label: string }) {
-  return <p className="loading-note" role="status">{label}</p>;
+  const { tx } = usePreferences();
+  return <p className="loading-note" role="status">{tx(label)}</p>;
 }
 
 function ExpenseTable({ rows, onDelete }: { rows: Expense[]; onDelete?: (expense: Expense) => void }) {
+  const { tx } = usePreferences();
   if (!rows.length) return <EmptyState title="No expenses yet" description="New spending will appear here once imported or added." />;
   const showActions = Boolean(onDelete);
   return (
     <div className="table-wrap">
       <table>
-        <caption>Expense ledger with merchant, category, owner, amount, and status</caption>
+        <caption>{tx("Expense ledger with merchant, category, owner, amount, and status")}</caption>
         <thead>
           <tr>
-            <th scope="col">Date</th>
-            <th scope="col">Merchant</th>
-            <th scope="col">Category</th>
-            <th scope="col">Owner</th>
-            <th scope="col" className="numeric">Amount</th>
-            <th scope="col">Status</th>
-            {showActions ? <th scope="col">Action</th> : null}
+            <th scope="col">{tx("Date")}</th>
+            <th scope="col">{tx("Merchant")}</th>
+            <th scope="col">{tx("Category")}</th>
+            <th scope="col">{tx("Owner")}</th>
+            <th scope="col" className="numeric">{tx("Amount")}</th>
+            <th scope="col">{tx("Status")}</th>
+            {showActions ? <th scope="col">{tx("Action")}</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -121,16 +124,16 @@ function ExpenseTable({ rows, onDelete }: { rows: Expense[]; onDelete?: (expense
             <tr key={expense.id}>
               <td>{expense.date}</td>
               <td>{expense.merchant}</td>
-              <td>{expense.category}</td>
+              <td>{tx(expense.category)}</td>
               <td>{expense.owner}</td>
               <td className="numeric">{money.format(expense.amount)}</td>
-              <td><StatusPill tone={expense.status === "cleared" ? "good" : expense.status === "pending" ? "warn" : "bad"}>{expense.status}</StatusPill></td>
+              <td><StatusPill tone={expense.status === "cleared" ? "good" : expense.status === "pending" ? "warn" : "bad"}>{tx(expense.status)}</StatusPill></td>
               {showActions ? (
                 <td>
                   {expense.canDelete === false ? (
-                    <span className="muted-note">Locked</span>
+                    <span className="muted-note">{tx("Locked")}</span>
                   ) : (
-                    <button className="danger-button" type="button" onClick={() => onDelete?.(expense)}>Delete</button>
+                    <button className="danger-button" type="button" onClick={() => onDelete?.(expense)}>{tx("Delete")}</button>
                   )}
                 </td>
               ) : null}
@@ -143,6 +146,7 @@ function ExpenseTable({ rows, onDelete }: { rows: Expense[]; onDelete?: (expense
 }
 
 function BudgetList({ rows }: { rows: Budget[] }) {
+  const { tx } = usePreferences();
   return (
     <div className="stack">
       {rows.map((budget) => {
@@ -150,10 +154,10 @@ function BudgetList({ rows }: { rows: Budget[] }) {
         return (
           <article className="budget-row" key={budget.id}>
             <div>
-              <h3>{budget.category}</h3>
-              <p>{money.format(budget.spent)} of {money.format(budget.limit)}</p>
+              <h3>{tx(budget.category)}</h3>
+              <p>{money.format(budget.spent)} {tx("of")} {money.format(budget.limit)}</p>
             </div>
-            <ProgressBar label={`${budget.category} spend`} value={percent} />
+            <ProgressBar label={`${tx(budget.category)} ${tx("spend")}`} value={percent} />
           </article>
         );
       })}
@@ -162,12 +166,13 @@ function BudgetList({ rows }: { rows: Budget[] }) {
 }
 
 function BarList({ title, rows }: { title: string; rows: { label: string; value: number }[] }) {
+  const { tx } = usePreferences();
   const max = Math.max(...rows.map((row) => row.value), 1);
   return (
-    <div className="chart-alt" role="img" aria-label={`${title} bar chart. ${rows.map((row) => `${row.label}: ${money.format(row.value)}`).join(", ")}`}>
+    <div className="chart-alt" role="img" aria-label={`${tx(title)} ${tx("bar chart")}. ${rows.map((row) => `${tx(row.label)}: ${money.format(row.value)}`).join(", ")}`}>
       {rows.map((row) => (
         <div className="bar-row" key={row.label}>
-          <span>{row.label}</span>
+          <span>{tx(row.label)}</span>
           <div><i style={{ width: `${(row.value / max) * 100}%` }} /></div>
           <b>{money.format(row.value)}</b>
         </div>
@@ -177,7 +182,7 @@ function BarList({ title, rows }: { title: string; rows: { label: string; value:
 }
 
 export function DashboardView() {
-  const { accountId, t } = usePreferences();
+  const { accountId, t, tx } = usePreferences();
   const loadOverview = useCallback(() => getOverview(accountId), [accountId]);
   const { data, loading, reload } = useAsyncData(loadOverview, { totalSpend: 0, remainingBudget: 0, monthlyRunway: 0, pendingImports: 0, budgets: [], expenses: [] });
   const [syncState, setSyncState] = useState<SubmitState>("idle");
@@ -202,17 +207,17 @@ export function DashboardView() {
               }
             }}
           >
-            {syncState === "saving" ? "Syncing" : t("syncNow")}
+            {syncState === "saving" ? tx("Syncing") : t("syncNow")}
           </button>
         }
       />
       {loading ? <LoadingNote label="Loading dashboard" /> : null}
-      {syncState === "saved" ? <p className="success-note" role="status">Sync complete.</p> : null}
-      {syncState === "failed" ? <p className="error-note" role="alert">Unable to sync right now.</p> : null}
-      <section className="metric-grid" aria-label="Key account metrics">
+      {syncState === "saved" ? <p className="success-note" role="status">{tx("Sync complete.")}</p> : null}
+      {syncState === "failed" ? <p className="error-note" role="alert">{tx("Unable to sync right now.")}</p> : null}
+      <section className="metric-grid" aria-label={tx("Key account metrics")}>
         <MetricCard label={t("totalSpend")} value={money.format(data.totalSpend)} detail="Across visible transactions this month" />
         <MetricCard label={t("remainingBudget")} value={money.format(data.remainingBudget)} detail="Available across active envelopes" />
-        <MetricCard label={t("monthlyRunway")} value={`${data.monthlyRunway} days`} detail="At the current seven-day average" />
+        <MetricCard label={t("monthlyRunway")} value={`${data.monthlyRunway} ${tx("days")}`} detail="At the current seven-day average" />
         <MetricCard label={t("pendingImports")} value={String(data.pendingImports)} detail="Rows waiting for review" />
       </section>
       <div className="content-grid">
@@ -224,7 +229,7 @@ export function DashboardView() {
 }
 
 export function ExpensesView() {
-  const { accountId, t } = usePreferences();
+  const { accountId, t, tx } = usePreferences();
   const loadExpenses = useCallback(() => getExpenses(accountId), [accountId]);
   const { data, setData, error } = useAsyncData(loadExpenses, []);
   const [query, setQuery] = useState("");
@@ -258,7 +263,7 @@ export function ExpensesView() {
   }
 
   async function onDeleteExpense(expense: Expense) {
-    if (!confirmDelete(`Delete ${expense.merchant} from expenses? This cannot be undone.`)) return;
+    if (!confirmDelete(`${tx("Delete")} ${expense.merchant} ${tx("from expenses? This cannot be undone.")}`)) return;
     setDeleteState("saving");
     try {
       await deleteExpense(accountId, expense.id);
@@ -285,22 +290,22 @@ export function ExpensesView() {
           </button>
         }
       />
-      {error ? <p className="error-note" role="alert">{error}</p> : null}
-      {deleteState === "saved" ? <p className="success-note" role="status">Expense deleted.</p> : null}
-      {deleteState === "failed" ? <p className="error-note" role="alert">Unable to delete expense. Settled party expenses and settlement rows are locked.</p> : null}
+      {error ? <p className="error-note" role="alert">{tx(error)}</p> : null}
+      {deleteState === "saved" ? <p className="success-note" role="status">{tx("Expense deleted.")}</p> : null}
+      {deleteState === "failed" ? <p className="error-note" role="alert">{tx("Unable to delete expense. Settled party expenses and settlement rows are locked.")}</p> : null}
       <Panel title="Quick add">
         <form ref={quickAddRef} className="form-grid" onSubmit={onQuickAdd}>
-          <label>Merchant<input name="merchant" required /></label>
-          <label>Category<select name="category"><option>Food</option><option>Shopping</option><option>Travel</option><option>Subscriptions</option><option>Health</option></select></label>
-          <label>Amount<input name="amount" type="number" min="0" step="0.01" required /></label>
-          <label>Currency<select name="currency"><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
-          <label>Date<input name="date" type="date" defaultValue={todayInputValue()} required /></label>
-          <button className="form-submit" type="submit" disabled={submitState === "saving"}>{submitState === "saving" ? "Saving" : t("save")}</button>
+          <label>{tx("Merchant")}<input name="merchant" required /></label>
+          <label>{tx("Category")}<select name="category"><option value="Food">{tx("Food")}</option><option value="Shopping">{tx("Shopping")}</option><option value="Travel">{tx("Travel")}</option><option value="Subscriptions">{tx("Subscriptions")}</option><option value="Health">{tx("Health")}</option></select></label>
+          <label>{tx("Amount")}<input name="amount" type="number" min="0" step="0.01" required /></label>
+          <label>{tx("Currency")}<select name="currency"><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
+          <label>{tx("Date")}<input name="date" type="date" defaultValue={todayInputValue()} required /></label>
+          <button className="form-submit" type="submit" disabled={submitState === "saving"}>{submitState === "saving" ? tx("Saving") : t("save")}</button>
         </form>
-        {submitState === "saved" ? <p className="success-note" role="status">Expense saved or queued for sync.</p> : null}
-        {submitState === "failed" ? <p className="error-note" role="alert">Unable to save expense.</p> : null}
+        {submitState === "saved" ? <p className="success-note" role="status">{tx("Expense saved or queued for sync.")}</p> : null}
+        {submitState === "failed" ? <p className="error-note" role="alert">{tx("Unable to save expense.")}</p> : null}
       </Panel>
-      <Panel title="Expense ledger" aside={<label className="search-box"><span>{t("search")}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Merchant, category, owner" /></label>}>
+      <Panel title="Expense ledger" aside={<label className="search-box"><span>{t("search")}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tx("Merchant, category, owner")} /></label>}>
         <ExpenseTable rows={filtered} onDelete={onDeleteExpense} />
       </Panel>
     </>
@@ -308,7 +313,7 @@ export function ExpensesView() {
 }
 
 export function BudgetsView() {
-  const { accountId } = usePreferences();
+  const { accountId, t, tx } = usePreferences();
   const loadBudgets = useCallback(() => getBudgets(accountId), [accountId]);
   const { data, setData } = useAsyncData(loadBudgets, [] as Budget[]);
   const [showBudgetForm, setShowBudgetForm] = useState(false);
@@ -352,7 +357,7 @@ export function BudgetsView() {
   }
 
   async function onDeleteBudget(budget: Budget) {
-    if (!confirmDelete(`Delete ${budget.category} budget?`)) return;
+    if (!confirmDelete(`${tx("Delete")} ${tx(budget.category)} ${tx("budget?")}`)) return;
     setBudgetDeleteState("saving");
     try {
       await deleteBudget(accountId, budget.id);
@@ -366,7 +371,7 @@ export function BudgetsView() {
   return (
     <>
       <PageHeader
-        title="Budgets"
+        title={t("budgets")}
         description="Track limits, spot overspend early, and keep categories honest."
         action={
           <button
@@ -378,35 +383,35 @@ export function BudgetsView() {
               focusFormAfterRender(() => budgetFormRef.current);
             }}
           >
-            New budget
+            {tx("New budget")}
           </button>
         }
       />
       {showBudgetForm ? (
         <Panel title={editingBudget ? "Edit budget" : "New budget"}>
           <form key={editingBudget?.id ?? "new-budget"} ref={budgetFormRef} className="form-grid" onSubmit={onCreateBudget}>
-            <label>Budget name or category<input name="categoryName" placeholder="Monthly Budget" defaultValue={editingBudget?.category ?? ""} required /></label>
-            <label>Tracks<select name="scope" defaultValue={editingBudget?.scope ?? "overall"}><option value="overall">Overall spend</option><option value="category">Single category</option></select></label>
-            <label>Limit<input name="limit" type="number" min="1" step="0.01" defaultValue={editingBudget?.limit ?? ""} required /></label>
-            <label>Period<select name="period" defaultValue={editingBudget?.period ?? "monthly"}><option value="monthly">Monthly</option><option value="yearly">Yearly</option></select></label>
-            <label>Currency<select name="currency" defaultValue={editingBudget?.currency ?? "INR"}><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
-            <label>Alert at %<input name="alertThreshold" type="number" min="1" max="100" defaultValue={editingBudget?.alertThreshold ?? 80} required /></label>
-            <div className="inline-actions">
-              <button className="form-submit" type="submit" disabled={budgetState === "saving"}>{budgetState === "saving" ? "Saving" : editingBudget ? "Update budget" : "Save budget"}</button>
+            <label>{tx("Budget name or category")}<input name="categoryName" placeholder={tx("Monthly Budget")} defaultValue={editingBudget?.category ?? ""} required /></label>
+            <label>{tx("Tracks")}<select name="scope" defaultValue={editingBudget?.scope ?? "overall"}><option value="overall">{tx("Overall spend")}</option><option value="category">{tx("Single category")}</option></select></label>
+            <label>{tx("Limit")}<input name="limit" type="number" min="1" step="0.01" defaultValue={editingBudget?.limit ?? ""} required /></label>
+            <label>{tx("Period")}<select name="period" defaultValue={editingBudget?.period ?? "monthly"}><option value="monthly">{tx("Monthly")}</option><option value="yearly">{tx("Yearly")}</option></select></label>
+            <label>{tx("Currency")}<select name="currency" defaultValue={editingBudget?.currency ?? "INR"}><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
+            <label>{tx("Alert at %")}<input name="alertThreshold" type="number" min="1" max="100" defaultValue={editingBudget?.alertThreshold ?? 80} required /></label>
+            <div className="inline-actions budget-form-actions">
+              <button className="form-submit" type="submit" disabled={budgetState === "saving"}>{budgetState === "saving" ? tx("Saving") : editingBudget ? tx("Update budget") : tx("Save budget")}</button>
               <button className="secondary-button" type="button" onClick={() => {
                 setShowBudgetForm(false);
                 setEditingBudget(null);
               }}>
-                Cancel
+                {tx("Cancel")}
               </button>
             </div>
           </form>
-          {budgetState === "saved" ? <p className="success-note" role="status">Budget saved.</p> : null}
-          {budgetState === "failed" ? <p className="error-note" role="alert">Unable to save budget.</p> : null}
+          {budgetState === "saved" ? <p className="success-note" role="status">{tx("Budget saved.")}</p> : null}
+          {budgetState === "failed" ? <p className="error-note" role="alert">{tx("Unable to save budget.")}</p> : null}
         </Panel>
       ) : null}
-      {budgetDeleteState === "saved" ? <p className="success-note" role="status">Budget deleted.</p> : null}
-      {budgetDeleteState === "failed" ? <p className="error-note" role="alert">Unable to delete budget.</p> : null}
+      {budgetDeleteState === "saved" ? <p className="success-note" role="status">{tx("Budget deleted.")}</p> : null}
+      {budgetDeleteState === "failed" ? <p className="error-note" role="alert">{tx("Unable to delete budget.")}</p> : null}
       <Panel title="Active budgets">
         <div className="stack">
           {data.map((budget) => {
@@ -415,19 +420,19 @@ export function BudgetsView() {
             return (
               <article className="budget-row managed-row" key={budget.id}>
                 <div>
-                  <h3>{budget.category}</h3>
-                  <p>{budget.scope === "overall" ? "Overall spend" : "Single category"}</p>
-                  <p>{money.format(budget.spent)} of {money.format(budget.limit)} this {budgetPeriodLabel(period)}</p>
-                  <small>{budgetPeriodWindow(period)}</small>
+                  <h3>{tx(budget.category)}</h3>
+                  <p>{budget.scope === "overall" ? tx("Overall spend") : tx("Single category")}</p>
+                  <p>{money.format(budget.spent)} {tx("of")} {money.format(budget.limit)} {period === "yearly" ? tx("this year") : tx("this month")}</p>
+                  <small>{tx(budgetPeriodWindow(period))}</small>
                 </div>
-                <ProgressBar label={`${budget.category} spend`} value={percent} />
+                <ProgressBar label={`${tx(budget.category)} ${tx("spend")}`} value={percent} />
                 <div className="budget-actions">
-                  <button className="secondary-button" type="button" aria-label={`Edit ${budget.category} budget`} onClick={() => {
+                  <button className="secondary-button" type="button" aria-label={`${tx("Edit budget")}: ${tx(budget.category)}`} onClick={() => {
                     setEditingBudget(budget);
                     setShowBudgetForm(true);
                     focusFormAfterRender(() => budgetFormRef.current);
-                  }}>Edit budget</button>
-                  <button className="danger-button" type="button" onClick={() => void onDeleteBudget(budget)}>Delete</button>
+                  }}>{tx("Edit budget")}</button>
+                  <button className="danger-button" type="button" onClick={() => void onDeleteBudget(budget)}>{tx("Delete")}</button>
                 </div>
               </article>
             );
@@ -439,7 +444,7 @@ export function BudgetsView() {
 }
 
 export function ImportReviewView() {
-  const { accountId } = usePreferences();
+  const { accountId, tx } = usePreferences();
   const loadImportRows = useCallback(() => getImportRows(accountId), [accountId]);
   const { data, setData, reload } = useAsyncData(loadImportRows, [] as ImportRow[]);
   const [duplicateFilter, setDuplicateFilter] = useState<"all" | "duplicates">("all");
@@ -463,11 +468,11 @@ export function ImportReviewView() {
   return (
     <>
       <PageHeader
-        title="Import review"
+        title={tx("Import review")}
         description="Triage low-confidence rows before posting them into the ledger."
         action={
           <label className="file-button">
-            Upload statement
+            {tx("Upload statement")}
             <input
               accept=".csv,.xls,.xlsx,.pdf,.txt"
               type="file"
@@ -489,34 +494,34 @@ export function ImportReviewView() {
           </label>
         }
       />
-      {importState === "uploading" ? <p className="loading-note" role="status">Uploading and parsing statement.</p> : null}
-      {importState === "failed" ? <p className="error-note" role="alert">Statement import failed.</p> : null}
-      {importState === "done" ? <p className="success-note" role="status">Statement rows are ready for review.</p> : null}
+      {importState === "uploading" ? <p className="loading-note" role="status">{tx("Uploading and parsing statement.")}</p> : null}
+      {importState === "failed" ? <p className="error-note" role="alert">{tx("Statement import failed.")}</p> : null}
+      {importState === "done" ? <p className="success-note" role="status">{tx("Statement rows are ready for review.")}</p> : null}
       <Panel
         title="Rows needing attention"
         aside={
-          <div className="segmented-control" aria-label="Import row filter">
+          <div className="segmented-control" aria-label={tx("Import row filter")}>
             <button type="button" className={duplicateFilter === "all" ? "active" : ""} aria-pressed={duplicateFilter === "all"} onClick={() => setDuplicateFilter("all")}>
-              All
+              {tx("All")}
             </button>
             <button type="button" className={duplicateFilter === "duplicates" ? "active" : ""} aria-pressed={duplicateFilter === "duplicates"} onClick={() => setDuplicateFilter("duplicates")}>
-              Possible duplicates
+              {tx("Possible duplicates")}
             </button>
           </div>
         }
       >
         <div className="table-wrap">
           <table>
-            <caption>Imported transaction review queue</caption>
-            <thead><tr><th scope="col">Source</th><th scope="col">Merchant</th><th scope="col">Suggested category</th><th scope="col" className="numeric">Amount</th><th scope="col">Confidence</th><th scope="col">Action</th></tr></thead>
+            <caption>{tx("Imported transaction review queue")}</caption>
+            <thead><tr><th scope="col">{tx("Source")}</th><th scope="col">{tx("Merchant")}</th><th scope="col">{tx("Suggested category")}</th><th scope="col" className="numeric">{tx("Amount")}</th><th scope="col">{tx("Confidence")}</th><th scope="col">{tx("Action")}</th></tr></thead>
             <tbody>
               {visibleRows.map((row) => (
                 <tr key={row.id}>
                   <td>{row.source}</td>
-                  <td>{row.merchant}{row.isPossibleDuplicate ? <StatusPill tone="warn">possible duplicate</StatusPill> : null}</td>
-                  <td>{row.suggestedCategory}</td>
+                  <td>{row.merchant}{row.isPossibleDuplicate ? <StatusPill tone="warn">{tx("possible duplicate")}</StatusPill> : null}</td>
+                  <td>{tx(row.suggestedCategory)}</td>
                   <td className="numeric">{money.format(row.amount)}</td>
-                  <td><ProgressBar label={`${row.merchant} match confidence`} value={row.confidence} /></td>
+                  <td><ProgressBar label={`${row.merchant} ${tx("match confidence")}`} value={row.confidence} /></td>
                   <td>
                     <div className="inline-actions">
                       <button
@@ -529,7 +534,7 @@ export function ImportReviewView() {
                           setImportState("done");
                         }}
                       >
-                        Approve
+                        {tx("Approve")}
                       </button>
                       <button
                         className="secondary-button"
@@ -542,7 +547,7 @@ export function ImportReviewView() {
                           setImportState("done");
                         }}
                       >
-                        Delete
+                        {tx("Delete")}
                       </button>
                     </div>
                   </td>
@@ -558,7 +563,7 @@ export function ImportReviewView() {
 }
 
 export function PartiesView() {
-  const { accountId } = usePreferences();
+  const { accountId, t, tx } = usePreferences();
   const loadParties = useCallback(() => getParties(accountId), [accountId]);
   const { data, setData } = useAsyncData(loadParties, [] as Party[]);
   const [showPartyForm, setShowPartyForm] = useState(false);
@@ -819,9 +824,9 @@ export function PartiesView() {
             }
           : current
       );
-      setPartyActionMessage(settlement.status === "settled" ? "External placeholder settled directly." : "Settlement approval request created.");
+      setPartyActionMessage(settlement.status === "settled" ? tx("External placeholder settled directly.") : tx("Settlement approval request created."));
     } catch {
-      setPartyActionMessage("Unable to mark this split as settled.");
+      setPartyActionMessage(tx("Unable to mark this split as settled."));
     }
   }
 
@@ -842,14 +847,14 @@ export function PartiesView() {
             }
           : current
       );
-      setPartyActionMessage(action === "approve" ? "Settlement approved." : "Settlement rejected.");
+      setPartyActionMessage(action === "approve" ? tx("Settlement approved.") : tx("Settlement rejected."));
     } catch {
-      setPartyActionMessage("Unable to review settlement.");
+      setPartyActionMessage(tx("Unable to review settlement."));
     }
   }
 
   async function onDeleteSelectedParty() {
-    if (!partyDetail || !confirmDelete(`Delete ${partyDetail.name} and all unlocked party expenses?`)) return;
+    if (!partyDetail || !confirmDelete(`${tx("Delete")} ${partyDetail.name} ${tx("and all unlocked party expenses?")}`)) return;
     setPartyDeleteState("saving");
     try {
       await deleteParty(accountId, partyDetail.id);
@@ -863,7 +868,7 @@ export function PartiesView() {
   }
 
   async function onDeletePartyExpense(expense: Expense) {
-    if (!partyDetail || !confirmDelete(`Delete ${expense.merchant} from this party and the overall expense ledger?`)) return;
+    if (!partyDetail || !confirmDelete(`${tx("Delete")} ${expense.merchant} ${tx("from this party and the overall expense ledger?")}`)) return;
     setPartyExpenseDeleteState("saving");
     try {
       await deletePartyExpense(accountId, partyDetail.id, expense.id);
@@ -886,12 +891,12 @@ export function PartiesView() {
   return (
     <>
       <PageHeader
-        title="Parties"
+        title={t("parties")}
         description="Track shared expenses, external participants, and settlements that need approval."
         action={
           selectedPartyId ? (
             <button className="secondary-button" type="button" onClick={closePartyWorkspace}>
-              Back to parties
+              {tx("Back to parties")}
             </button>
           ) : (
             <button
@@ -902,26 +907,26 @@ export function PartiesView() {
                 focusFormAfterRender(() => partyFormRef.current);
               }}
             >
-              Create party
+              {tx("Create party")}
             </button>
           )
         }
       />
       {partyActionMessage ? <p className="success-note" role="status">{partyActionMessage}</p> : null}
-      {partyDeleteState === "saved" ? <p className="success-note" role="status">Party deleted.</p> : null}
-      {partyDeleteState === "failed" ? <p className="error-note" role="alert">Unable to delete party. Parties with settled expenses are locked.</p> : null}
+      {partyDeleteState === "saved" ? <p className="success-note" role="status">{tx("Party deleted.")}</p> : null}
+      {partyDeleteState === "failed" ? <p className="error-note" role="alert">{tx("Unable to delete party. Parties with settled expenses are locked.")}</p> : null}
       {!selectedPartyId ? (
         <>
           {showPartyForm ? (
             <Panel title="Create party">
               <form ref={partyFormRef} className="form-grid" onSubmit={onCreateParty}>
-                <label>Party name<input name="name" placeholder="Weekend friends" required /></label>
-                <button className="form-submit" type="submit" disabled={partyState === "saving"}>{partyState === "saving" ? "Saving" : "Save party"}</button>
+                <label>{tx("Party name")}<input name="name" placeholder={tx("Weekend friends")} required /></label>
+                <button className="form-submit" type="submit" disabled={partyState === "saving"}>{partyState === "saving" ? tx("Saving") : tx("Save party")}</button>
               </form>
-              {partyState === "failed" ? <p className="error-note" role="alert">Unable to save party.</p> : null}
+              {partyState === "failed" ? <p className="error-note" role="alert">{tx("Unable to save party.")}</p> : null}
             </Panel>
           ) : null}
-          {partyState === "saved" ? <p className="success-note" role="status">Party saved.</p> : null}
+          {partyState === "saved" ? <p className="success-note" role="status">{tx("Party saved.")}</p> : null}
           <Panel title="Group balances">
             <div className="card-list">
               {data.map((party) => (
@@ -934,7 +939,7 @@ export function PartiesView() {
                   <h3>{party.name}</h3>
                   <p>{party.members.join(", ")}</p>
                   <strong className={party.balance >= 0 ? "positive" : "negative"}>{money.format(party.balance)}</strong>
-                  <span>Open party</span>
+                  <span>{tx("Open party")}</span>
                 </button>
               ))}
             </div>
@@ -943,36 +948,36 @@ export function PartiesView() {
         </>
       ) : null}
       {selectedPartyId && detailState === "saving" ? <LoadingNote label="Loading party workspace" /> : null}
-      {selectedPartyId && detailState === "failed" ? <p className="error-note" role="alert">Unable to load party details.</p> : null}
+      {selectedPartyId && detailState === "failed" ? <p className="error-note" role="alert">{tx("Unable to load party details.")}</p> : null}
       {selectedPartyId && partyDetail ? (
         <Panel
-          title={`${partyDetail.name} workspace`}
+          title={`${partyDetail.name} ${tx("workspace")}`}
           aside={
             partyDetail.canManage ? (
               <button className="danger-button" type="button" onClick={() => void onDeleteSelectedParty()}>
-                Delete party
+                {tx("Delete party")}
               </button>
             ) : null
           }
         >
           <div className="party-workspace" ref={partyWorkspaceRef}>
-            <section className="party-section" aria-label="Party participants">
-              <h3>Participants</h3>
+            <section className="party-section" aria-label={tx("Party participants")}>
+              <h3>{tx("Participants")}</h3>
               <div className="participant-list">
                 {partyDetail.participants.map((participant) => (
                   <span className="participant-chip" key={participant.id}>
                     {participant.displayName}
-                    <small>{participant.kind === "registered" ? "registered" : "placeholder"}</small>
+                    <small>{participant.kind === "registered" ? tx("registered") : tx("placeholder")}</small>
                   </span>
                 ))}
               </div>
               <div className="split-controls">
-                <label className="wide-field">Search friend<input value={friendQuery} onChange={(event) => {
+                <label className="wide-field">{tx("Search friend")}<input value={friendQuery} onChange={(event) => {
                   setFriendQuery(event.target.value);
                   setSearchedFriendQuery("");
                   setFriendResults([]);
-                }} placeholder="Name or email" /></label>
-                <button type="button" onClick={runFriendSearch} disabled={participantState === "saving"}>Search</button>
+                }} placeholder={tx("Name or email")} /></label>
+                <button type="button" onClick={runFriendSearch} disabled={participantState === "saving"}>{tx("Search")}</button>
               </div>
               {hasFriendSearchResults ? (
                 <div className="result-list">
@@ -983,7 +988,7 @@ export function PartiesView() {
                       key={user.id}
                       onClick={() => addParticipant({ kind: "registered", displayName: user.name, userId: user.id, accountId: user.defaultAccountId })}
                     >
-                      Add {user.name}
+                      {tx("Add")} {user.name}
                     </button>
                   ))}
                   {canAddSearchAsPlaceholder ? (
@@ -992,46 +997,46 @@ export function PartiesView() {
                       type="button"
                       onClick={() => void addParticipant({ kind: "external", displayName: placeholderSearchText })}
                     >
-                      Add {placeholderSearchText} as non-registered person
+                      {tx("Add")} {placeholderSearchText} {tx("as non-registered person")}
                     </button>
                   ) : null}
                 </div>
               ) : null}
-              {participantState === "saved" ? <p className="success-note" role="status">Participant list updated.</p> : null}
-              {participantState === "failed" ? <p className="error-note" role="alert">Unable to update participant list.</p> : null}
+              {participantState === "saved" ? <p className="success-note" role="status">{tx("Participant list updated.")}</p> : null}
+              {participantState === "failed" ? <p className="error-note" role="alert">{tx("Unable to update participant list.")}</p> : null}
             </section>
 
-            <section className="party-section" aria-label="Add party expense">
-              <h3>Add party expense</h3>
+            <section className="party-section" aria-label={tx("Add party expense")}>
+              <h3>{tx("Add party expense")}</h3>
               <form className="form-grid" onSubmit={onCreatePartyExpense}>
-                <label>Merchant<input name="merchant" required /></label>
-                <label>Category<select name="category"><option>Food</option><option>Shopping</option><option>Travel</option><option>Subscriptions</option><option>Health</option></select></label>
-                <label>Amount<input name="amount" type="number" min="0.01" step="0.01" required /></label>
-                <label>Currency<select name="currency"><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
-                <label>Date<input name="date" type="date" defaultValue={todayInputValue()} required /></label>
-                <label>Paid by<select name="paidBy" value={paidByParticipantId} onChange={(event) => setPaidByParticipantId(event.target.value)} required>{partyDetail.participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.displayName}</option>)}</select></label>
-                <label>Split mode<select value={splitMode} onChange={(event) => setSplitMode(event.target.value as "even" | "manual")}><option value="even">Even split</option><option value="manual">Manual amounts</option></select></label>
+                <label>{tx("Merchant")}<input name="merchant" required /></label>
+                <label>{tx("Category")}<select name="category"><option value="Food">{tx("Food")}</option><option value="Shopping">{tx("Shopping")}</option><option value="Travel">{tx("Travel")}</option><option value="Subscriptions">{tx("Subscriptions")}</option><option value="Health">{tx("Health")}</option></select></label>
+                <label>{tx("Amount")}<input name="amount" type="number" min="0.01" step="0.01" required /></label>
+                <label>{tx("Currency")}<select name="currency"><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
+                <label>{tx("Date")}<input name="date" type="date" defaultValue={todayInputValue()} required /></label>
+                <label>{tx("Paid by")}<select name="paidBy" value={paidByParticipantId} onChange={(event) => setPaidByParticipantId(event.target.value)} required>{partyDetail.participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.displayName}</option>)}</select></label>
+                <label>{tx("Split mode")}<select value={splitMode} onChange={(event) => setSplitMode(event.target.value as "even" | "manual")}><option value="even">{tx("Even split")}</option><option value="manual">{tx("Manual amounts")}</option></select></label>
                 {splitMode === "manual"
                   ? partyDetail.participants
                       .filter((participant) => participant.id !== paidByParticipantId)
                       .map((participant) => (
-                        <label key={participant.id}>{participant.displayName} owes<input name={`split-${participant.id}`} type="number" min="0" step="0.01" /></label>
+                        <label key={participant.id}>{participant.displayName} {tx("owes")}<input name={`split-${participant.id}`} type="number" min="0" step="0.01" /></label>
                       ))
                   : null}
-                <button className="form-submit" type="submit" disabled={expenseState === "saving"}>{expenseState === "saving" ? "Saving" : "Save party expense"}</button>
+                <button className="form-submit" type="submit" disabled={expenseState === "saving"}>{expenseState === "saving" ? tx("Saving") : tx("Save party expense")}</button>
               </form>
-              {expenseState === "saved" ? <p className="success-note" role="status">Party expense and splits saved.</p> : null}
-              {expenseState === "failed" ? <p className="error-note" role="alert">Unable to save party expense or splits.</p> : null}
+              {expenseState === "saved" ? <p className="success-note" role="status">{tx("Party expense and splits saved.")}</p> : null}
+              {expenseState === "failed" ? <p className="error-note" role="alert">{tx("Unable to save party expense or splits.")}</p> : null}
             </section>
 
-            <section className="party-section" aria-label="Party expenses">
-              <h3>Party expenses</h3>
-              {partyExpenseDeleteState === "saved" ? <p className="success-note" role="status">Party expense deleted.</p> : null}
-              {partyExpenseDeleteState === "failed" ? <p className="error-note" role="alert">Unable to delete party expense. Settled party expenses are locked.</p> : null}
+            <section className="party-section" aria-label={tx("Party expenses")}>
+              <h3>{tx("Party expenses")}</h3>
+              {partyExpenseDeleteState === "saved" ? <p className="success-note" role="status">{tx("Party expense deleted.")}</p> : null}
+              {partyExpenseDeleteState === "failed" ? <p className="error-note" role="alert">{tx("Unable to delete party expense. Settled party expenses are locked.")}</p> : null}
               <div className="table-wrap">
                 <table>
-                  <caption>Party expenses that feed the split ledger</caption>
-                  <thead><tr><th scope="col">Date</th><th scope="col">Merchant</th><th scope="col">Category</th><th scope="col" className="numeric">Amount</th><th scope="col">Action</th></tr></thead>
+                  <caption>{tx("Party expenses that feed the split ledger")}</caption>
+                  <thead><tr><th scope="col">{tx("Date")}</th><th scope="col">{tx("Merchant")}</th><th scope="col">{tx("Category")}</th><th scope="col" className="numeric">{tx("Amount")}</th><th scope="col">{tx("Action")}</th></tr></thead>
                   <tbody>
                     {partyDetail.expenses.map((expense) => {
                       const locked = settledPartyExpenseIds.has(expense.id);
@@ -1039,13 +1044,13 @@ export function PartiesView() {
                         <tr key={expense.id}>
                           <td>{expense.date}</td>
                           <td>{expense.merchant}</td>
-                          <td>{expense.category}</td>
+                          <td>{tx(expense.category)}</td>
                           <td className="numeric">{money.format(expense.amount)}</td>
                           <td>
                             {partyDetail.canManage && !locked ? (
-                              <button className="danger-button" type="button" onClick={() => void onDeletePartyExpense(expense)}>Delete</button>
+                              <button className="danger-button" type="button" onClick={() => void onDeletePartyExpense(expense)}>{tx("Delete")}</button>
                             ) : (
-                              <span className="muted-note">{locked ? "Settled" : "Admin only"}</span>
+                              <span className="muted-note">{locked ? tx("Settled") : tx("Admin only")}</span>
                             )}
                           </td>
                         </tr>
@@ -1057,12 +1062,12 @@ export function PartiesView() {
               {!partyDetail.expenses.length ? <EmptyState title="No party expenses yet" description="Add a party expense to start tracking splits." /> : null}
             </section>
 
-            <section className="party-section" aria-label="Party settlement actions">
-              <h3>Splits and settlements</h3>
+            <section className="party-section" aria-label={tx("Party settlement actions")}>
+              <h3>{tx("Splits and settlements")}</h3>
               <div className="table-wrap">
                 <table>
-                  <caption>Party split ledger</caption>
-                  <thead><tr><th scope="col">Expense</th><th scope="col">Paid by</th><th scope="col">Owed by</th><th scope="col" className="numeric">Amount</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
+                  <caption>{tx("Party split ledger")}</caption>
+                  <thead><tr><th scope="col">{tx("Expense")}</th><th scope="col">{tx("Paid by")}</th><th scope="col">{tx("Owed by")}</th><th scope="col" className="numeric">{tx("Amount")}</th><th scope="col">{tx("Status")}</th><th scope="col">{tx("Action")}</th></tr></thead>
                   <tbody>
                     {actionableSplits.map((split) => {
                       const participant = participantById.get(split.participantId);
@@ -1071,13 +1076,13 @@ export function PartiesView() {
                       const canMarkSettled = split.status === "open" && (split.participantId === localParticipant?.id || participant?.kind === "external");
                       return (
                         <tr key={split.id}>
-                          <td>{expense?.merchant ?? "Party expense"}</td>
-                          <td>{payer?.displayName ?? "Unknown"}</td>
-                          <td>{participant?.displayName ?? "Participant"}</td>
+                          <td>{expense?.merchant ?? tx("Party expense")}</td>
+                          <td>{payer?.displayName ?? tx("Unknown")}</td>
+                          <td>{participant?.displayName ?? tx("Participant")}</td>
                           <td className="numeric">{money.format(split.amount)}</td>
-                          <td><StatusPill tone={split.status === "open" ? "warn" : "good"}>{split.status === "open" ? "open" : "approval pending"}</StatusPill></td>
+                          <td><StatusPill tone={split.status === "open" ? "warn" : "good"}>{split.status === "open" ? tx("open") : tx("approval pending")}</StatusPill></td>
                           <td>
-                            {canMarkSettled ? <button type="button" onClick={() => void markSplitSettled(split)}>Mark settled</button> : <span className="muted-note">{split.status === "open" ? `Waiting for ${participant?.displayName ?? "participant"}` : "Waiting approval"}</span>}
+                            {canMarkSettled ? <button type="button" onClick={() => void markSplitSettled(split)}>{tx("Mark settled")}</button> : <span className="muted-note">{split.status === "open" ? `${tx("Waiting for")} ${participant?.displayName ?? tx("Participant")}` : tx("Waiting approval")}</span>}
                           </td>
                         </tr>
                       );
@@ -1088,22 +1093,22 @@ export function PartiesView() {
               {!actionableSplits.length ? <EmptyState title="No open splits" description="Add a party expense to generate split settlement actions." /> : null}
               {pendingSettlements.length ? (
                 <div className="stack">
-                  <h3>Approval requests</h3>
+                  <h3>{tx("Approval requests")}</h3>
                   {pendingSettlements.map((settlement) => {
                     const participant = participantById.get(settlement.participantId);
                     const approvalParticipant = settlement.approvalParticipantId ? participantById.get(settlement.approvalParticipantId) : undefined;
                     const canReviewLocally = !settlement.approvalParticipantId || approvalParticipant?.id === localParticipant?.id;
                     return (
                       <article className="detail-card" key={settlement.id}>
-                        <h3>{participant?.displayName ?? "Participant"} marked settled</h3>
-                        <p>{money.format(settlement.amount)} needs approval from {approvalParticipant?.displayName ?? "the payer"} before the split closes.</p>
+                        <h3>{participant?.displayName ?? tx("Participant")} {tx("marked settled")}</h3>
+                        <p>{money.format(settlement.amount)} {tx("needs approval from")} {approvalParticipant?.displayName ?? tx("the payer")} {tx("before the split closes.")}</p>
                         {canReviewLocally ? (
                           <div className="inline-actions">
-                            <button type="button" onClick={() => void reviewSettlement(settlement, "approve")}>Approve</button>
-                            <button className="secondary-button" type="button" onClick={() => void reviewSettlement(settlement, "reject")}>Reject</button>
+                            <button type="button" onClick={() => void reviewSettlement(settlement, "approve")}>{tx("Approve")}</button>
+                            <button className="secondary-button" type="button" onClick={() => void reviewSettlement(settlement, "reject")}>{tx("Reject")}</button>
                           </div>
                         ) : (
-                          <p className="muted-note">Waiting for {approvalParticipant?.displayName ?? "the payer"} to review.</p>
+                          <p className="muted-note">{tx("Waiting for")} {approvalParticipant?.displayName ?? tx("the payer")} {tx("to review.")}</p>
                         )}
                       </article>
                     );
@@ -1119,13 +1124,13 @@ export function PartiesView() {
 }
 
 export function ReportsView() {
-  const { accountId } = usePreferences();
+  const { accountId, t, tx } = usePreferences();
   const loadReports = useCallback(() => getReports(accountId), [accountId]);
   const { data, loading } = useAsyncData(loadReports, emptyReportData);
   return (
     <>
       <PageHeader
-        title="Reports"
+        title={t("reports")}
         description="NovaCent reporting for category mix, cash flow, budget variance, merchants, parties, and currencies."
         action={
           <div className="inline-actions">
@@ -1141,16 +1146,16 @@ export function ReportsView() {
                 URL.revokeObjectURL(url);
               }}
             >
-              Export CSV
+              {tx("Export CSV")}
             </button>
             <button className="secondary-button" type="button" onClick={() => window.print()}>
-              Export PDF
+              {tx("Export PDF")}
             </button>
           </div>
         }
       />
       {loading ? <ChartSkeleton label="Loading NovaCent report charts" /> : null}
-      <section className="report-summary" aria-label="Report summary metrics">
+      <section className="report-summary" aria-label={tx("Report summary metrics")}>
         <MetricCard label="Tracked spend" value={money.format(data.categories.reduce((sum, row) => sum + row.value, 0))} detail="Across active report categories" />
         <MetricCard label="Cash retained" value={money.format(data.cashflow.reduce((sum, row) => sum + row.income - row.spend, 0))} detail="Income minus spend in visible months" />
         <MetricCard label="Largest budget usage" value={`${Math.max(...data.budgetVariance.map((row) => row.usage), 0)}%`} detail="Highest active category utilization" />
@@ -1159,7 +1164,7 @@ export function ReportsView() {
       <div className="report-grid">
         <Panel title="Spend by category">
           <CategoryBreakdownChart data={data.categories} />
-          <div className="simple-summary" aria-label="Simple category bar summary">
+          <div className="simple-summary" aria-label={tx("Simple category bar summary")}>
             <BarList title="Spend by category" rows={data.categories} />
           </div>
         </Panel>
@@ -1184,7 +1189,7 @@ export function ReportsView() {
 }
 
 export function SettingsView() {
-  const { accountId, setAccountId, theme, setTheme, language, setLanguage, t } = usePreferences();
+  const { accountId, setAccountId, theme, setTheme, language, setLanguage, t, tx } = usePreferences();
   const { data: accountOptions } = useAsyncData(getAccounts, [] as Account[]);
   const [saveState, setSaveState] = useState<SubmitState>("idle");
   return (
@@ -1200,18 +1205,18 @@ export function SettingsView() {
         >
           <label>{t("account")}<select value={accountId} onChange={(event) => setAccountId(event.target.value)}>{accountOptions.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
           <label>{t("theme")}<select value={theme} onChange={(event) => setTheme(event.target.value as "light" | "dark")}><option value="light">{t("light")}</option><option value="dark">{t("dark")}</option></select></label>
-          <label>{t("language")}<select value={language} onChange={(event) => setLanguage(event.target.value as "en" | "es")}><option value="en">English</option><option value="es">Espanol</option></select></label>
-          <label>Default currency<select><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
+          <label>{t("language")}<select value={language} onChange={(event) => setLanguage(event.target.value as Language)}>{Object.entries(languages).map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label>
+          <label>{tx("Default currency")}<select><option>INR</option><option>USD</option><option>EUR</option><option>AED</option></select></label>
           <button className="form-submit" type="submit">{t("save")}</button>
         </form>
-        {saveState === "saved" ? <p className="success-note" role="status">Preferences saved on this device.</p> : null}
+        {saveState === "saved" ? <p className="success-note" role="status">{tx("Preferences saved on this device.")}</p> : null}
       </Panel>
       <Panel title="Offline readiness">
         <ul className="check-list">
-          <li>Local preferences persist in browser storage.</li>
-          <li>Live APIs are used by default; set NEXT_PUBLIC_USE_MOCKS=true for demo data.</li>
-          <li>Legacy app-shell caches are cleared in live mode so old demo screens do not keep rendering after refresh.</li>
-          <li>Offline banner reacts to browser connectivity events.</li>
+          <li>{tx("Local preferences persist in browser storage.")}</li>
+          <li>{tx("Live APIs are used by default; set NEXT_PUBLIC_USE_MOCKS=true for demo data.")}</li>
+          <li>{tx("Legacy app-shell caches are cleared in live mode so old demo screens do not keep rendering after refresh.")}</li>
+          <li>{tx("Offline banner reacts to browser connectivity events.")}</li>
         </ul>
       </Panel>
     </>

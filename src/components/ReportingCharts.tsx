@@ -26,6 +26,7 @@ import type {
   MerchantTrendPoint,
   PartySummaryPoint,
 } from "@/lib/reporting";
+import { usePreferences } from "@/lib/client/preferences";
 
 const palette = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)", "var(--accent-alt)"];
 const money = new Intl.NumberFormat("en-IN", {
@@ -58,17 +59,19 @@ function ChartFrame({
   ariaLabel: string;
   children: ReactNode;
 }) {
+  const { tx } = usePreferences();
   return (
-    <div className="chart-frame" role="img" aria-label={ariaLabel}>
-      <div className="chart-title">{title}</div>
+    <div className="chart-frame" role="img" aria-label={tx(ariaLabel)}>
+      <div className="chart-title">{tx(title)}</div>
       {children}
     </div>
   );
 }
 
 export function ChartSkeleton({ label = "Loading report visual" }: { label?: string }) {
+  const { tx } = usePreferences();
   return (
-    <div className="chart-skeleton" role="status" aria-label={label}>
+    <div className="chart-skeleton" role="status" aria-label={tx(label)}>
       <span />
       <span />
       <span />
@@ -86,17 +89,18 @@ export function AccessibleDataTable({
   columns: { key: string; header: string; numeric?: boolean; format?: (value: unknown) => string }[];
   rows: unknown[];
 }) {
+  const { tx } = usePreferences();
   return (
     <details className="chart-table">
-      <summary>Data table</summary>
+      <summary>{tx("Data table")}</summary>
       <div className="table-wrap">
         <table>
-          <caption>{caption}</caption>
+          <caption>{tx(caption)}</caption>
           <thead>
             <tr>
               {columns.map((column) => (
                 <th className={column.numeric ? "numeric" : undefined} key={column.key} scope="col">
-                  {column.header}
+                  {tx(column.header)}
                 </th>
               ))}
             </tr>
@@ -121,11 +125,12 @@ export function AccessibleDataTable({
 }
 
 export function CategoryBreakdownChart({ data }: { data: LabeledAmount[] }) {
+  const { tx } = usePreferences();
   return (
     <>
       <ChartFrame
         title="Category mix"
-        ariaLabel={`Category spend chart with ${data.map((row) => `${row.label} ${money.format(row.value)}`).join(", ")}`}
+        ariaLabel={`Category spend chart with ${data.map((row) => `${tx(row.label)} ${money.format(row.value)}`).join(", ")}`}
       >
         <ResponsiveContainer width="100%" height={280}>
           <PieChart>
@@ -152,6 +157,7 @@ export function CategoryBreakdownChart({ data }: { data: LabeledAmount[] }) {
 }
 
 export function CashFlowTrendChart({ data }: { data: CashFlowPoint[] }) {
+  const { tx } = usePreferences();
   const rows = data.map((row) => ({ ...row, saved: row.income - row.spend }));
   return (
     <>
@@ -163,9 +169,9 @@ export function CashFlowTrendChart({ data }: { data: CashFlowPoint[] }) {
             <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} width={42} />
             <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
             <Legend />
-            <Area dataKey="income" fill="var(--chart-2-soft)" stroke="var(--chart-2)" type="monotone" />
-            <Bar dataKey="spend" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
-            <Line dataKey="saved" dot={{ r: 4 }} stroke="var(--chart-5)" strokeWidth={3} type="monotone" />
+            <Area dataKey="income" fill="var(--chart-2-soft)" name={tx("Income")} stroke="var(--chart-2)" type="monotone" />
+            <Bar dataKey="spend" fill="var(--chart-1)" name={tx("Spend")} radius={[6, 6, 0, 0]} />
+            <Line dataKey="saved" dot={{ r: 4 }} name={tx("Saved")} stroke="var(--chart-5)" strokeWidth={3} type="monotone" />
           </ComposedChart>
         </ResponsiveContainer>
       </ChartFrame>
@@ -184,6 +190,7 @@ export function CashFlowTrendChart({ data }: { data: CashFlowPoint[] }) {
 }
 
 export function BudgetVarianceChart({ data }: { data: BudgetVariancePoint[] }) {
+  const { tx } = usePreferences();
   return (
     <>
       <ChartFrame title="Budget variance" ariaLabel="Budget variance chart comparing actual spend with budget limit">
@@ -194,8 +201,8 @@ export function BudgetVarianceChart({ data }: { data: BudgetVariancePoint[] }) {
             <YAxis dataKey="label" type="category" width={96} />
             <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
             <Legend />
-            <Bar dataKey="budget" fill="var(--muted)" name="Budget" radius={[0, 6, 6, 0]} />
-            <Bar dataKey="actual" fill="var(--chart-2)" name="Actual" radius={[0, 6, 6, 0]} />
+            <Bar dataKey="budget" fill="var(--muted)" name={tx("Budget")} radius={[0, 6, 6, 0]} />
+            <Bar dataKey="actual" fill="var(--chart-2)" name={tx("Actual")} radius={[0, 6, 6, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartFrame>
@@ -215,6 +222,7 @@ export function BudgetVarianceChart({ data }: { data: BudgetVariancePoint[] }) {
 }
 
 export function MerchantTrendsChart({ data }: { data: MerchantTrendPoint[] }) {
+  const { tx } = usePreferences();
   return (
     <ChartFrame title="Merchant trend lanes" ariaLabel="Merchant and category spending trends by month">
       <ResponsiveContainer width="100%" height={300}>
@@ -224,10 +232,10 @@ export function MerchantTrendsChart({ data }: { data: MerchantTrendPoint[] }) {
           <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} width={42} />
           <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
           <Legend />
-          <Line dataKey="food" name="Food merchants" stroke="var(--chart-2)" strokeWidth={3} type="monotone" />
-          <Line dataKey="travel" name="Travel merchants" stroke="var(--chart-1)" strokeWidth={3} type="monotone" />
-          <Line dataKey="shopping" name="Shopping merchants" stroke="var(--chart-5)" strokeWidth={3} type="monotone" />
-          <Line dataKey="subscriptions" name="Subscriptions" stroke="var(--chart-4)" strokeWidth={3} type="monotone" />
+          <Line dataKey="food" name={tx("Food merchants")} stroke="var(--chart-2)" strokeWidth={3} type="monotone" />
+          <Line dataKey="travel" name={tx("Travel merchants")} stroke="var(--chart-1)" strokeWidth={3} type="monotone" />
+          <Line dataKey="shopping" name={tx("Shopping merchants")} stroke="var(--chart-5)" strokeWidth={3} type="monotone" />
+          <Line dataKey="subscriptions" name={tx("Subscriptions")} stroke="var(--chart-4)" strokeWidth={3} type="monotone" />
         </LineChart>
       </ResponsiveContainer>
     </ChartFrame>
@@ -243,6 +251,7 @@ export function SummaryBarsChart({
   title: string;
   label: string;
 }) {
+  const { tx } = usePreferences();
   return (
     <>
       <ChartFrame title={title} ariaLabel={label}>
@@ -261,7 +270,7 @@ export function SummaryBarsChart({
         </ResponsiveContainer>
       </ChartFrame>
       <AccessibleDataTable
-        caption={`${title} data`}
+        caption={`${tx(title)} ${tx("data")}`}
         columns={[
           { key: "label", header: "Label" },
           { key: "value", header: "Amount", numeric: true, format: (value) => money.format(Number(value)) },
@@ -273,6 +282,7 @@ export function SummaryBarsChart({
 }
 
 export function PartySummaryChart({ data }: { data: PartySummaryPoint[] }) {
+  const { tx } = usePreferences();
   return (
     <>
       <ChartFrame title="Party balances" ariaLabel="Party outstanding and settled balance comparison">
@@ -283,8 +293,8 @@ export function PartySummaryChart({ data }: { data: PartySummaryPoint[] }) {
             <YAxis tickFormatter={(value) => `${Math.round(Number(value) / 1000)}k`} width={42} />
             <Tooltip contentStyle={tooltipStyle} formatter={valueLabel} itemStyle={tooltipTextStyle} labelStyle={tooltipTextStyle} />
             <Legend />
-            <Area dataKey="outstanding" fill="var(--chart-5-soft)" stroke="var(--chart-5)" type="monotone" />
-            <Area dataKey="settled" fill="var(--chart-2-soft)" stroke="var(--chart-2)" type="monotone" />
+            <Area dataKey="outstanding" fill="var(--chart-5-soft)" name={tx("Outstanding")} stroke="var(--chart-5)" type="monotone" />
+            <Area dataKey="settled" fill="var(--chart-2-soft)" name={tx("Settled")} stroke="var(--chart-2)" type="monotone" />
           </AreaChart>
         </ResponsiveContainer>
       </ChartFrame>

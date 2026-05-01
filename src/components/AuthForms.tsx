@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { FormEvent, useState } from "react";
 import { appConfig } from "@/lib/app-config";
+import { usePreferences } from "@/lib/client/preferences";
 
 type FormState = "idle" | "submitting" | "success" | "error";
 
@@ -13,11 +14,12 @@ function readForm(form: HTMLFormElement) {
 }
 
 function AuthCard({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+  const { tx } = usePreferences();
   return (
     <section className="auth-card" aria-labelledby="auth-title">
       <p className="eyebrow">{appConfig.logoMark}</p>
-      <h1 id="auth-title">{title}</h1>
-      <p>{description}</p>
+      <h1 id="auth-title">{tx(title)}</h1>
+      <p>{tx(description)}</p>
       {children}
     </section>
   );
@@ -25,6 +27,7 @@ function AuthCard({ title, description, children }: { title: string; description
 
 export function LoginForm() {
   const router = useRouter();
+  const { tx } = usePreferences();
   const [state, setState] = useState<FormState>("idle");
   const [message, setMessage] = useState("");
 
@@ -40,7 +43,7 @@ export function LoginForm() {
 
     if (result?.error) {
       setState("error");
-      setMessage("Invalid email or password.");
+      setMessage(tx("Invalid email or password."));
       return;
     }
 
@@ -50,17 +53,17 @@ export function LoginForm() {
   }
 
   return (
-    <AuthCard title={`Sign in to ${appConfig.name}`} description="Use email/password or Google to open your account workspace.">
+    <AuthCard title={`${tx("Sign in to")} ${appConfig.name}`} description="Use email/password or Google to open your account workspace.">
       <form onSubmit={onSubmit}>
-        <label>Email<input name="email" type="email" autoComplete="email" required /></label>
-        <label>Password<input name="password" type="password" autoComplete="current-password" required /></label>
-        <button type="submit" disabled={state === "submitting"}>{state === "submitting" ? "Signing in" : "Sign in"}</button>
-        <button className="secondary-button" type="button" onClick={() => signIn("google", { callbackUrl: "/" })}>Continue with Google</button>
+        <label>{tx("Email")}<input name="email" type="email" autoComplete="email" required /></label>
+        <label>{tx("Password")}<input name="password" type="password" autoComplete="current-password" required /></label>
+        <button type="submit" disabled={state === "submitting"}>{state === "submitting" ? tx("Signing in") : tx("Sign in")}</button>
+        <button className="secondary-button" type="button" onClick={() => signIn("google", { callbackUrl: "/" })}>{tx("Continue with Google")}</button>
       </form>
       {message ? <p role="alert">{message}</p> : null}
       <div className="auth-links">
-        <Link href="/register">Create an account</Link>
-        <Link href="/forgot-password">Forgot password?</Link>
+        <Link href="/register">{tx("Create an account")}</Link>
+        <Link href="/forgot-password">{tx("Forgot password?")}</Link>
       </div>
     </AuthCard>
   );
@@ -68,6 +71,7 @@ export function LoginForm() {
 
 export function RegisterForm() {
   const router = useRouter();
+  const { tx } = usePreferences();
   const [state, setState] = useState<FormState>("idle");
   const [message, setMessage] = useState("");
 
@@ -83,7 +87,7 @@ export function RegisterForm() {
 
     if (!response.ok) {
       setState("error");
-      setMessage("Unable to create account. The email may already be registered.");
+      setMessage(tx("Unable to create account. The email may already be registered."));
       return;
     }
 
@@ -100,20 +104,21 @@ export function RegisterForm() {
   return (
     <AuthCard title="Create your account" description="A default INR account is created automatically after registration.">
       <form onSubmit={onSubmit}>
-        <label>Name<input name="name" autoComplete="name" required /></label>
-        <label>Email<input name="email" type="email" autoComplete="email" required /></label>
-        <label>Password<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
-        <button type="submit" disabled={state === "submitting"}>{state === "submitting" ? "Creating account" : "Create account"}</button>
+        <label>{tx("Name")}<input name="name" autoComplete="name" required /></label>
+        <label>{tx("Email")}<input name="email" type="email" autoComplete="email" required /></label>
+        <label>{tx("Password")}<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
+        <button type="submit" disabled={state === "submitting"}>{state === "submitting" ? tx("Creating account") : tx("Create account")}</button>
       </form>
       {message ? <p role="alert">{message}</p> : null}
       <div className="auth-links">
-        <Link href="/login">Already have an account?</Link>
+        <Link href="/login">{tx("Already have an account?")}</Link>
       </div>
     </AuthCard>
   );
 }
 
 export function ForgotPasswordForm() {
+  const { tx } = usePreferences();
   const [state, setState] = useState<FormState>("idle");
   const [message, setMessage] = useState("");
   const [developmentResetUrl, setDevelopmentResetUrl] = useState("");
@@ -129,20 +134,20 @@ export function ForgotPasswordForm() {
     });
     const payload = await response.json();
     setState(response.ok ? "success" : "error");
-    setMessage(payload.message ?? "If the email exists, a reset link has been prepared.");
+    setMessage(payload.message ? tx(payload.message) : tx("If the email exists, a reset link has been prepared."));
     setDevelopmentResetUrl(payload.developmentResetUrl ?? "");
   }
 
   return (
     <AuthCard title="Reset password" description="We prepare a secure single-use reset token that expires after 30 minutes.">
       <form onSubmit={onSubmit}>
-        <label>Email<input name="email" type="email" autoComplete="email" required /></label>
-        <button type="submit" disabled={state === "submitting"}>{state === "submitting" ? "Preparing link" : "Send reset link"}</button>
+        <label>{tx("Email")}<input name="email" type="email" autoComplete="email" required /></label>
+        <button type="submit" disabled={state === "submitting"}>{state === "submitting" ? tx("Preparing link") : tx("Send reset link")}</button>
       </form>
       {message ? <p role="status">{message}</p> : null}
-      {developmentResetUrl ? <Link href={developmentResetUrl}>Open development reset link</Link> : null}
+      {developmentResetUrl ? <Link href={developmentResetUrl}>{tx("Open development reset link")}</Link> : null}
       <div className="auth-links">
-        <Link href="/login">Back to sign in</Link>
+        <Link href="/login">{tx("Back to sign in")}</Link>
       </div>
     </AuthCard>
   );
@@ -150,6 +155,7 @@ export function ForgotPasswordForm() {
 
 export function ResetPasswordForm({ token }: { token: string }) {
   const router = useRouter();
+  const { tx } = usePreferences();
   const [state, setState] = useState<FormState>("idle");
   const [message, setMessage] = useState("");
 
@@ -165,7 +171,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
     if (!response.ok) {
       setState("error");
-      setMessage("Reset token is invalid or expired.");
+      setMessage(tx("Reset token is invalid or expired."));
       return;
     }
 
@@ -176,11 +182,10 @@ export function ResetPasswordForm({ token }: { token: string }) {
   return (
     <AuthCard title="Choose a new password" description="Use at least 8 characters. The reset token can only be used once.">
       <form onSubmit={onSubmit}>
-        <label>New password<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
-        <button type="submit" disabled={state === "submitting"}>{state === "submitting" ? "Updating password" : "Update password"}</button>
+        <label>{tx("New password")}<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label>
+        <button type="submit" disabled={state === "submitting"}>{state === "submitting" ? tx("Updating password") : tx("Update password")}</button>
       </form>
       {message ? <p role="alert">{message}</p> : null}
     </AuthCard>
   );
 }
-
