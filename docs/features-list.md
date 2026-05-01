@@ -48,7 +48,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Status | Feature |
 | --- | --- |
 | Implemented | NovaCent branding through centralized app configuration. |
-| Implemented | Login, registration, and password recovery pages use a responsive NovaCent-branded auth layout with prominent logo/app-name treatment, desktop split-panel presentation, and compact mobile form flow. |
+| Implemented | Login, registration, and password recovery pages use a responsive NovaCent-branded auth layout with prominent logo/app-name treatment, desktop split-panel presentation, and a form-first mobile brand-background layout. |
 | Implemented | Central translation dictionary for changing app text from one file, with English, Spanish, French, Hindi, and Marathi language options. |
 | Implemented | App-shell, auth screens, dashboard, expenses, budgets, imports, parties, reports, settings, chart captions, empty states, and common action/status labels are wired through the central translation helpers. |
 | Implemented | Phase 3 recurring, support, statement password, split-selection, and split-mode labels use supplemental translations for English, Spanish, French, Hindi, and Marathi flows. |

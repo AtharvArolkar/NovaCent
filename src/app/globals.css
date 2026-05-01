@@ -1861,42 +1861,124 @@ td .status-pill {
   }
 
   .auth-card {
+    position: relative;
+    isolation: isolate;
+    min-height: calc(100dvh - 28px);
     border-radius: 12px;
+    background: #10151d;
   }
 
   .auth-brand-panel {
-    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    display: flex;
+    min-height: 100%;
+    padding: 22px;
+    gap: 18px;
+    justify-content: flex-start;
+    overflow: hidden;
   }
 
   .auth-form-panel {
-    padding: 22px;
+    position: relative;
+    z-index: 1;
+    align-content: start;
+    margin: clamp(168px, 32vh, 224px) 14px 16px;
+    padding: 18px;
+    border: 1px solid color-mix(in srgb, var(--border), transparent 18%);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface), transparent 6%);
+    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(18px);
   }
 
   .auth-mobile-lockup {
-    display: flex;
+    display: none;
   }
 
-  .auth-mobile-lockup .auth-logo-mark {
+  .auth-logo-lockup {
+    gap: 12px;
+  }
+
+  .auth-brand-copy,
+  .auth-highlights {
+    opacity: 0.82;
+  }
+
+  .auth-logo-mark {
     width: 50px;
     height: 50px;
-    border-color: color-mix(in srgb, var(--accent), var(--border) 34%);
-    box-shadow: 0 14px 30px color-mix(in srgb, var(--accent), transparent 76%);
   }
 
-  .auth-mobile-lockup strong {
+  .auth-logo-lockup strong {
     font-size: 1.5rem;
   }
 
+  .auth-logo-lockup span:last-child {
+    font-size: 0.88rem;
+    line-height: 1.25;
+  }
+
+  .auth-brand-copy h2 {
+    margin: 8px 0 10px;
+    max-width: 300px;
+    font-size: clamp(1.7rem, 8.5vw, 2.05rem);
+    line-height: 1.02;
+  }
+
+  .auth-brand-copy p:not(.eyebrow) {
+    max-width: 300px;
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+
+  .auth-highlights {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    max-width: 100%;
+  }
+
+  .auth-highlights dd {
+    display: block;
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+
+  .auth-highlights div {
+    padding: 9px 10px;
+  }
+
+  .auth-highlights div:nth-child(n + 2) {
+    display: none;
+  }
+
   .auth-form-heading {
-    margin-bottom: 18px;
+    margin-bottom: 14px;
   }
 
   .auth-card h1 {
-    font-size: clamp(2rem, 12vw, 2.45rem);
+    font-size: clamp(1.85rem, 10vw, 2.25rem);
+  }
+
+  .auth-card input,
+  .auth-card form > button:first-of-type,
+  .auth-card form > .secondary-button {
+    min-height: 44px;
+  }
+
+  .auth-card label {
+    gap: 5px;
+  }
+
+  .auth-card form,
+  .auth-links {
+    gap: 10px;
   }
 
   .auth-links {
     grid-template-columns: 1fr;
+    margin-top: 12px;
   }
 }
 
