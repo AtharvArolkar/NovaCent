@@ -23,6 +23,6 @@ dev-server.*.log
 .env
 .env*.local
 
-# local storage
+# local storage #
 *.sqlite
 uploads
