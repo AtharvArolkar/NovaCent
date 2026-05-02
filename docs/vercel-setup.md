@@ -14,7 +14,7 @@
 | `NEXTAUTH_URL` | Yes | Server only | Production URL, for example `https://your-app.vercel.app`. |
 | `NEXTAUTH_SECRET` | Yes | Server only | Strong random value for NextAuth JWT/session signing. |
 | `MONGODB_URI` | Yes | Server only | MongoDB connection string. Do not expose to the browser. |
-| `MONGODB_DB` | Recommended | Server only | Use `rupee-flow` unless you choose another DB name. |
+| `MONGODB_DB` | Recommended | Server only | Use `nova-cent` unless you choose another DB name. |
 | `GOOGLE_CLIENT_ID` | Yes for Google login | Server only | From Google Cloud OAuth credentials. |
 | `GOOGLE_CLIENT_SECRET` | Yes for Google login | Server only | From Google Cloud OAuth credentials. |
 | `SMTP_HOST` | Optional | Server only | Used for real password reset emails. |

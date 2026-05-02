@@ -60,7 +60,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("rupee-flow-preferences");
+    const stored = window.localStorage.getItem("nova-cent-preferences");
     if (stored) {
       const parsed = JSON.parse(stored) as Partial<Pick<PreferencesContextValue, "accountId" | "defaultCurrency" | "theme" | "language">>;
       if (parsed.accountId && (useMocks || !demoAccountIds.has(parsed.accountId))) setAccountId(parsed.accountId);
@@ -74,7 +74,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     if (!preferencesLoaded) return;
-    window.localStorage.setItem("rupee-flow-preferences", JSON.stringify({ accountId, defaultCurrency, theme, language }));
+    window.localStorage.setItem("nova-cent-preferences", JSON.stringify({ accountId, defaultCurrency, theme, language }));
   }, [accountId, defaultCurrency, theme, language, preferencesLoaded]);
 
   useEffect(() => {
