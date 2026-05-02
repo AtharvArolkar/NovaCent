@@ -23,6 +23,7 @@ const navItems = [
 ] as const;
 
 const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
+const guidePromptSeenKey = (userKey: string) => `novacent-guide-prompt-seen:${userKey}`;
 
 function ShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -33,10 +34,17 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [clearingNotifications, setClearingNotifications] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showGuidePrompt, setShowGuidePrompt] = useState(false);
   const unreadCount = useMemo(() => notifications.filter((notification) => !notification.read).length, [notifications]);
   const userDisplayName = session?.user?.name?.trim() || session?.user?.email?.split("@")[0]?.trim() || t("user");
+  const userGuidePromptKey = session?.user?.email ?? session?.user?.name ?? "local-user";
   const rawFirstName = userDisplayName.split(/\s+/)[0] || t("user");
   const firstName = rawFirstName ? `${rawFirstName.charAt(0).toUpperCase()}${rawFirstName.slice(1).toLowerCase()}` : t("user");
+
+  const dismissGuidePrompt = () => {
+    window.localStorage.setItem(guidePromptSeenKey(userGuidePromptKey), "true");
+    setShowGuidePrompt(false);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -53,6 +61,15 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       mounted = false;
     };
   }, [accountId, setAccountId]);
+
+  useEffect(() => {
+    if (!session?.user || authRoutes.some((route) => pathname.startsWith(route))) {
+      setShowGuidePrompt(false);
+      return;
+    }
+
+    setShowGuidePrompt(window.localStorage.getItem(guidePromptSeenKey(userGuidePromptKey)) !== "true");
+  }, [pathname, session?.user, userGuidePromptKey]);
 
   useEffect(() => {
     let mounted = true;
@@ -273,7 +290,22 @@ function ShellContent({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         {!isOnline ? <div className="offline-banner" role="status">{t("offlineMessage")}</div> : null}
-        {canInstallPwa ? (
+        {showGuidePrompt ? (
+          <section className="install-banner guide-banner" aria-label={tx("How to use NovaCent")}>
+            <div>
+              <strong>{tx("New to NovaCent?")}</strong>
+              <p>{tx("Open the quick guide to understand accounts, imports, budgets, parties, reports, and offline sync before you start.")}</p>
+            </div>
+            <div className="install-banner-actions">
+              <Link className="primary-link-button" href="/how-to-use" onClick={dismissGuidePrompt}>
+                {tx("View guide")}
+              </Link>
+              <button className="secondary-button" type="button" onClick={dismissGuidePrompt}>
+                {tx("Not now")}
+              </button>
+            </div>
+          </section>
+        ) : canInstallPwa ? (
           <section className="install-banner" aria-label={tx("Install app")}>
             <div>
               <strong>{tx("Install app")}</strong>

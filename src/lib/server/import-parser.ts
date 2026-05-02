@@ -43,7 +43,7 @@ const depositKeys = ["deposit", "deposits", "deposit amount", "deposit amt", "cr
 const balanceKeys = ["balance", "running balance", "closing balance", "available balance"];
 const referenceKeys = ["reference", "ref", "ref no", "reference no", "reference number", "utr", "utr no", "transaction id", "transaction ref", "txn ref", "document number", "sequence", "sequence no", "cheque", "cheque no", "chq", "chq no", "rrn", "arn"];
 const directionKeys = ["type", "transaction type", "debit credit", "debit/credit", "dr cr", "dr/cr", "d/c", "payment receipt", "payment/receipt"];
-const dateKeys = ["date", "transaction date", "spent at", "posted date", "posting date", "post date", "value date", "book date", "txn date", "tran date", "date posted"];
+const dateKeys = ["date", "transaction date", "spent at", "posted date", "posting date", "post date", "value date", "value dt", "book date", "txn date", "txn dt", "tran date", "tran dt", "date posted"];
 const currencyKeys = ["currency", "ccy", "curr"];
 const statementAmountPattern = /(?:₹|rs\.?|inr|\$|€|£)?\s*[-+]?(?:\d{1,3}(?:,\d{2,3})+|\d+)\.\d{1,2}/gi;
 const statementMonthPattern = "(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)";
@@ -213,6 +213,153 @@ function rowFromRecord(record: RawRecord, batchId: string, rules: CategoryRule[]
   };
 }
 
+function excelSerialDateToIso(value: number) {
+  const parsed = XLSX.SSF.parse_date_code(value);
+  if (!parsed) {
+    return "";
+  }
+
+  return `${String(parsed.y).padStart(4, "0")}-${String(parsed.m).padStart(2, "0")}-${String(parsed.d).padStart(2, "0")}`;
+}
+
+function excelCellToText(value: unknown, options: { dateLike?: boolean } = {}) {
+  if (value === undefined || value === null) {
+    return "";
+  }
+
+  if (value instanceof Date && Number.isFinite(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+
+  if (typeof value === "number") {
+    const dateText = options.dateLike ? excelSerialDateToIso(value) : "";
+    return dateText || String(value);
+  }
+
+  return String(value).replace(/\u00a0/g, " ").trim();
+}
+
+function headerCellMatches(value: string, keys: string[]) {
+  const normalized = normalizeFieldName(value);
+  return keys.some((key) => {
+    const normalizedKey = normalizeFieldName(key);
+    return normalized === normalizedKey || (normalizedKey.length >= 3 && normalized.includes(normalizedKey));
+  });
+}
+
+function isExcelTransactionHeader(cells: string[]) {
+  const line = normalizeStatementLine(cells.filter(Boolean).join(" "));
+  if (!line) {
+    return false;
+  }
+  if (isTransactionTableHeader(line)) {
+    return true;
+  }
+
+  const hasDate = cells.some((cell) => headerCellMatches(cell, dateKeys));
+  const hasDescription = cells.some((cell) =>
+    headerCellMatches(cell, merchantKeys.filter((key) => key !== "transaction"))
+  );
+  const hasMoneyColumn = cells.some((cell) => headerCellMatches(cell, [...withdrawalKeys, ...depositKeys, ...amountKeys, ...balanceKeys]));
+  if (hasDate && hasDescription && hasMoneyColumn) {
+    return true;
+  }
+
+  if (isStatementMetadataLine(line)) {
+    return false;
+  }
+
+  return hasDate && hasDescription && hasMoneyColumn;
+}
+
+function uniqueExcelHeaders(cells: string[]) {
+  const seen = new Map<string, number>();
+  return cells.map((cell, index) => {
+    const base = cell || `Column ${index + 1}`;
+    const count = seen.get(base) ?? 0;
+    seen.set(base, count + 1);
+    return count ? `${base} ${count + 1}` : base;
+  });
+}
+
+function rowToRecord(headers: string[], row: unknown[]) {
+  return headers.reduce<RawRecord>((record, header, index) => {
+    const dateLike = headerCellMatches(header, dateKeys);
+    const value = excelCellToText(row[index], { dateLike });
+    if (value) {
+      record[header] = value;
+    }
+    return record;
+  }, {});
+}
+
+function excelRowToLine(row: unknown[], headers?: string[]) {
+  return normalizeStatementLine(
+    row
+      .map((cell, index) => {
+        const header = headers?.[index] ?? "";
+        const dateLike = header ? headerCellMatches(header, dateKeys) : index <= 1;
+        return excelCellToText(cell, { dateLike });
+      })
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
+function parseRowsFromExcelGrid(grid: unknown[][], batchId: string, rules: CategoryRule[]) {
+  const rows: ImportRow[] = [];
+  let headers: string[] | undefined;
+
+  for (const row of grid) {
+    const cells = row.map((cell) => excelCellToText(cell));
+    const line = normalizeStatementLine(cells.filter(Boolean).join(" "));
+    if (!line) {
+      continue;
+    }
+
+    if (isExcelTransactionHeader(cells)) {
+      headers = uniqueExcelHeaders(cells);
+      continue;
+    }
+
+    if (!headers || isStatementMetadataLine(line)) {
+      continue;
+    }
+
+    if (isTransactionTableEnd(line)) {
+      headers = undefined;
+      continue;
+    }
+
+    const recordRow = rowFromRecord(rowToRecord(headers, row), batchId, rules);
+    if (recordRow) {
+      rows.push(recordRow);
+      continue;
+    }
+
+    const lineRow = rowFromStatementLine(excelRowToLine(row, headers), batchId, rules, { foundTableHeader: true });
+    if (lineRow) {
+      rows.push(lineRow);
+    }
+  }
+
+  return rows;
+}
+
+function parseRowsFromWorkbook(workbook: XLSX.WorkBook, batchId: string, rules: CategoryRule[]) {
+  const rows: ImportRow[] = [];
+  const sheetLines: string[] = [];
+
+  for (const sheetName of workbook.SheetNames) {
+    const sheet = workbook.Sheets[sheetName];
+    const grid = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "", raw: true }) as unknown[][];
+    rows.push(...parseRowsFromExcelGrid(grid, batchId, rules));
+    sheetLines.push(...grid.map((row) => excelRowToLine(row)).filter(Boolean));
+  }
+
+  return rows.length ? rows : parseRowsFromText(sheetLines.join("\n"), batchId, rules);
+}
+
 function normalizeStatementLine(line: string) {
   return line
     .replace(/\u00a0/g, " ")
@@ -240,6 +387,10 @@ function isTransactionTableEnd(line: string) {
   return /\b(closing balance|total withdrawal|total deposit|total debit|total credit|transaction summary|statement summary|end of statement|generated on|computer generated)\b/.test(normalized);
 }
 
+function isLikelyTransactionContinuationLine(line: string) {
+  return Boolean(statementDatePattern.test(line) && statementAmountMatches(line).length > 0);
+}
+
 function transactionCandidateLines(lines: string[]) {
   const candidates: string[] = [];
   let insideTable = false;
@@ -257,8 +408,15 @@ function transactionCandidateLines(lines: string[]) {
       continue;
     }
 
-    if (!insideTable || isStatementMetadataLine(line)) {
+    if (isStatementMetadataLine(line)) {
       continue;
+    }
+
+    if (!insideTable) {
+      if (!foundHeader || !isLikelyTransactionContinuationLine(line)) {
+        continue;
+      }
+      insideTable = true;
     }
 
     candidates.push(line);
@@ -568,14 +726,13 @@ export async function parseStatementFile(file: File, batchId: string, rules: Cat
 
   if (extension === "csv") {
     const parsed = Papa.parse<RawRecord>(buffer.toString("utf8"), { header: true, skipEmptyLines: true });
-    return parsed.data.map((record) => rowFromRecord(record, batchId, rules)).filter((row): row is ImportRow => Boolean(row));
+    const rows = parsed.data.map((record) => rowFromRecord(record, batchId, rules)).filter((row): row is ImportRow => Boolean(row));
+    return rows.length ? rows : parseRowsFromText(buffer.toString("utf8"), batchId, rules);
   }
 
   if (extension === "xlsx" || extension === "xls") {
-    const workbook = XLSX.read(buffer, { type: "buffer" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const records = XLSX.utils.sheet_to_json<RawRecord>(sheet);
-    return records.map((record) => rowFromRecord(record, batchId, rules)).filter((row): row is ImportRow => Boolean(row));
+    const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
+    return parseRowsFromWorkbook(workbook, batchId, rules);
   }
 
   if (extension === "pdf") {

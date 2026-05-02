@@ -784,6 +784,11 @@ a {
   box-shadow: var(--shadow);
 }
 
+.guide-banner {
+  border-color: color-mix(in srgb, var(--accent-violet), var(--border) 38%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-violet), transparent 90%), color-mix(in srgb, var(--accent-alt), transparent 92%));
+}
+
 .install-banner strong,
 .install-banner p {
   margin: 0;
@@ -801,11 +806,31 @@ a {
   align-items: center;
 }
 
-.install-banner-actions button {
+.install-banner-actions button,
+.install-banner-actions a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+.primary-link-button {
+  min-height: var(--control-height);
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.primary-link-button:hover,
+.primary-link-button:focus-visible {
+  color: #ffffff;
+  background: linear-gradient(135deg, var(--accent-strong), var(--accent-violet));
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 main {
@@ -1578,6 +1603,35 @@ td .status-pill {
   justify-content: flex-end;
   gap: 10px;
   align-items: center;
+}
+
+.import-row-count {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.import-row-count strong {
+  color: var(--accent);
+  font-size: 1rem;
+}
+
+.import-review-count-row {
+  display: contents;
+}
+
+.import-delete-all-inline {
+  display: none;
 }
 
 .import-bulk-actions {
@@ -2789,6 +2843,29 @@ td .status-pill {
     gap: 8px;
   }
 
+  .import-review-count-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .import-row-count {
+    width: 100%;
+    min-width: 0;
+    padding: 0 8px;
+  }
+
+  .import-delete-all-inline {
+    display: inline-flex;
+    grid-column: auto;
+    min-width: 0;
+    width: 100%;
+    min-height: 36px;
+    align-items: center;
+    justify-content: center;
+  }
+
   .import-bulk-actions {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2806,6 +2883,14 @@ td .status-pill {
   .import-delete-all-button {
     grid-column: 1 / -1;
     min-width: 0;
+  }
+
+  .import-delete-all-inline {
+    grid-column: auto;
+  }
+
+  .import-bulk-actions .import-delete-all-button {
+    display: none;
   }
 
   .segmented-control {

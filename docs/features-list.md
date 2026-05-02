@@ -24,6 +24,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Vercel-ready configuration and setup documentation. |
 | Implemented | PWA manifest and offline service-worker foundation. |
 | Implemented | PWA install prompt configuration with browser install event handling, install/dismiss actions, and installable manifest shortcuts. |
+| Implemented | First-time signed-in users see a guide prompt for "How to use NovaCent" before the PWA install prompt is shown. |
 | Implemented | QA regression test plan for validating working features after every change. |
 | Implemented | Non-deviation QA guard requiring existing working functionality to remain unchanged unless the user explicitly requests a behavior change. |
 | Implemented | Responsiveness checker process for validating UI changes across mobile, tablet, and desktop widths. |
@@ -173,6 +174,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Text/PDF import parsing merges wrapped transaction lines so rows split across multiple PDF text lines are still captured. |
 | Implemented | PDF statement text extraction preserves column spacing more carefully before parsing, reducing merged date/amount/reference rows. |
 | Implemented | Review-before-save import workflow. |
+| Implemented | Import review header shows the current visible pending row count for all rows or duplicate-only filtering. |
 | Implemented | Imported row approve and delete actions. |
 | Implemented | Import review supports bulk approval for all rows or all non-duplicate rows, while preserving per-row category selections. |
 | Implemented | Import review supports confirmed bulk deletion of all pending imported rows, with responsive bulk action controls on desktop and mobile. |

@@ -1171,6 +1171,24 @@ export function ImportReviewView() {
         title="Rows needing attention"
         aside={
           <div className="import-review-panel-actions">
+            <div className="import-review-count-row">
+              <span className="import-row-count" aria-live="polite">
+                <strong>{visibleRows.length}</strong> {tx(visibleRows.length === 1 ? "record" : "records")}
+              </span>
+              <button
+                className="danger-button import-delete-all-button import-delete-all-inline"
+                type="button"
+                disabled={importState === "saving" || !data.length}
+                onClick={() => requestConfirmation({
+                  title: "Confirm delete",
+                  message: tx("Delete all import rows?"),
+                  confirmLabel: "Delete all",
+                  onConfirm: () => deleteImportRows(data)
+                })}
+              >
+                {tx("Delete all")}
+              </button>
+            </div>
             <div className="segmented-control import-filter-control" aria-label={tx("Import row filter")}>
               <button type="button" className={duplicateFilter === "all" ? "active" : ""} aria-pressed={duplicateFilter === "all"} onClick={() => setDuplicateFilter("all")}>
                 {tx("All")}
