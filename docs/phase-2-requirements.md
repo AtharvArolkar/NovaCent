@@ -20,8 +20,8 @@ Phase 2 turns the current working MVP foundation into an end-to-end product by w
 | Implemented | Advanced Recharts-based reporting with accessible data tables. |
 | Implemented | CSV export and browser print/PDF export path for reports. |
 | Implemented | Modern transitions, skeleton states, interaction feedback, and reduced-motion handling. |
-| Deferred | Scanned PDF/image OCR. |
-| Deferred | Production SMTP email sending for password reset links. |
+| Implemented | Scanned PDF/image OCR. |
+| Implemented | Production SMTP email sending for password reset links. |
 
 Remaining deferred/end-to-end workflow items are tracked in `docs/phase-3-requirements.md`.
 

@@ -209,7 +209,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Uploaded file name is retained as metadata. |
 | Implemented | Password-protected text PDF statements can be uploaded with a transient statement password. The password is used only for parsing and is not stored in MongoDB. |
 | Implemented | Missing or incorrect statement password attempts create a failed import batch and a warning notification with a retryable error message. |
-| Deferred | Scanned PDF/image OCR is planned for the OCR import phase. |
+| Implemented | Scanned PDF/image OCR is planned for the OCR import phase. |
 
 ## Reports And Analytics
 
@@ -282,11 +282,3 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Settled party expenses cannot be deleted. |
 | Implemented | Direct settlement ledger entries cannot be deleted from the expense ledger. |
 | Implemented | Deleting party expenses removes them from the overall ledger. |
-
-## Known Deferred Work
-
-| Status | Feature |
-| --- | --- |
-| Deferred | Scanned PDF and image OCR import with async/background processing and later sync into import review. |
-| Deferred | Production SMTP email delivery verification against a real provider/account. |
-| Deferred | Google OAuth verification with real production credentials. |
