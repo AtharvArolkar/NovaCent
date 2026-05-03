@@ -1,6 +1,6 @@
 import { buildBudgetVariance, buildCategoryBreakdown } from "@/lib/reporting";
 import type { ReportingChartData } from "@/lib/reporting";
-import { spendImpactForSignedAmount } from "@/lib/spend-impact";
+import { classifyMoneyFlowType, investmentAmountForSignedAmount, isInvestmentCategoryName, spendImpactForSignedAmount, type MoneyFlowType } from "@/lib/spend-impact";
 import { withApiActivity } from "@/lib/client/api-activity";
 import { enqueueOutboxItem, listOutboxItems, markOutboxItem, removeOutboxItem } from "@/lib/offline";
 import type { Account, Budget, Expense, ImportRow, Party } from "./demo-data";
@@ -22,6 +22,7 @@ type LiveExpense = {
   partyId?: string;
   paidByParticipantId?: string;
   settlementId?: string;
+  moneyFlowType?: MoneyFlowType;
   excludeFromLedger?: boolean;
 };
 type LiveBudgetIncludedExpense = {
@@ -49,6 +50,7 @@ type LiveOverview = {
   monthlyRemainingBudget?: number;
   yearlyRemainingBudget?: number;
   pendingImports?: number;
+  totalInvested?: number;
   budgets?: LiveBudget[];
   expenses?: LiveExpense[];
 };
@@ -111,6 +113,7 @@ type LiveImportRow = {
   suggestedCategory?: string;
   status?: string;
   possibleDuplicates?: unknown[];
+  moneyFlowType?: MoneyFlowType;
 };
 type LiveNotification = {
   id?: string;
@@ -154,6 +157,10 @@ export type ExpenseCreateInput = {
   partyId?: string;
   paidByParticipantId?: string;
   excludeFromLedger?: boolean;
+};
+export type ExpenseClassificationUpdateInput = {
+  categoryName: string;
+  moneyFlowType: MoneyFlowType;
 };
 export type BudgetCreateInput = {
   categoryName: string;
@@ -252,6 +259,7 @@ export type OverviewData = {
   monthlyRemainingBudget: number;
   yearlyRemainingBudget: number;
   pendingImports: number;
+  totalInvested: number;
   budgets: Budget[];
   expenses: Expense[];
 };
@@ -276,6 +284,27 @@ export type ReportRangeInput = {
   startDate?: string;
   endDate?: string;
 };
+export type UserProfileDetails = {
+  id: string;
+  name: string;
+  email?: string;
+  image?: string;
+  provider: string;
+  defaultAccountId?: string;
+  defaultAccountName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  canChangePassword: boolean;
+};
+export type ProfileUpdateInput = {
+  name: string;
+};
+export type ChangePasswordInput = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+export type { MoneyFlowType };
 
 const wait = (ms = 120) => new Promise((resolve) => setTimeout(resolve, ms));
 const useMocks = process.env.NEXT_PUBLIC_USE_MOCKS === "true";
@@ -323,7 +352,7 @@ const expenseCalculationMoney = (expense: Pick<Expense, "amount" | "currency" | 
   currency: expense.baseCurrency ?? expense.currency
 });
 
-type ClientSpendExpense = Pick<Expense, "amount" | "currency" | "baseAmount" | "baseCurrency" | "source" | "merchant" | "description" | "category">;
+type ClientSpendExpense = Pick<Expense, "amount" | "currency" | "baseAmount" | "baseCurrency" | "source" | "merchant" | "description" | "category" | "moneyFlowType">;
 
 const spendImpactAmount = async (expense: ClientSpendExpense, targetCurrency = "INR") => {
   const calculationMoney = expenseCalculationMoney(expense);
@@ -333,6 +362,17 @@ const spendImpactAmount = async (expense: ClientSpendExpense, targetCurrency = "
 
 const totalSpendImpact = async (expenseRows: ClientSpendExpense[], targetCurrency = "INR") => {
   const impacts = await Promise.all(expenseRows.map((expense) => spendImpactAmount(expense, targetCurrency)));
+  return Math.max(0, Math.round(impacts.reduce((sum, amount) => sum + amount, 0) * 100) / 100);
+};
+
+const investmentImpactAmount = async (expense: ClientSpendExpense, targetCurrency = "INR") => {
+  const calculationMoney = expenseCalculationMoney(expense);
+  const amount = await convertClientAmount(calculationMoney.amount, calculationMoney.currency, targetCurrency);
+  return investmentAmountForSignedAmount(amount, expense);
+};
+
+const totalInvestmentImpact = async (expenseRows: ClientSpendExpense[], targetCurrency = "INR") => {
+  const impacts = await Promise.all(expenseRows.map((expense) => investmentImpactAmount(expense, targetCurrency)));
   return Math.max(0, Math.round(impacts.reduce((sum, amount) => sum + amount, 0) * 100) / 100);
 };
 
@@ -435,6 +475,7 @@ const toExpense = (expense: LiveExpense): Expense => {
     owner: expense.source ?? "Account",
     status: expense.syncStatus === "pending" ? "pending" : expense.syncStatus === "failed" || expense.syncStatus === "conflict" ? "needs-review" : "cleared",
     source: expense.source,
+    moneyFlowType: expense.moneyFlowType,
     tripId: expense.tripId,
     partyId: expense.partyId,
     settlementId: expense.settlementId,
@@ -527,6 +568,7 @@ const toImportRow = (row: LiveImportRow, batch: LiveImportBatch): ImportRow => {
     amount,
     currency: row.original?.currency ?? row.withdrawalAmount?.currency ?? row.depositAmount?.currency ?? "INR",
     direction: row.direction,
+    moneyFlowType: row.moneyFlowType,
     withdrawalAmount,
     depositAmount,
     confidence: row.confidence ?? 0,
@@ -631,6 +673,7 @@ export async function getOverview(accountId?: string, targetCurrency = "INR") {
         monthlyRemainingBudget: Number(payload.monthlyRemainingBudget ?? 0),
         yearlyRemainingBudget: Number(payload.yearlyRemainingBudget ?? 0),
         pendingImports: Number(payload.pendingImports ?? 0),
+        totalInvested: Number(payload.totalInvested ?? 0),
         budgets: budgetRows,
         expenses: (payload.expenses ?? []).map(toExpense)
       };
@@ -639,8 +682,11 @@ export async function getOverview(accountId?: string, targetCurrency = "INR") {
       await wait();
       const monthlyBudgets = budgets.filter((budget) => (budget.period ?? "monthly") === "monthly");
       const yearlyBudgets = budgets.filter((budget) => budget.period === "yearly");
-      const [totalSpend, remainingBudget, monthlyRemainingBudget, yearlyRemainingBudget] = await Promise.all([
+      const currentYear = new Date().getFullYear();
+      const yearExpenses = expenses.filter((expense) => new Date(expense.date).getFullYear() === currentYear);
+      const [totalSpend, totalInvested, remainingBudget, monthlyRemainingBudget, yearlyRemainingBudget] = await Promise.all([
         totalSpendImpact(expenses, targetCurrency),
+        totalInvestmentImpact(yearExpenses, targetCurrency),
         totalRemainingBudget(budgets, targetCurrency),
         totalRemainingBudget(monthlyBudgets, targetCurrency),
         totalRemainingBudget(yearlyBudgets, targetCurrency)
@@ -651,6 +697,7 @@ export async function getOverview(accountId?: string, targetCurrency = "INR") {
         monthlyRemainingBudget,
         yearlyRemainingBudget,
         pendingImports: imports.length,
+        totalInvested,
         budgets,
         expenses: expenses.slice(0, 5)
       };
@@ -667,6 +714,57 @@ export async function getExpenses(accountId?: string) {
     async () => {
       await wait();
       return expenses;
+    }
+  );
+}
+
+type InvestmentRange = "1m" | "3m" | "1y" | "3y" | "all";
+
+function investmentRangeStart(range: InvestmentRange) {
+  if (range === "all") return undefined;
+  const now = new Date();
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  if (range === "1m") start.setUTCMonth(start.getUTCMonth() - 1);
+  if (range === "3m") start.setUTCMonth(start.getUTCMonth() - 3);
+  if (range === "1y") start.setUTCFullYear(start.getUTCFullYear() - 1);
+  if (range === "3y") start.setUTCFullYear(start.getUTCFullYear() - 3);
+  return start.toISOString().slice(0, 10);
+}
+
+function exclusiveEndDate(date?: string) {
+  if (!date) return undefined;
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) return undefined;
+  parsed.setUTCDate(parsed.getUTCDate() + 1);
+  return parsed.toISOString().slice(0, 10);
+}
+
+function isInvestmentExpense(expense: Expense) {
+  return expense.moneyFlowType === "investment" || isInvestmentCategoryName(expense.category);
+}
+
+export async function getInvestments(accountId?: string, range: InvestmentRange = "1y", dateRange: ReportRangeInput = {}) {
+  const from = dateRange.startDate || investmentRangeStart(range);
+  const to = exclusiveEndDate(dateRange.endDate);
+  return withFallback(
+    async () => {
+      const params = new URLSearchParams({ moneyFlowType: "investment", limit: "5000" });
+      if (from) params.set("from", from);
+      if (to) params.set("to", to);
+      const payload = await requestJson<{ expenses: LiveExpense[] }>(`/api/expenses?${params.toString()}`, accountId);
+      return payload.expenses.map(toExpense);
+    },
+    async () => {
+      await wait();
+      const start = from ? new Date(from).getTime() : undefined;
+      const end = to ? new Date(to).getTime() : undefined;
+      return expenses.filter((expense) => {
+        if (!isInvestmentExpense(expense)) return false;
+        const spentAt = new Date(expense.date).getTime();
+        if (start && spentAt < start) return false;
+        if (end && spentAt >= end) return false;
+        return true;
+      });
     }
   );
 }
@@ -719,6 +817,26 @@ export async function createExpense(accountId: string, input: ExpenseCreateInput
     });
     return toPendingExpense(input, clientMutationId);
   }
+}
+
+export async function updateExpenseClassification(accountId: string, expenseId: string, input: ExpenseClassificationUpdateInput) {
+  if (useMocks) {
+    await wait();
+    const existing = expenses.find((expense) => expense.id === expenseId);
+    return existing
+      ? { ...existing, category: input.categoryName, moneyFlowType: input.moneyFlowType }
+      : undefined;
+  }
+
+  const result = await requestJson<{ expense: LiveExpense }>(`/api/expenses/${expenseId}`, accountId, {
+    method: "PATCH",
+    body: JSON.stringify({
+      categoryId: categoryIdFor(input.categoryName),
+      categoryName: input.categoryName,
+      moneyFlowType: input.moneyFlowType
+    })
+  });
+  return toExpense(result.expense);
 }
 
 export async function deleteExpense(accountId: string, expenseId: string) {
@@ -1256,19 +1374,33 @@ function importReviewCounts(response: ImportReviewResponse, action: "approve" | 
   };
 }
 
-function importReviewPayload(row: ImportRow, action: "approve" | "delete", categoryName?: string) {
+function importReviewMoneyFlowType(row: ImportRow, categoryName?: string, moneyFlowType?: MoneyFlowType) {
+  if (moneyFlowType) return moneyFlowType;
   const resolvedCategoryName = categoryName?.trim() || row.suggestedCategory || "Uncategorized";
+  if (isInvestmentCategoryName(resolvedCategoryName)) return "investment";
+  if (resolvedCategoryName === "Loan/EMI") return "spend";
+  return classifyMoneyFlowType(row.amount, {
+    source: "import",
+    merchant: row.merchant,
+    categoryName: resolvedCategoryName,
+    moneyFlowType: row.moneyFlowType
+  });
+}
+
+function importReviewPayload(row: ImportRow, action: "approve" | "delete", categoryName?: string, moneyFlowType?: MoneyFlowType) {
+  const resolvedCategoryName = categoryName?.trim() || row.suggestedCategory || "Uncategorized";
+  const resolvedMoneyFlowType = importReviewMoneyFlowType(row, resolvedCategoryName, moneyFlowType);
   return {
     ...(row.batchId ? { batchId: row.batchId } : {}),
     rowId: row.id,
     action,
-    ...(action === "approve" ? { categoryId: categoryIdFor(resolvedCategoryName), categoryName: resolvedCategoryName } : {}),
+    ...(action === "approve" ? { categoryId: categoryIdFor(resolvedCategoryName), categoryName: resolvedCategoryName, moneyFlowType: resolvedMoneyFlowType } : {}),
     confirmDuplicate: row.isPossibleDuplicate && action === "approve",
     overrideReason: row.isPossibleDuplicate && action === "approve" ? "Confirmed during import review" : undefined
   };
 }
 
-export async function reviewImportRow(accountId: string, row: ImportRow, action: "approve" | "delete", options: { categoryName?: string } = {}) {
+export async function reviewImportRow(accountId: string, row: ImportRow, action: "approve" | "delete", options: { categoryName?: string; moneyFlowType?: MoneyFlowType } = {}) {
   if (useMocks || !row.batchId) {
     return { approved: action === "approve" ? 1 : 0, deleted: action === "delete" ? 1 : 0 };
   }
@@ -1276,14 +1408,14 @@ export async function reviewImportRow(accountId: string, row: ImportRow, action:
   const response = await requestJson<ImportReviewResponse>(`/api/imports/${row.batchId}/approve`, accountId, {
     method: "POST",
     body: JSON.stringify({
-      rows: [importReviewPayload(row, action, options.categoryName)]
+      rows: [importReviewPayload(row, action, options.categoryName, options.moneyFlowType)]
     })
   }, { message: action === "approve" ? "Saving imported rows..." : "Updating imported rows..." });
 
   return importReviewCounts(response, action);
 }
 
-export async function reviewImportRows(accountId: string, rows: Array<{ row: ImportRow; categoryName?: string }>, action: "approve" | "delete") {
+export async function reviewImportRows(accountId: string, rows: Array<{ row: ImportRow; categoryName?: string; moneyFlowType?: MoneyFlowType }>, action: "approve" | "delete") {
   if (!rows.length) return { approved: 0, deleted: 0 };
 
   if (useMocks) {
@@ -1300,7 +1432,7 @@ export async function reviewImportRows(accountId: string, rows: Array<{ row: Imp
     const response = await requestJson<ImportReviewResponse>("/api/imports/review", accountId, {
       method: "POST",
       body: JSON.stringify({
-        rows: rowsWithBatch.map(({ row, categoryName }) => importReviewPayload(row, action, categoryName))
+        rows: rowsWithBatch.map(({ row, categoryName, moneyFlowType }) => importReviewPayload(row, action, categoryName, moneyFlowType))
       })
     }, { message: action === "approve" ? "Saving imported rows..." : "Updating imported rows..." });
     const counts = importReviewCounts(response, action);
@@ -1321,6 +1453,14 @@ const fallbackReportData = (): ReportingChartData => ({
     { label: "Apr", income: 194000, spend: 144686 },
     { label: "May", income: 202000, spend: 127430 },
     { label: "Jun", income: 202000, spend: 139200 }
+  ],
+  investments: [
+    { label: "Jan", value: 12000 },
+    { label: "Feb", value: 15000 },
+    { label: "Mar", value: 10000 },
+    { label: "Apr", value: 18000 },
+    { label: "May", value: 14000 },
+    { label: "Jun", value: 16000 }
   ],
   budgetVariance: buildBudgetVariance(budgets),
   merchantTrends: [
@@ -1359,6 +1499,7 @@ async function convertReportData(data: ReportingChartData, sourceCurrency: strin
         spend: await convertClientAmount(row.spend, sourceCurrency, targetCurrency)
       }))
     ),
+    investments: await convertLabeledRows(data.investments, sourceCurrency, targetCurrency),
     budgetVariance: await Promise.all(
       data.budgetVariance.map(async (row) => ({
         ...row,
@@ -1401,6 +1542,7 @@ export async function getReports(accountId?: string, range: ReportRangeInput = {
         report: {
           categoryBreakdown?: Array<{ category: string; amount: number }>;
           monthlyTrend?: Array<{ month: string; amount: number; income?: number; spend?: number }>;
+          investmentTrend?: Array<{ month: string; amount: number }>;
           budgetVariance?: Array<{ categoryName: string; limitAmount: number; actualAmount: number; remainingAmount: number; usagePercent: number }>;
           merchantTrends?: Array<{ month: string; food: number; travel: number; shopping: number; subscriptions: number }>;
           partyBalances?: Array<{ party: string; outstanding: number; settled: number }>;
@@ -1418,6 +1560,7 @@ export async function getReports(accountId?: string, range: ReportRangeInput = {
           income: row.income ?? (row.amount < 0 ? Math.abs(row.amount) : 0),
           spend: row.spend ?? (row.amount > 0 ? row.amount : 0)
         })) ?? [],
+        investments: payload.report.investmentTrend?.map((row) => ({ label: row.month, value: row.amount })) ?? [],
         budgetVariance: payload.report.budgetVariance?.map((row) => ({
           label: row.categoryName,
           budget: row.limitAmount,
@@ -1450,6 +1593,7 @@ export function reportDataToCsv(data: ReportingChartData) {
     ["section", "label", "value_a", "value_b", "value_c"],
     ...data.categories.map((row) => ["category", row.label, row.value, "", ""]),
     ...data.cashflow.map((row) => ["cashflow", row.label, row.income, row.spend, row.income - row.spend]),
+    ...data.investments.map((row) => ["investment", row.label, row.value, "", ""]),
     ...data.budgetVariance.map((row) => ["budget", row.label, row.budget, row.actual, row.remaining]),
     ...data.parties.map((row) => ["party", row.label, row.outstanding, row.settled, ""]),
     ...data.currencies.map((row) => ["currency", row.label, row.value, "", ""])
@@ -1498,6 +1642,54 @@ export async function submitSupportRequest(accountId: string, input: SupportRequ
   }
 
   return requestJson<{ supportRequest: unknown }>("/api/support", accountId, {
+    method: "POST",
+    body: JSON.stringify(input)
+  });
+}
+
+export async function getProfile() {
+  if (useMocks) {
+    await wait();
+    return {
+      id: "demo-user",
+      name: "Atharv Arolkar",
+      email: "atharv@example.com",
+      provider: "credentials",
+      defaultAccountName: "Primary Account",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      canChangePassword: true
+    } satisfies UserProfileDetails;
+  }
+
+  const payload = await requestJson<{ profile: UserProfileDetails }>("/api/profile");
+  return payload.profile;
+}
+
+export async function updateProfile(input: ProfileUpdateInput) {
+  if (useMocks) {
+    await wait();
+    return {
+      id: "demo-user",
+      name: input.name,
+      email: "atharv@example.com",
+      provider: "credentials",
+      defaultAccountName: "Primary Account",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      canChangePassword: true
+    } satisfies UserProfileDetails;
+  }
+
+  const payload = await requestJson<{ profile: UserProfileDetails }>("/api/profile", undefined, {
+    method: "PATCH",
+    body: JSON.stringify(input)
+  });
+  return payload.profile;
+}
+
+export async function changePassword(input: ChangePasswordInput) {
+  return requestJson<{ message: string }>("/api/auth/change-password", undefined, {
     method: "POST",
     body: JSON.stringify(input)
   });

@@ -2,6 +2,7 @@ import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { createRequire } from "node:module";
 import type { CategoryRule, ImportRow } from "@/lib/domain";
+import { classifyMoneyFlowType, suggestedInvestmentCategoryForText } from "@/lib/spend-impact";
 
 type RawRecord = Record<string, unknown>;
 type ParseStatementOptions = {
@@ -160,6 +161,34 @@ function categoryForMerchant(merchant: string, rules: CategoryRule[]) {
   return defaultCategoryRules.find((item) => item.pattern.test(merchant))?.categoryName ?? "Uncategorized";
 }
 
+function classifiedImportRowFields(input: {
+  merchant: string;
+  description?: string;
+  direction: "withdrawal" | "deposit";
+  signedAmount: number;
+  rules: CategoryRule[];
+}) {
+  const ruleCategory = input.direction === "deposit" ? "Reimbursements" : categoryForMerchant(input.merchant, input.rules);
+  const moneyFlowType = classifyMoneyFlowType(input.signedAmount, {
+    source: "import",
+    merchant: input.merchant,
+    description: input.description,
+    categoryName: ruleCategory
+  });
+
+  const investmentCategory = suggestedInvestmentCategoryForText({
+    source: "import",
+    merchant: input.merchant,
+    description: input.description,
+    categoryName: ruleCategory
+  }) ?? "Investments";
+
+  return {
+    moneyFlowType,
+    suggestedCategoryName: moneyFlowType === "investment" && ruleCategory === "Uncategorized" ? investmentCategory : ruleCategory
+  };
+}
+
 function rowFromRecord(record: RawRecord, batchId: string, rules: CategoryRule[]): ImportRow | null {
   const description = pickValue(record, merchantKeys, { contains: true });
   const reference = pickValue(record, referenceKeys, { contains: true });
@@ -193,6 +222,7 @@ function rowFromRecord(record: RawRecord, batchId: string, rules: CategoryRule[]
   if (!merchant || (withdrawalAmount <= 0 && depositAmount <= 0)) {
     return null;
   }
+  const classification = classifiedImportRowFields({ merchant, description, direction, signedAmount: amount, rules });
 
   return {
     id: crypto.randomUUID(),
@@ -207,7 +237,8 @@ function rowFromRecord(record: RawRecord, batchId: string, rules: CategoryRule[]
     withdrawalAmount: withdrawalAmount > 0 ? { amount: withdrawalAmount, currency } : undefined,
     depositAmount: depositAmount > 0 ? { amount: depositAmount, currency } : undefined,
     balanceAmount: balanceAmount > 0 ? { amount: balanceAmount, currency } : undefined,
-    suggestedCategoryName: direction === "deposit" ? "Reimbursements" : categoryForMerchant(merchant, rules),
+    suggestedCategoryName: classification.suggestedCategoryName,
+    moneyFlowType: classification.moneyFlowType,
     confidence: description && (withdrawalValue || depositValue) ? 90 : 78,
     rawText: JSON.stringify(record)
   };
@@ -574,6 +605,7 @@ function rowFromStatementLine(line: string, batchId: string, rules: CategoryRule
 
   const direction = withdrawalAmount > 0 ? "withdrawal" : "deposit";
   const signedAmount = direction === "withdrawal" ? withdrawalAmount : -depositAmount;
+  const classification = classifiedImportRowFields({ merchant: description, description, direction, signedAmount, rules });
 
   return {
     id: crypto.randomUUID(),
@@ -588,7 +620,8 @@ function rowFromStatementLine(line: string, batchId: string, rules: CategoryRule
     withdrawalAmount: withdrawalAmount > 0 ? { amount: withdrawalAmount, currency: "INR" } : undefined,
     depositAmount: depositAmount > 0 ? { amount: depositAmount, currency: "INR" } : undefined,
     balanceAmount: balanceAmount > 0 ? { amount: balanceAmount, currency: "INR" } : undefined,
-    suggestedCategoryName: direction === "deposit" ? "Reimbursements" : categoryForMerchant(description, rules),
+    suggestedCategoryName: classification.suggestedCategoryName,
+    moneyFlowType: classification.moneyFlowType,
     confidence: reference ? 90 : 82,
     rawText: normalizedLine
   };
@@ -625,6 +658,14 @@ function parseRowsFromText(text: string, batchId: string, rules: CategoryRule[])
       continue;
     }
 
+    const classification = classifiedImportRowFields({
+      merchant,
+      description: merchant,
+      direction: "withdrawal",
+      signedAmount: amount,
+      rules
+    });
+
     rows.push({
       id: crypto.randomUUID(),
       batchId,
@@ -635,7 +676,8 @@ function parseRowsFromText(text: string, batchId: string, rules: CategoryRule[])
       spentAt: dateMatch?.[0] ? normalizeStatementDate(dateMatch[0]) : new Date().toISOString().slice(0, 10),
       original: { amount, currency: "INR" },
       withdrawalAmount: { amount, currency: "INR" },
-      suggestedCategoryName: categoryForMerchant(merchant, rules),
+      suggestedCategoryName: classification.suggestedCategoryName,
+      moneyFlowType: classification.moneyFlowType,
       confidence: 62,
       rawText: line
     });

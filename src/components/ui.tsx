@@ -28,11 +28,11 @@ export function MetricCard({ label, value, detail }: { label: string; value: str
   );
 }
 
-export function Panel({ title, children, aside }: { title: string; children: ReactNode; aside?: ReactNode }) {
+export function Panel({ title, children, aside, id }: { title: string; children: ReactNode; aside?: ReactNode; id?: string }) {
   const { tx } = usePreferences();
   const translatedTitle = tx(title);
   return (
-    <section className="panel" aria-labelledby={`${title.toLowerCase().replace(/\s+/g, "-")}-title`}>
+    <section className="panel" id={id} aria-labelledby={`${title.toLowerCase().replace(/\s+/g, "-")}-title`}>
       <div className="panel-heading">
         <h2 id={`${title.toLowerCase().replace(/\s+/g, "-")}-title`}>{translatedTitle}</h2>
         {aside}

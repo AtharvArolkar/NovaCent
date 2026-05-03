@@ -3,8 +3,9 @@
 import { FormEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { CalendarDays } from "lucide-react";
 import Link from "next/link";
-import { addExistingExpensesToParty, addPartyParticipant, approvePartySettlement, createBudget, createExpense, createParty, createPartyExpense, createRecurringExpenseRule, deleteBudget, deleteExpense, deleteExpenses, deleteParty, deletePartyExpense, getAccounts, getBudgets, getExpenses, getImportRows, getOverview, getParties, getPartyDetail, getRecurringExpenses, getReports, markPartySplitSettled, reportDataToCsv, reviewImportRow, reviewImportRows, searchUsers, submitSupportRequest, syncPendingOutbox, updateBudget, updateRecurringExpenseRule, uploadStatement } from "@/lib/client/expense-service";
-import type { OverviewData, PartyDetail, PartyParticipant, PartyParticipantInput, PartySettlement, PartySplit, RecurringExpenseInput, RecurringExpenseRule, ReportRangeInput, SupportRequestInput, UserSearchResult } from "@/lib/client/expense-service";
+import { useSession } from "next-auth/react";
+import { addExistingExpensesToParty, addPartyParticipant, approvePartySettlement, changePassword, createBudget, createExpense, createParty, createPartyExpense, createRecurringExpenseRule, deleteBudget, deleteExpense, deleteExpenses, deleteParty, deletePartyExpense, getAccounts, getBudgets, getExpenses, getImportRows, getInvestments, getOverview, getParties, getPartyDetail, getProfile, getRecurringExpenses, getReports, markPartySplitSettled, reportDataToCsv, reviewImportRow, reviewImportRows, searchUsers, submitSupportRequest, syncPendingOutbox, updateBudget, updateExpenseClassification, updateProfile, updateRecurringExpenseRule, uploadStatement } from "@/lib/client/expense-service";
+import type { MoneyFlowType, OverviewData, PartyDetail, PartyParticipant, PartyParticipantInput, PartySettlement, PartySplit, RecurringExpenseInput, RecurringExpenseRule, ReportRangeInput, SupportRequestInput, UserProfileDetails, UserSearchResult } from "@/lib/client/expense-service";
 import type { Account, Budget, Expense, ImportRow, Party } from "@/lib/client/demo-data";
 import { guideContent, languages, type Language } from "@/lib/client/dictionary";
 import type { ReportingChartData } from "@/lib/reporting";
@@ -27,6 +28,13 @@ function formatCurrency(amount: number, currency = "INR") {
   } catch {
     return `${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(amount)} ${currencyCode}`;
   }
+}
+
+function formatProfileDate(value?: string) {
+  if (!value) return "Not available";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 
 function moneyFlowClass(amount: number) {
@@ -63,6 +71,25 @@ function formatInflowAmount(amount: number, currency = "INR") {
   return amount === 0 ? formatCurrency(0, currency) : `+${formatCurrency(Math.abs(amount), currency)}`;
 }
 
+function filteredInvestmentTotal(rows: Expense[], fallbackCurrency = "INR") {
+  const totals = new Map<string, number>();
+  for (const row of rows) {
+    const amount = Math.max(row.amount, 0);
+    if (amount <= 0) continue;
+    const currency = (row.currency ?? fallbackCurrency).toUpperCase();
+    totals.set(currency, (totals.get(currency) ?? 0) + amount);
+  }
+
+  if (!totals.size) {
+    return formatCurrency(0, fallbackCurrency);
+  }
+
+  return Array.from(totals.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([currency, amount]) => formatCurrency(amount, currency))
+    .join(" + ");
+}
+
 function signedImportAmount(row: ImportRow, fallbackCurrency = "INR") {
   const amount = importAmountValue(row);
   const sign = amount >= 0 ? "+" : "-";
@@ -88,8 +115,37 @@ function importAmountValue(row: ImportRow) {
   return amount;
 }
 
-const expenseCategoryOptions = ["Food", "Shopping", "Travel", "Fuel", "Loan/EMI", "Subscriptions", "Health", "Others"];
+const investmentCategoryOptions = ["Investments", "Mutual Funds", "Stocks", "Postal Investments", "Insurance Investments", "PPF/NPS", "Fixed Deposits", "Recurring Deposits", "Bonds", "Gold", "Crypto", "Other Investments"];
+const expenseCategoryOptions = ["Food", "Shopping", "Travel", "Fuel", "Loan/EMI", ...investmentCategoryOptions, "Subscriptions", "Health", "Others"];
 const importReviewCategoryOptions = ["Uncategorized", ...expenseCategoryOptions, "Reimbursements"];
+const investmentCategorySet = new Set(investmentCategoryOptions);
+const moneyFlowOptions: Array<{ value: MoneyFlowType; label: string }> = [
+  { value: "spend", label: "Spend" },
+  { value: "investment", label: "Investment" },
+  { value: "income", label: "Income" },
+  { value: "transfer", label: "Transfer" }
+];
+type ExpenseLedgerFilter = "all" | "actualSpends";
+const expenseLedgerFilterOptions: Array<{ value: ExpenseLedgerFilter; label: string }> = [
+  { value: "all", label: "All transactions" },
+  { value: "actualSpends", label: "Actual spends only" }
+];
+
+function moneyFlowForExpense(expense: Expense): MoneyFlowType {
+  if (expense.moneyFlowType) return expense.moneyFlowType;
+  if (investmentCategorySet.has(expense.category)) return "investment";
+  return expense.amount < 0 ? "income" : "spend";
+}
+
+function isActualSpendExpense(expense: Expense) {
+  return moneyFlowForExpense(expense) === "spend";
+}
+
+function defaultMoneyFlowForCategory(expense: Expense, categoryName: string): MoneyFlowType {
+  if (investmentCategorySet.has(categoryName)) return "investment";
+  const current = moneyFlowForExpense(expense);
+  return current === "investment" ? expense.amount < 0 ? "income" : "spend" : current;
+}
 
 function importCategoriesFor(selectedCategory: string) {
   return importReviewCategoryOptions.includes(selectedCategory) ? importReviewCategoryOptions : [...importReviewCategoryOptions, selectedCategory];
@@ -164,6 +220,7 @@ function DateField({
 const emptyReportData: ReportingChartData = {
   categories: [],
   cashflow: [],
+  investments: [],
   budgetVariance: [],
   merchantTrends: [],
   trips: [],
@@ -384,7 +441,12 @@ function ExpenseTable({
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
-  isSelectable
+  isSelectable,
+  editableClassification = false,
+  classificationSavingIds,
+  onUpdateClassification,
+  emptyTitle = "No expenses yet",
+  emptyDescription = "New spending will appear here once imported or added."
 }: {
   rows: Expense[];
   onDelete?: (expense: Expense) => void;
@@ -392,10 +454,19 @@ function ExpenseTable({
   onToggleSelect?: (expense: Expense) => void;
   onToggleSelectAll?: () => void;
   isSelectable?: (expense: Expense) => boolean;
+  editableClassification?: boolean;
+  classificationSavingIds?: Set<string>;
+  onUpdateClassification?: (expense: Expense, categoryName: string, moneyFlowType: MoneyFlowType) => void;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }) {
   const { tx } = usePreferences();
   const showActions = Boolean(onDelete);
   const showSelection = Boolean(onToggleSelect);
+  const showOwner = !editableClassification;
+  const ledgerDescription = showOwner
+    ? "Expense ledger with merchant, category, owner, amount, and status"
+    : "Expense ledger with merchant, category, amount, and status";
   const selectableRows = showSelection ? rows.filter((expense) => (isSelectable ? isSelectable(expense) : true)) : [];
   const allSelectableSelected = selectableRows.length > 0 && selectableRows.every((expense) => selectedIds?.has(expense.id));
   const someSelectableSelected = selectableRows.some((expense) => selectedIds?.has(expense.id));
@@ -407,12 +478,24 @@ function ExpenseTable({
     }
   }, [allSelectableSelected, someSelectableSelected]);
 
-  if (!rows.length) return <EmptyState title="No expenses yet" description="New spending will appear here once imported or added." />;
+  if (!rows.length) return <EmptyState title={emptyTitle} description={emptyDescription} />;
 
   return (
-    <div className="table-wrap">
-      <table>
-        <caption>{tx("Expense ledger with merchant, category, owner, amount, and status")}</caption>
+    <>
+    <div className={`table-wrap ledger-table-wrap${editableClassification ? " editable-ledger-table-wrap" : ""}`}>
+      <table className={editableClassification ? "expense-classification-table" : undefined}>
+        <colgroup>
+          {showSelection ? <col className="ledger-select-col" /> : null}
+          <col className="ledger-date-col" />
+          <col className="ledger-merchant-col" />
+          <col className="ledger-category-col" />
+          {editableClassification ? <col className="ledger-type-col" /> : null}
+          {showOwner ? <col className="ledger-owner-col" /> : null}
+          <col className="ledger-amount-col" />
+          <col className="ledger-status-col" />
+          {showActions ? <col className="ledger-action-col" /> : null}
+        </colgroup>
+        <caption>{tx(ledgerDescription)}</caption>
         <thead>
           <tr>
             {showSelection ? (
@@ -430,7 +513,8 @@ function ExpenseTable({
             <th scope="col">{tx("Date")}</th>
             <th scope="col">{tx("Merchant")}</th>
             <th scope="col">{tx("Category")}</th>
-            <th scope="col">{tx("Owner")}</th>
+            {editableClassification ? <th scope="col">{tx("Type")}</th> : null}
+            {showOwner ? <th scope="col">{tx("Owner")}</th> : null}
             <th scope="col" className="numeric">{tx("Amount")}</th>
             <th scope="col">{tx("Status")}</th>
             {showActions ? <th scope="col">{tx("Action")}</th> : null}
@@ -454,8 +538,35 @@ function ExpenseTable({
                 ) : null}
                 <td>{expense.date}</td>
                 <td>{expense.merchant}</td>
-                <td>{tx(expense.category)}</td>
-                <td>{expense.owner}</td>
+                <td>
+                  {editableClassification ? (
+                    <select
+                      className="table-select"
+                      value={expense.category}
+                      disabled={classificationSavingIds?.has(expense.id)}
+                      aria-label={`${tx("Category")}: ${expense.merchant}`}
+                      onChange={(event) => onUpdateClassification?.(expense, event.target.value, defaultMoneyFlowForCategory(expense, event.target.value))}
+                    >
+                      <CategoryOptions options={importCategoriesFor(expense.category)} />
+                    </select>
+                  ) : tx(expense.category)}
+                </td>
+                {editableClassification ? (
+                  <td>
+                    <select
+                      className="table-select"
+                      value={moneyFlowForExpense(expense)}
+                      disabled={classificationSavingIds?.has(expense.id)}
+                      aria-label={`${tx("Type")}: ${expense.merchant}`}
+                      onChange={(event) => onUpdateClassification?.(expense, expense.category, event.target.value as MoneyFlowType)}
+                    >
+                      {moneyFlowOptions.map((option) => (
+                        <option key={option.value} value={option.value}>{tx(option.label)}</option>
+                      ))}
+                    </select>
+                  </td>
+                ) : null}
+                {showOwner ? <td>{expense.owner}</td> : null}
                 <td className={`numeric ${moneyFlowClass(expense.amount)}`}>{formatMoneyFlow(expense.amount, expense.currency ?? "INR")}</td>
                 <td><StatusPill tone={expense.status === "cleared" ? "good" : expense.status === "pending" ? "warn" : "bad"}>{tx(expense.status)}</StatusPill></td>
                 {showActions ? (
@@ -473,6 +584,87 @@ function ExpenseTable({
         </tbody>
       </table>
     </div>
+    <div className="ledger-card-list" aria-label={tx(ledgerDescription)}>
+      {rows.map((expense) => {
+        const selectable = isSelectable ? isSelectable(expense) : true;
+        const amountClass = moneyFlowClass(expense.amount);
+        return (
+          <article className="ledger-card" key={expense.id}>
+            <div className="ledger-card-main">
+              <div className="ledger-card-title-row">
+                {showSelection ? (
+                  <input
+                    aria-label={`${tx("Select")} ${expense.merchant}`}
+                    checked={selectedIds?.has(expense.id) ?? false}
+                    disabled={!selectable}
+                    type="checkbox"
+                    onChange={() => onToggleSelect?.(expense)}
+                  />
+                ) : null}
+                <div>
+                  <h3>{expense.merchant}</h3>
+                  <span>{expense.date}</span>
+                </div>
+              </div>
+              <strong className={amountClass}>{formatMoneyFlow(expense.amount, expense.currency ?? "INR")}</strong>
+            </div>
+            {showActions ? (
+              <div className="ledger-card-actions">
+                {expense.canDelete === false ? (
+                  <span className="muted-note">{tx("Locked")}</span>
+                ) : (
+                  <button className="danger-button" type="button" onClick={() => onDelete?.(expense)}>{tx("Delete")}</button>
+                )}
+              </div>
+            ) : null}
+            <details className="ledger-card-details">
+              <summary>{tx("More details")}</summary>
+              <dl>
+                <div><dt>{tx("Date")}</dt><dd>{expense.date}</dd></div>
+                <div>
+                  <dt>{tx("Category")}</dt>
+                  <dd>
+                    {editableClassification ? (
+                      <select
+                        className="table-select"
+                        value={expense.category}
+                        disabled={classificationSavingIds?.has(expense.id)}
+                        aria-label={`${tx("Category")}: ${expense.merchant}`}
+                        onChange={(event) => onUpdateClassification?.(expense, event.target.value, defaultMoneyFlowForCategory(expense, event.target.value))}
+                      >
+                        <CategoryOptions options={importCategoriesFor(expense.category)} />
+                      </select>
+                    ) : tx(expense.category)}
+                  </dd>
+                </div>
+                {editableClassification ? (
+                  <div>
+                    <dt>{tx("Type")}</dt>
+                    <dd>
+                      <select
+                        className="table-select"
+                        value={moneyFlowForExpense(expense)}
+                        disabled={classificationSavingIds?.has(expense.id)}
+                        aria-label={`${tx("Type")}: ${expense.merchant}`}
+                        onChange={(event) => onUpdateClassification?.(expense, expense.category, event.target.value as MoneyFlowType)}
+                      >
+                        {moneyFlowOptions.map((option) => (
+                          <option key={option.value} value={option.value}>{tx(option.label)}</option>
+                        ))}
+                      </select>
+                    </dd>
+                  </div>
+                ) : null}
+                {showOwner ? <div><dt>{tx("Owner")}</dt><dd>{expense.owner}</dd></div> : null}
+                <div><dt>{tx("Status")}</dt><dd><StatusPill tone={expense.status === "cleared" ? "good" : expense.status === "pending" ? "warn" : "bad"}>{tx(expense.status)}</StatusPill></dd></div>
+                {expense.source ? <div><dt>{tx("Source")}</dt><dd>{tx(expense.source)}</dd></div> : null}
+              </dl>
+            </details>
+          </article>
+        );
+      })}
+    </div>
+    </>
   );
 }
 
@@ -556,7 +748,7 @@ export function DashboardView() {
             <MetricCard label={t("totalSpend")} value={formatCurrency(overview.totalSpend, defaultCurrency)} detail="Across visible transactions this month" />
             <MetricCard label={t("monthlyRemainingBudget")} value={formatCurrency(overview.monthlyRemainingBudget, defaultCurrency)} detail="Available in monthly budgets" />
             <MetricCard label={t("yearlyRemainingBudget")} value={formatCurrency(overview.yearlyRemainingBudget, defaultCurrency)} detail="Available in yearly budgets" />
-            <MetricCard label={t("pendingImports")} value={String(overview.pendingImports)} detail="Rows waiting for review" />
+            <MetricCard label={t("investments")} value={formatCurrency(overview.totalInvested, defaultCurrency)} detail={tx("Invested this year")} />
           </section>
           <div className="content-grid">
             <Panel title="Budget health"><BudgetList rows={overview.budgets} /></Panel>
@@ -574,17 +766,24 @@ export function ExpensesView() {
   const { data, setData, error, reload } = useAsyncData(loadExpenses, []);
   const { data: partyOptions } = useAsyncData(useCallback(() => getParties(accountId), [accountId]), [] as Party[]);
   const [query, setQuery] = useState("");
+  const [ledgerFilter, setLedgerFilter] = useState<ExpenseLedgerFilter>("all");
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [deleteState, setDeleteState] = useState<SubmitState>("idle");
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<string>>(new Set());
   const [selectedSplitPartyId, setSelectedSplitPartyId] = useState("");
   const [splitAddState, setSplitAddState] = useState<SubmitState>("idle");
+  const [classificationState, setClassificationState] = useState<SubmitState>("idle");
+  const [classificationSavingIds, setClassificationSavingIds] = useState<Set<string>>(new Set());
   const quickAddRef = useRef<HTMLFormElement>(null);
   const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
-  const filtered = useMemo(
-    () => data.filter((expense) => `${expense.merchant} ${expense.category} ${expense.owner}`.toLowerCase().includes(query.toLowerCase())),
-    [data, query]
-  );
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return data.filter((expense) => {
+      const matchesQuery = !normalizedQuery || `${expense.merchant} ${expense.category}`.toLowerCase().includes(normalizedQuery);
+      const matchesLedgerFilter = ledgerFilter === "all" || isActualSpendExpense(expense);
+      return matchesQuery && matchesLedgerFilter;
+    });
+  }, [data, ledgerFilter, query]);
   const selectableForSplit = useCallback((expense: Expense) =>
     (!expense.source || ["manual", "import", "recurring"].includes(expense.source)) && !expense.partyId && !expense.settlementId,
   []);
@@ -716,6 +915,26 @@ export function ExpensesView() {
     });
   }
 
+  async function onUpdateExpenseClassification(expense: Expense, categoryName: string, moneyFlowType: MoneyFlowType) {
+    setClassificationState("saving");
+    setClassificationSavingIds((current) => new Set(current).add(expense.id));
+    try {
+      const updated = await updateExpenseClassification(accountId, expense.id, { categoryName, moneyFlowType });
+      if (updated) {
+        setData((rows) => rows.map((row) => row.id === expense.id ? updated : row));
+      }
+      setClassificationState("saved");
+    } catch {
+      setClassificationState("failed");
+    } finally {
+      setClassificationSavingIds((current) => {
+        const next = new Set(current);
+        next.delete(expense.id);
+        return next;
+      });
+    }
+  }
+
   return (
     <>
       {confirmationDialog}
@@ -739,6 +958,8 @@ export function ExpensesView() {
       {error ? <p className="error-note" role="alert">{tx(error)}</p> : null}
       {deleteState === "saved" ? <p className="success-note" role="status">{tx("Expense deleted.")}</p> : null}
       {deleteState === "failed" ? <p className="error-note" role="alert">{tx("Unable to delete expense. Settled party expenses and settlement rows are locked.")}</p> : null}
+      {classificationState === "saved" ? <p className="success-note" role="status">{tx("Expense classification updated.")}</p> : null}
+      {classificationState === "failed" ? <p className="error-note" role="alert">{tx("Unable to update expense classification.")}</p> : null}
       <Panel title="Quick add">
         <form ref={quickAddRef} className="form-grid" onSubmit={onQuickAdd}>
           <label>{tx("Merchant")}<input name="merchant" required /></label>
@@ -767,11 +988,156 @@ export function ExpensesView() {
         aside={
           <div className="ledger-toolbar">
             {selectedDeletableExpenses.length ? <button className="danger-button" type="button" onClick={onDeleteSelectedExpenses}>{tx("Delete selected")}</button> : null}
-            <label className="search-box"><span>{t("search")}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tx("Merchant, category, owner")} /></label>
+            <label className="search-box ledger-filter-box">
+              <span>{tx("View")}</span>
+              <select value={ledgerFilter} onChange={(event) => setLedgerFilter(event.target.value as ExpenseLedgerFilter)}>
+                {expenseLedgerFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{tx(option.label)}</option>
+                ))}
+              </select>
+            </label>
+            <label className="search-box"><span>{t("search")}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tx("Merchant or category")} /></label>
           </div>
         }
       >
-        <ExpenseTable rows={filtered} onDelete={onDeleteExpense} selectedIds={selectedExpenseIds} onToggleSelect={toggleExpenseSelection} onToggleSelectAll={toggleAllVisibleExpenses} isSelectable={selectableForExpenseActions} />
+        <ExpenseTable
+          rows={filtered}
+          onDelete={onDeleteExpense}
+          selectedIds={selectedExpenseIds}
+          onToggleSelect={toggleExpenseSelection}
+          onToggleSelectAll={toggleAllVisibleExpenses}
+          isSelectable={selectableForExpenseActions}
+          editableClassification
+          classificationSavingIds={classificationSavingIds}
+          onUpdateClassification={(expense, categoryName, moneyFlowType) => void onUpdateExpenseClassification(expense, categoryName, moneyFlowType)}
+        />
+      </Panel>
+    </>
+  );
+}
+
+type InvestmentRange = "1m" | "3m" | "1y" | "3y" | "all";
+type InvestmentRangePreset = InvestmentRange | "custom";
+type InvestmentRangeState = ReportRangeInput & { preset: InvestmentRangePreset };
+
+const investmentRangeOptions: Array<{ value: InvestmentRange; label: string }> = [
+  { value: "1m", label: "1 month" },
+  { value: "3m", label: "3 months" },
+  { value: "1y", label: "1 year" },
+  { value: "3y", label: "3 years" },
+  { value: "all", label: "All" }
+];
+
+function investmentRangeForPreset(preset: InvestmentRange): InvestmentRangeState {
+  if (preset === "all") {
+    return { preset, startDate: "", endDate: "" };
+  }
+
+  const end = new Date();
+  const start = new Date(end);
+  if (preset === "1m") start.setMonth(start.getMonth() - 1);
+  if (preset === "3m") start.setMonth(start.getMonth() - 3);
+  if (preset === "1y") start.setFullYear(start.getFullYear() - 1);
+  if (preset === "3y") start.setFullYear(start.getFullYear() - 3);
+  return { preset, startDate: dateInputFrom(start), endDate: dateInputFrom(end) };
+}
+
+export function InvestmentsView() {
+  const { accountId, defaultCurrency, t, tx } = usePreferences();
+  const [range, setRange] = useState<InvestmentRangeState>(() => investmentRangeForPreset("1y"));
+  const [query, setQuery] = useState("");
+  const [classificationState, setClassificationState] = useState<SubmitState>("idle");
+  const [classificationSavingIds, setClassificationSavingIds] = useState<Set<string>>(new Set());
+  const loadInvestments = useCallback(
+    () => getInvestments(accountId, range.preset === "custom" ? "all" : range.preset, { startDate: range.startDate, endDate: range.endDate }),
+    [accountId, range.endDate, range.preset, range.startDate]
+  );
+  const { data, setData, loading, error } = useAsyncData(loadInvestments, [] as Expense[]);
+  const filtered = useMemo(
+    () => data.filter((expense) => `${expense.merchant} ${expense.category}`.toLowerCase().includes(query.toLowerCase())),
+    [data, query]
+  );
+  const filteredTotal = useMemo(() => filteredInvestmentTotal(filtered, defaultCurrency), [defaultCurrency, filtered]);
+
+  async function onUpdateInvestmentClassification(expense: Expense, categoryName: string, moneyFlowType: MoneyFlowType) {
+    setClassificationState("saving");
+    setClassificationSavingIds((current) => new Set(current).add(expense.id));
+    try {
+      const updated = await updateExpenseClassification(accountId, expense.id, { categoryName, moneyFlowType });
+      if (updated) {
+        setData((rows) => {
+          const remainsInvestment = moneyFlowForExpense(updated) === "investment" || investmentCategorySet.has(updated.category);
+          return remainsInvestment
+            ? rows.map((row) => row.id === expense.id ? updated : row)
+            : rows.filter((row) => row.id !== expense.id);
+        });
+      }
+      setClassificationState("saved");
+    } catch {
+      setClassificationState("failed");
+    } finally {
+      setClassificationSavingIds((current) => {
+        const next = new Set(current);
+        next.delete(expense.id);
+        return next;
+      });
+    }
+  }
+
+  return (
+    <>
+      <PageHeader
+        title={t("investments")}
+        description={tx("Review investment transactions separately from day-to-day spending.")}
+      />
+      {loading ? <LoadingNote label="Loading investments" /> : null}
+      {error ? <p className="error-note" role="alert">{tx(error)}</p> : null}
+      {classificationState === "saved" ? <p className="success-note" role="status">{tx("Investment classification updated.")}</p> : null}
+      {classificationState === "failed" ? <p className="error-note" role="alert">{tx("Unable to update investment classification.")}</p> : null}
+      <Panel
+        title={tx("Investment ledger")}
+        aside={
+          <div className="ledger-toolbar investment-toolbar">
+            <label className="search-box">
+              <span>{tx("Timeframe")}</span>
+              <select
+                value={range.preset}
+                onChange={(event) => {
+                  const nextPreset = event.target.value as InvestmentRangePreset;
+                  if (nextPreset === "custom") return;
+                  setRange(investmentRangeForPreset(nextPreset));
+                }}
+              >
+                {investmentRangeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{tx(option.label)}</option>
+                ))}
+                {range.preset === "custom" ? <option value="custom">{tx("Custom range")}</option> : null}
+              </select>
+            </label>
+            <div className="investment-date-range" aria-label={tx("Date range")}>
+              <DateField label="From" value={range.startDate ?? ""} onChange={(date) => setRange((current) => ({ ...current, preset: "custom", startDate: date }))} />
+              <DateField label="To" value={range.endDate ?? ""} onChange={(date) => setRange((current) => ({ ...current, preset: "custom", endDate: date }))} />
+            </div>
+            <label className="search-box">
+              <span>{t("search")}</span>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tx("Merchant or category")} />
+            </label>
+          </div>
+        }
+      >
+        <div className="investment-total-strip" aria-label={tx("Filtered investment total")}>
+          <span>{tx("Filtered total")}</span>
+          <strong>{filteredTotal}</strong>
+          <p>{filtered.length} {tx("filtered transactions")}</p>
+        </div>
+        <ExpenseTable
+          rows={filtered}
+          editableClassification
+          classificationSavingIds={classificationSavingIds}
+          onUpdateClassification={(expense, categoryName, moneyFlowType) => void onUpdateInvestmentClassification(expense, categoryName, moneyFlowType)}
+          emptyTitle="No investments yet"
+          emptyDescription="Investment transactions will appear here once added or imported."
+        />
       </Panel>
     </>
   );
@@ -1104,6 +1470,7 @@ export function ImportReviewView() {
   const [statementPassword, setStatementPassword] = useState("");
   const [importError, setImportError] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<Record<string, string>>({});
+  const [selectedMoneyFlows, setSelectedMoneyFlows] = useState<Record<string, MoneyFlowType>>({});
   const { requestConfirmation, confirmationDialog } = useConfirmationDialog();
   const duplicateKeyForRow = useCallback((row: ImportRow) => `${row.merchant.trim().toLowerCase()}|${row.amount}`, []);
   const duplicateKeys = useMemo(() => {
@@ -1129,28 +1496,54 @@ export function ImportReviewView() {
     (row: ImportRow) => (selectedCategories[row.id] ?? row.suggestedCategory ?? "").trim() || "Uncategorized",
     [selectedCategories]
   );
-  const setCategoryForRow = useCallback((rowId: string, categoryName: string) => {
-    setSelectedCategories((current) => ({ ...current, [rowId]: categoryName.trim() || "Uncategorized" }));
+  const setCategoryForRow = useCallback((rowId: string, categoryName: string, row?: ImportRow) => {
+    const nextCategory = categoryName.trim() || "Uncategorized";
+    const nextMoneyFlow = investmentCategorySet.has(nextCategory) ? "investment" : nextCategory === "Loan/EMI" ? "spend" : row?.direction === "deposit" ? "income" : "spend";
+    setSelectedCategories((current) => ({ ...current, [rowId]: nextCategory }));
+    setSelectedMoneyFlows((current) => ({ ...current, [rowId]: nextMoneyFlow }));
   }, []);
+  const moneyFlowForRow = useCallback(
+    (row: ImportRow) => {
+      const selectedCategory = categoryForRow(row);
+      if (investmentCategorySet.has(selectedCategory)) return "investment";
+      if (selectedCategory === "Loan/EMI") return "spend";
+      if (selectedMoneyFlows[row.id]) return selectedMoneyFlows[row.id];
+      if (selectedCategories[row.id]) return row.direction === "deposit" ? "income" : "spend";
+      return row.moneyFlowType ?? (row.direction === "deposit" ? "income" : "spend");
+    },
+    [categoryForRow, selectedCategories, selectedMoneyFlows]
+  );
   const approveImportRow = useCallback(async (row: ImportRow) => {
     setImportState("saving");
-    await reviewImportRow(accountId, row, "approve", { categoryName: categoryForRow(row) });
+    await reviewImportRow(accountId, row, "approve", { categoryName: categoryForRow(row), moneyFlowType: moneyFlowForRow(row) });
     await reload();
     setSelectedCategories((current) => {
       const next = { ...current };
       delete next[row.id];
       return next;
     });
+    setSelectedMoneyFlows((current) => {
+      const next = { ...current };
+      delete next[row.id];
+      return next;
+    });
     setImportState("done");
-  }, [accountId, categoryForRow, reload]);
+  }, [accountId, categoryForRow, moneyFlowForRow, reload]);
   const approveImportRows = useCallback(async (rows: ImportRow[]) => {
     if (!rows.length) return;
     setImportState("saving");
     setImportError("");
     try {
-      await reviewImportRows(accountId, rows.map((row) => ({ row, categoryName: categoryForRow(row) })), "approve");
+      await reviewImportRows(accountId, rows.map((row) => ({ row, categoryName: categoryForRow(row), moneyFlowType: moneyFlowForRow(row) })), "approve");
       await reload();
       setSelectedCategories((current) => {
+        const next = { ...current };
+        for (const row of rows) {
+          delete next[row.id];
+        }
+        return next;
+      });
+      setSelectedMoneyFlows((current) => {
         const next = { ...current };
         for (const row of rows) {
           delete next[row.id];
@@ -1162,7 +1555,7 @@ export function ImportReviewView() {
       setImportError(error instanceof Error ? error.message : "Unable to approve import rows.");
       setImportState("failed");
     }
-  }, [accountId, categoryForRow, reload]);
+  }, [accountId, categoryForRow, moneyFlowForRow, reload]);
   const deleteImportRow = useCallback((row: ImportRow) => {
     requestConfirmation({
       title: "Confirm delete",
@@ -1175,6 +1568,11 @@ export function ImportReviewView() {
           await reviewImportRow(accountId, row, "delete");
           setData((rows) => rows.filter((candidate) => candidate.id !== row.id));
           setSelectedCategories((current) => {
+            const next = { ...current };
+            delete next[row.id];
+            return next;
+          });
+          setSelectedMoneyFlows((current) => {
             const next = { ...current };
             delete next[row.id];
             return next;
@@ -1195,6 +1593,13 @@ export function ImportReviewView() {
       await reviewImportRows(accountId, rows.map((row) => ({ row })), "delete");
       await reload();
       setSelectedCategories((current) => {
+        const next = { ...current };
+        for (const row of rows) {
+          delete next[row.id];
+        }
+        return next;
+      });
+      setSelectedMoneyFlows((current) => {
         const next = { ...current };
         for (const row of rows) {
           delete next[row.id];
@@ -1242,6 +1647,7 @@ export function ImportReviewView() {
                     const rows = await uploadStatement(accountId, file, statementPassword);
                     setData(rows);
                     setSelectedCategories({});
+                    setSelectedMoneyFlows({});
                     setImportState("done");
                   } catch (error) {
                     setImportError(error instanceof Error ? error.message : "Statement import failed.");
@@ -1348,7 +1754,7 @@ export function ImportReviewView() {
                         aria-label={`${tx("Category")}: ${row.merchant}`}
                         className="table-select"
                         value={selectedCategory}
-                        onChange={(event) => setCategoryForRow(row.id, event.target.value)}
+                        onChange={(event) => setCategoryForRow(row.id, event.target.value, row)}
                       >
                         {importCategoriesFor(selectedCategory).map((categoryName) => (
                           <option key={categoryName} value={categoryName}>{tx(categoryName)}</option>
@@ -1408,7 +1814,7 @@ export function ImportReviewView() {
                           aria-label={`${tx("Category")}: ${row.merchant}`}
                           className="table-select"
                           value={selectedCategory}
-                          onChange={(event) => setCategoryForRow(row.id, event.target.value)}
+                          onChange={(event) => setCategoryForRow(row.id, event.target.value, row)}
                         >
                           {importCategoriesFor(selectedCategory).map((categoryName) => (
                             <option key={categoryName} value={categoryName}>{tx(categoryName)}</option>
@@ -2139,7 +2545,8 @@ export function ReportsView() {
     [accountId, defaultCurrency, reportRange.endDate, reportRange.startDate]
   );
   const { data, loading, error } = useAsyncData(loadReports, emptyReportData);
-  const hasReportData = data.categories.length || data.cashflow.length || data.budgetVariance.length || data.merchantTrends.length || data.parties.length || data.currencies.length;
+  const totalInvestments = data.investments.reduce((sum, row) => sum + row.value, 0);
+  const hasReportData = data.categories.length || data.cashflow.length || data.investments.length || data.budgetVariance.length || data.merchantTrends.length || data.parties.length || data.currencies.length;
   return (
     <>
       <PageHeader
@@ -2210,6 +2617,7 @@ export function ReportsView() {
       <section className="report-summary" aria-label={tx("Report summary metrics")}>
         <MetricCard label="Tracked spend" value={formatCurrency(data.totalSpent ?? data.categories.reduce((sum, row) => sum + row.value, 0), defaultCurrency)} detail="Across active report categories" />
         <MetricCard label="Cash retained" value={formatCurrency(data.cashflow.reduce((sum, row) => sum + row.income - row.spend, 0), defaultCurrency)} detail="Income minus spend in visible months" />
+        <MetricCard label="Investments" value={formatCurrency(totalInvestments, defaultCurrency)} detail="Investment activity in this timeframe" />
         <MetricCard label="Largest budget usage" value={`${Math.max(...data.budgetVariance.map((row) => row.usage), 0)}%`} detail="Highest active category utilization" />
         <MetricCard label="Currencies" value={String(data.currencies.length)} detail="Original spend currencies represented" />
       </section>
@@ -2222,6 +2630,9 @@ export function ReportsView() {
         </Panel>
         <Panel title="Cash flow trend">
           <CashFlowTrendChart data={data.cashflow} />
+        </Panel>
+        <Panel title="Investments">
+          <SummaryBarsChart data={data.investments} title="Investments by month" label="Investment trend chart" />
         </Panel>
         <Panel title="Budget variance">
           <BudgetVarianceChart data={data.budgetVariance} />
@@ -2331,6 +2742,143 @@ export function HowToUseView() {
           </article>
         ))}
       </section>
+    </>
+  );
+}
+
+export function ProfileView() {
+  const { tx } = usePreferences();
+  const { update } = useSession();
+  const { data: profile, setData: setProfile, loading, error } = useAsyncData<UserProfileDetails | null>(getProfile, null);
+  const [name, setName] = useState("");
+  const [nameState, setNameState] = useState<SubmitState>("idle");
+  const [passwordState, setPasswordState] = useState<SubmitState>("idle");
+  const [passwordMessage, setPasswordMessage] = useState("");
+
+  useEffect(() => {
+    if (profile?.name) {
+      setName(profile.name);
+    }
+  }, [profile?.name]);
+
+  async function onSaveName(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const nextName = name.trim();
+    if (!nextName) return;
+
+    setNameState("saving");
+    try {
+      const updated = await updateProfile({ name: nextName });
+      setProfile(updated);
+      await update({ user: { name: updated.name } });
+      setNameState("saved");
+    } catch {
+      setNameState("failed");
+    }
+  }
+
+  async function onChangePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const currentPassword = String(form.get("currentPassword") ?? "");
+    const newPassword = String(form.get("newPassword") ?? "");
+    const confirmPassword = String(form.get("confirmPassword") ?? "");
+
+    if (newPassword !== confirmPassword) {
+      setPasswordState("failed");
+      setPasswordMessage("Passwords do not match.");
+      return;
+    }
+
+    setPasswordState("saving");
+    setPasswordMessage("");
+    try {
+      await changePassword({ currentPassword, newPassword });
+      formElement.reset();
+      setPasswordState("saved");
+    } catch (caught) {
+      setPasswordState("failed");
+      setPasswordMessage(caught instanceof Error ? caught.message : "Unable to change password.");
+    }
+  }
+
+  const providerLabel = profile?.provider === "google" ? "Google" : "Email and password";
+
+  return (
+    <>
+      <PageHeader
+        title={tx("Profile")}
+        description={tx("View your account details, update your display name, and manage password access.")}
+        action={<Link className="secondary-button" href="#change-password">{tx("Change password")}</Link>}
+      />
+      {loading ? <LoadingNote label="Loading profile" /> : null}
+      {error ? <p className="error-note" role="alert">{tx(error)}</p> : null}
+      {profile ? (
+        <div className="profile-layout">
+          <Panel title="Profile details">
+            <dl className="profile-detail-list">
+              <div>
+                <dt>{tx("Full name")}</dt>
+                <dd>{profile.name}</dd>
+              </div>
+              <div>
+                <dt>{tx("Email")}</dt>
+                <dd>{profile.email ?? tx("Not available")}</dd>
+              </div>
+              <div>
+                <dt>{tx("Sign-in method")}</dt>
+                <dd>{tx(providerLabel)}</dd>
+              </div>
+              <div>
+                <dt>{tx("Default account")}</dt>
+                <dd>{profile.defaultAccountName ?? tx("Primary Account")}</dd>
+              </div>
+              <div>
+                <dt>{tx("Member since")}</dt>
+                <dd>{tx(formatProfileDate(profile.createdAt))}</dd>
+              </div>
+              <div>
+                <dt>{tx("Last updated")}</dt>
+                <dd>{tx(formatProfileDate(profile.updatedAt))}</dd>
+              </div>
+              <div>
+                <dt>{tx("User ID")}</dt>
+                <dd>{profile.id}</dd>
+              </div>
+            </dl>
+            <p className="muted-note">{tx("Profile identifiers are read-only and managed by your account.")}</p>
+          </Panel>
+          <Panel title="Edit name">
+            <form className="form-grid profile-form" onSubmit={onSaveName}>
+              <label>{tx("Full name")}<input value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" minLength={2} maxLength={120} required /></label>
+              <div className="preferences-actions">
+                <p className="muted-note">{tx("This is the name friends see in parties, splits, and shared activity.")}</p>
+                <button className="form-submit" type="submit" disabled={nameState === "saving" || !name.trim()}>{nameState === "saving" ? tx("Saving") : tx("Save name")}</button>
+              </div>
+            </form>
+            {nameState === "saved" ? <p className="success-note" role="status">{tx("Name updated.")}</p> : null}
+            {nameState === "failed" ? <p className="error-note" role="alert">{tx("Unable to update profile.")}</p> : null}
+          </Panel>
+          <Panel title="Change password" id="change-password">
+            {profile.canChangePassword ? (
+              <form className="form-grid profile-form" onSubmit={onChangePassword}>
+                <label>{tx("Current password")}<input name="currentPassword" type="password" autoComplete="current-password" required /></label>
+                <label>{tx("New password")}<input name="newPassword" type="password" autoComplete="new-password" minLength={8} required /></label>
+                <label>{tx("Confirm new password")}<input name="confirmPassword" type="password" autoComplete="new-password" minLength={8} required /></label>
+                <div className="preferences-actions">
+                  <p className="muted-note">{tx("Use at least 8 characters for the new password.")}</p>
+                  <button className="form-submit" type="submit" disabled={passwordState === "saving"}>{passwordState === "saving" ? tx("Saving") : tx("Change password")}</button>
+                </div>
+              </form>
+            ) : (
+              <p className="muted-note">{tx("Password change is only available for email/password accounts.")}</p>
+            )}
+            {passwordState === "saved" ? <p className="success-note" role="status">{tx("Password changed.")}</p> : null}
+            {passwordState === "failed" ? <p className="error-note" role="alert">{tx(passwordMessage || "Unable to change password.")}</p> : null}
+          </Panel>
+        </div>
+      ) : null}
     </>
   );
 }

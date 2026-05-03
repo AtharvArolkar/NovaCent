@@ -145,10 +145,17 @@ export const authOptions: NextAuthOptions = {
       }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.defaultAccountId = (user as AppSessionUser).defaultAccountId;
+      }
+
+      if (trigger === "update") {
+        const nextName = typeof session?.user?.name === "string" ? session.user.name.trim() : "";
+        if (nextName) {
+          token.name = nextName;
+        }
       }
 
       if (token.email && !token.defaultAccountId) {
@@ -165,6 +172,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         (session.user as AppSessionUser).id = String(token.id);
+        (session.user as AppSessionUser).name = typeof token.name === "string" ? token.name : session.user.name;
         (session.user as AppSessionUser).defaultAccountId = token.defaultAccountId ? String(token.defaultAccountId) : undefined;
       }
       return session;

@@ -35,6 +35,7 @@ export interface ReportingChartData {
   totalSpent?: number;
   categories: LabeledAmount[];
   cashflow: CashFlowPoint[];
+  investments: LabeledAmount[];
   budgetVariance: BudgetVariancePoint[];
   merchantTrends: MerchantTrendPoint[];
   trips: LabeledAmount[];

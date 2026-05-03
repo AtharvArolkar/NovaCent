@@ -18,6 +18,7 @@ export type Expense = {
   owner: string;
   status: "cleared" | "pending" | "needs-review";
   source?: string;
+  moneyFlowType?: "spend" | "income" | "transfer" | "investment";
   tripId?: string;
   partyId?: string;
   settlementId?: string;
@@ -73,6 +74,7 @@ export type ImportRow = {
   amount: number;
   currency?: string;
   direction?: "withdrawal" | "deposit";
+  moneyFlowType?: "spend" | "income" | "transfer" | "investment";
   withdrawalAmount?: number;
   depositAmount?: number;
   confidence: number;

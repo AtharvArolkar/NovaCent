@@ -5,6 +5,7 @@ import { getCurrencyRate } from "@/lib/server/currency";
 import { duplicateKeyFor } from "@/lib/server/import-duplicates";
 import { collections } from "@/lib/server/mongodb";
 import { createNotification } from "@/lib/server/notifications";
+import { classifyMoneyFlowType } from "@/lib/spend-impact";
 
 export type ImportReviewAction = "approve" | "delete";
 
@@ -15,6 +16,7 @@ export interface ImportReviewInput {
   merchant?: string;
   categoryId?: string;
   categoryName?: string;
+  moneyFlowType?: Expense["moneyFlowType"];
   spentAt?: string;
   original?: Money;
   confirmDuplicate?: boolean;
@@ -158,9 +160,16 @@ export async function reviewImportRowsForAccount(
       merchant: review.merchant ?? existing.merchant,
       categoryId: review.categoryId ?? existing.categoryId ?? "cat-uncategorized",
       suggestedCategoryName: review.categoryName ?? existing.suggestedCategoryName,
+      moneyFlowType: review.moneyFlowType ?? (review.categoryName ? undefined : existing.moneyFlowType),
       spentAt: review.spentAt ?? existing.spentAt,
       original: review.original ?? existing.original
     };
+    const moneyFlowType = edited.moneyFlowType ?? classifyMoneyFlowType(Number(edited.original.amount ?? 0), {
+      source: "import",
+      merchant: edited.merchant,
+      description: edited.description,
+      categoryName: edited.suggestedCategoryName
+    });
     const conversion = await convertWithCache(edited.original, input.accountBaseCurrency, conversionCache);
     const expense: Expense & {
       importBatchId: string;
@@ -178,6 +187,7 @@ export async function reviewImportRowsForAccount(
       original: edited.original,
       base: conversion.base,
       exchangeRate: conversion.exchangeRate,
+      moneyFlowType,
       spentAt: edited.spentAt,
       syncStatus: "synced",
       createdAt: now,

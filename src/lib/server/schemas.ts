@@ -8,6 +8,8 @@ export const moneySchema = z.object({
   currency: z.string().min(3).max(8).transform((value) => value.toUpperCase())
 });
 
+export const moneyFlowTypeSchema = z.enum(["spend", "income", "transfer", "investment"]);
+
 export const registerSchema = z.object({
   name: z.string().min(2).max(120),
   email: z.string().email().transform((value) => value.toLowerCase()),
@@ -30,6 +32,7 @@ export const expenseSchema = z.object({
   categoryId: z.string().min(1),
   categoryName: z.string().min(1).max(80),
   original: moneySchema,
+  moneyFlowType: moneyFlowTypeSchema.optional(),
   spentAt: z.string().min(8),
   notes: z.string().max(1000).optional(),
   source: z.enum(["manual", "recurring", "import", "trip", "party", "settlement"]).default("manual"),
@@ -39,6 +42,14 @@ export const expenseSchema = z.object({
   excludeFromLedger: z.coerce.boolean().default(false),
   recurringRuleId: z.string().optional(),
   clientMutationId: z.string().optional()
+});
+
+export const expensePatchSchema = z.object({
+  categoryId: z.string().min(1).optional(),
+  categoryName: z.string().min(1).max(80).optional(),
+  moneyFlowType: moneyFlowTypeSchema.optional()
+}).refine((value) => value.categoryName || value.categoryId || value.moneyFlowType, {
+  message: "At least one expense field is required."
 });
 
 export const expenseBulkDeleteSchema = z.object({
@@ -145,6 +156,7 @@ export const importRowReviewSchema = z.object({
   categoryName: z.string().optional(),
   spentAt: z.string().optional(),
   original: moneySchema.optional(),
+  moneyFlowType: moneyFlowTypeSchema.optional(),
   confirmDuplicate: z.coerce.boolean().default(false),
   overrideReason: z.string().max(500).optional()
 });
@@ -173,6 +185,10 @@ export const resetPasswordSchema = z.object({
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(8).max(128)
+});
+
+export const profilePatchSchema = z.object({
+  name: z.string().min(2).max(120)
 });
 
 export const supportRequestSchema = z.object({

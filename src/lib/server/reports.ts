@@ -1,6 +1,6 @@
 import type { Budget, Expense, Party, ReportSummary, Settlement, Split, Trip } from "@/lib/domain";
 import { appConfig } from "@/lib/app-config";
-import { spendImpactForSignedAmount } from "@/lib/spend-impact";
+import { investmentAmountForSignedAmount, spendImpactForSignedAmount } from "@/lib/spend-impact";
 
 function roundMoney(amount: number) {
   return Math.round(amount * 100) / 100;
@@ -30,6 +30,11 @@ function expenseBaseAmount(expense: Expense) {
 function spendImpactAmount(expense: Expense) {
   const amount = expenseBaseAmount(expense);
   return spendImpactForSignedAmount(amount, expense);
+}
+
+function investmentImpactAmount(expense: Expense) {
+  const amount = expenseBaseAmount(expense);
+  return investmentAmountForSignedAmount(amount, expense);
 }
 
 function expenseOriginalAmount(expense: Expense) {
@@ -68,6 +73,7 @@ export function buildReportSummary(expenses: Expense[], budgets: Budget[], trips
   const budgetSpent = budgets.reduce((sum, budget) => sum + amountFrom(budget.spent), 0);
   const byCategory = new Map<string, number>();
   const byMonth = new Map<string, { amount: number; income: number; spend: number }>();
+  const investmentsByMonth = new Map<string, number>();
   const byTrip = new Map<string, number>();
   const byCurrency = new Map<string, number>();
   const merchantTrendMonths = new Map<string, { food: number; travel: number; shopping: number; subscriptions: number }>();
@@ -77,21 +83,32 @@ export function buildReportSummary(expenses: Expense[], budgets: Budget[], trips
   for (const expense of expenses) {
     const reportCategory = reportCategoryFor(expense, expensesById, splitsById);
     const baseAmount = expenseBaseAmount(expense);
-    byCategory.set(reportCategory, (byCategory.get(reportCategory) ?? 0) + spendImpactAmount(expense));
+    const spendImpact = spendImpactAmount(expense);
+    const investmentImpact = investmentImpactAmount(expense);
     const month = expenseMonthLabel(expense);
+
+    if (investmentImpact > 0) {
+      investmentsByMonth.set(month, (investmentsByMonth.get(month) ?? 0) + investmentImpact);
+    }
+
+    byCategory.set(reportCategory, (byCategory.get(reportCategory) ?? 0) + spendImpact);
     const monthBucket = byMonth.get(month) ?? { amount: 0, income: 0, spend: 0 };
-    monthBucket.amount += baseAmount;
-    if (baseAmount < 0) {
+    monthBucket.amount += spendImpact;
+    if (investmentImpact > 0) {
+      // Investment purchases are tracked separately from operating cash flow.
+    } else if (baseAmount < 0) {
       monthBucket.income += Math.abs(baseAmount);
     } else {
-      monthBucket.spend += baseAmount;
+      monthBucket.spend += Math.max(spendImpact, 0);
     }
     byMonth.set(month, monthBucket);
     const originalCurrency = currencyFrom(expense.original, (expense as Expense & { currency?: string }).currency || appConfig.baseCurrency);
-    byCurrency.set(originalCurrency, (byCurrency.get(originalCurrency) ?? 0) + Math.max(expenseOriginalAmount(expense), 0));
+    if (spendImpact > 0) {
+      byCurrency.set(originalCurrency, (byCurrency.get(originalCurrency) ?? 0) + Math.max(expenseOriginalAmount(expense), 0));
+    }
     const trendBucket = merchantTrendMonths.get(month) ?? { food: 0, travel: 0, shopping: 0, subscriptions: 0 };
     const categoryKey = reportCategory.toLowerCase();
-    const trendSpend = Math.max(spendImpactAmount(expense), 0);
+    const trendSpend = Math.max(spendImpact, 0);
     if (categoryKey.includes("food")) {
       trendBucket.food += trendSpend;
     } else if (categoryKey.includes("travel")) {
@@ -127,6 +144,10 @@ export function buildReportSummary(expenses: Expense[], budgets: Budget[], trips
       amount: roundMoney(bucket.amount),
       income: roundMoney(bucket.income),
       spend: roundMoney(bucket.spend)
+    })),
+    investmentTrend: Array.from(investmentsByMonth.entries()).map(([month, amount]) => ({
+      month,
+      amount: roundMoney(amount)
     })),
     budgetVariance: budgets.map((budget) => ({
       categoryName: budget.scope === "overall" ? "Overall spend" : budget.categoryName,

@@ -244,6 +244,9 @@ export const demoReport: ReportSummary = {
     { month: "Mar", amount: 34200, income: 0, spend: 34200 },
     { month: "Apr", amount: 38943, income: 0, spend: 38943 }
   ],
+  investmentTrend: [
+    { month: "Apr", amount: 5000 }
+  ],
   budgetVariance: [
     { categoryName: "Overall spend", limitAmount: 50000, actualAmount: 38943, remainingAmount: 11057, usagePercent: 78 }
   ],

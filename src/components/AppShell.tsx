@@ -15,6 +15,7 @@ import { PreferencesProvider, usePreferences } from "@/lib/client/preferences";
 const navItems = [
   { href: "/", key: "dashboard" },
   { href: "/expenses", key: "expenses" },
+  { href: "/investments", key: "investments" },
   { href: "/budgets", key: "budgets" },
   { href: "/recurring-expenses", key: "recurring" },
   { href: "/parties", key: "parties" },
@@ -254,10 +255,17 @@ function ShellContent({ children }: { children: React.ReactNode }) {
               </div>
             </div>
             <div className="sidebar-identity-row">
-              <div className="sidebar-user" title={session?.user?.email ?? userDisplayName}>
+              <Link
+                className={pathname === "/profile" ? "sidebar-user active" : "sidebar-user"}
+                href="/profile"
+                title={session?.user?.email ?? userDisplayName}
+                aria-label={tx("Open profile")}
+                aria-current={pathname === "/profile" ? "page" : undefined}
+                onClick={() => setMobileNavOpen(false)}
+              >
                 <span>{t("hi")}</span>
                 <strong>{firstName}</strong>
-              </div>
+              </Link>
               <span className={isOnline ? "connection sidebar-connection online" : "connection sidebar-connection offline"}>{isOnline ? t("online") : t("offline")}</span>
             </div>
             <div className="sidebar-footer-actions">

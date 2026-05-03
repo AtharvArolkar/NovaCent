@@ -1,6 +1,6 @@
 # NovaCent
 
-NovaCent is a Next.js + TypeScript personal finance app for account-scoped expenses, bank statement imports, budgets, shared party splits, recurring payments, reports, offline-friendly usage, and Vercel deployment.
+NovaCent is a Next.js + TypeScript personal finance app for account-scoped expenses, bank statement imports, budgets, investment tracking, shared party splits, recurring payments, reports, offline-friendly usage, and Vercel deployment.
 
 ## Quick Start
 
@@ -67,18 +67,19 @@ npm audit --omit=dev
 
 The living product feature inventory is maintained in [docs/features-list.md](docs/features-list.md). Update that document whenever a feature is added, changed, deferred, or removed.
 
-- Auth: email/password sign-in, registration, logout, forgot/reset/change password, and Google OAuth wiring.
+- Auth: email/password sign-in, registration, logout, forgot/reset/change password, profile display-name updates, and Google OAuth wiring.
 - Accounts: global account switcher, account-scoped APIs, neutral primary account labeling, and per-account preferences.
-- Expenses: quick add, search, row selection, select all, one-request bulk deletion, original-currency display, and offline queueing.
+- Expenses: quick add, search, all/actual-spend filtering, row selection, select all, one-request bulk deletion, original-currency display, editable category/money-flow classification, and offline queueing.
 - Money flow: paid/outgoing amounts show as negative red values; received/reimbursement amounts show as positive green values.
 - Currency: multi-currency entry, stored original currency per expense, default-currency preference for new entries, and Frankfurter-backed conversion for calculations.
-- Budgets: monthly/yearly budget tracking, edit/delete flows, alert thresholds, default-currency calculations, and expandable included-expense details.
-- Dashboard: lightweight overview API, loading state instead of misleading zeroes, monthly/yearly remaining budget cards, recent activity, and mobile swipe metric cards.
-- Imports: CSV, XLS/XLSX, TXT, and text-PDF statement parsing, password-protected text PDF support, review-before-save, duplicate filtering, category assignment, and one-request bulk approve/delete.
+- Budgets: monthly/yearly budget tracking, edit/delete flows, alert thresholds, default-currency calculations, investment exclusion, and expandable included-expense details.
+- Dashboard: lightweight overview API, loading state instead of misleading zeroes, monthly/yearly remaining budget cards, yearly investment metric, recent activity, and mobile swipe metric cards.
+- Investments: dedicated investment ledger with 1 month, 3 months, 1 year, 3 years, All, and custom date-range filters, filtered totals, and editable classification.
+- Imports: CSV, XLS/XLSX, TXT, and text-PDF statement parsing, password-protected text PDF support, review-before-save, duplicate filtering, category assignment, investment detection, and one-request bulk approve/delete.
 - Statement parsing: common bank columns are detected for date, narration/description, reference, withdrawal/debit, deposit/credit, amount, balance, and wrapped PDF rows.
 - Parties: shared party workspaces, registered or placeholder participants, party expense creation, split modes, staged ledger expenses, settlement approvals, and participant notifications.
 - Recurring expenses: recurring rule UI with create/edit/pause/resume/end flows and Vercel Cron-compatible background execution.
-- Reports: timeframe filters, category mix, cash flow, budget variance, merchant, party, and currency analytics with CSV and PDF/print export.
+- Reports: timeframe filters, category mix, cash flow, investments, budget variance, merchant, party, and currency analytics with CSV and PDF/print export.
 - Notifications: notification center with unread count, mark-read, clear-all, import, budget, settlement, password, and guide/PWA prompts.
 - Support: authenticated customer support form saved to MongoDB, with optional generic SMTP admin email.
 - Offline/PWA: service worker, manifest, install prompt, cached rates/reports foundation, sync outbox, and sync-now action.

@@ -40,6 +40,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Forgot-password, reset-password, and change-password APIs and screens. |
 | Implemented | Forgot-password can send reset links through generic SMTP when SMTP variables are configured; development reset URL remains available only when SMTP is not configured. |
 | Implemented | Authenticated navigation panel displays `Hi <first name>` at the bottom, using the formatted first word of the profile name with email/user fallback. |
+| Implemented | Clicking `Hi <first name>` opens a responsive Profile page with read-only account details, editable display name, and email/password change-password controls. |
 | Implemented | Default INR account creation for new users. |
 | Implemented | Multiple account support with a global account switcher. |
 | Implemented | Global account preference sanitization in live mode so stale demo account ids do not drive refresh-time API calls. |
@@ -66,11 +67,13 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Dashboard and Reports metric cards become horizontally scrollable swipe rails on mobile. |
 | Implemented | Dashboard loads account summary metrics through a lightweight overview API and shows a loading state instead of temporary zero-value metrics while the first overview request is pending. |
 | Implemented | Dashboard separates remaining budget into monthly remaining and yearly remaining cards instead of showing a combined runway metric. |
+| Implemented | Dashboard shows yearly investment activity as a separate metric instead of mixing investments into total spend. |
 | Implemented | Responsive hardening for top-bar actions, page actions, forms, tables, charts, participant chips, and mobile action buttons. |
 | Implemented | Date fields use a shared accessible picker control with a visible calendar button across expenses, recurring rules, party expenses, and report filters. |
 | Implemented | Native dropdown controls use consistent app-wide width, text clipping, dark-mode color-scheme, and option theme styling where browsers allow it. |
 | Implemented | Refreshed multi-accent visual system with blue, teal, violet, amber, and rose tokens instead of a single green-heavy palette. |
 | Implemented | Reports and charts use shared chart color tokens for clearer category, cashflow, budget, party, and currency visuals. |
+| Implemented | Reports include a separate investment trend chart so investment activity can be reviewed outside normal spend. |
 | Implemented | Report timeframe presets render as compact desktop buttons and a mobile-friendly dropdown. |
 | Implemented | Report export actions use compact side-by-side mobile controls to keep report content higher on the page. |
 | Implemented | Dark-mode report chart tooltips use theme-aware text and surface colors for readable values. |
@@ -89,14 +92,26 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Quick-add expense form appears above the ledger and defaults the date to the local current date. |
 | Implemented | Manual expense create flow with success/error feedback. |
 | Implemented | Expense ledger supports row checkboxes, select-all for visible selectable expenses, and confirmed one-request bulk deletion of selected deletable expenses. |
+| Implemented | Expense ledger includes a responsive view filter for all transactions versus actual spend-only rows, keeping investment, income, and transfer rows out of the daily-spend view. |
 | Implemented | Expense rows preserve and display the original saved amount and currency; converted values are kept as calculation metadata only. |
-| Implemented | Category pickers include Food, Shopping, Travel, Fuel, Loan/EMI, Subscriptions, Health, Others, plus import-specific Uncategorized/Reimbursements options. |
+| Implemented | Category pickers include Food, Shopping, Travel, Fuel, Loan/EMI, broad Investments, investment subcategories such as Mutual Funds, Stocks, Postal Investments, Insurance Investments, PPF/NPS, deposits, bonds, gold, crypto, Subscriptions, Health, Others, plus import-specific Uncategorized/Reimbursements options. |
+| Implemented | Expense rows can be reclassified from the Expenses page by editing both visible category and internal money-flow type. |
+| Implemented | Imported statement rows can be assigned categories during review; investment money-flow type stays hidden and is derived from category or keyword detection. |
 | Implemented | Offline expense queueing when the device is offline. |
 | Implemented | Expense delete button with confirmation. |
 | Implemented | Delete confirmations use a responsive in-app translated dialog instead of browser popups. |
 | Implemented | Settlement ledger rows are locked from direct deletion. |
 | Implemented | Party expense deletion removes the item from the overall expense ledger. |
 | Implemented | Budget spent totals are reversed when a normal expense is deleted. |
+
+## Investments
+
+| Status | Feature |
+| --- | --- |
+| Implemented | Dedicated Investments page in the main navigation after Expenses. |
+| Implemented | Investment ledger lists investment transactions separately from daily expenses with the same responsive ledger UX. |
+| Implemented | Investment page supports 1 month, 3 months, 1 year, 3 years, All, and selected date-range filters with a filtered investment total. |
+| Implemented | Investment classifications can be corrected from the Investments page by changing category or money-flow type. |
 
 ## Budgets
 
@@ -110,6 +125,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Overall spend budgets track every visible expense in the active month/year, while single-category budgets track only their matching category. |
 | Implemented | Budget spend matching supports both category id and category name so older existing expenses still count when the visible category matches. |
 | Implemented | Budget calculations net eligible imported deposit/reimbursement credits against imported statement spend, while imported salary, self-transfer, sweep, and investment-transfer rows are ignored by keyword. |
+| Implemented | Investment purchases are excluded from budget spent totals while loan and EMI transactions remain normal spend. |
 | Implemented | Budget spend is calculated by converting matching expenses into the budget/default currency before summing mixed-currency rows. |
 | Implemented | Dashboard Budget Health and Budgets page display budget spend, limit, and included expense amounts in the selected default currency. |
 | Implemented | Budget cards can expand to show the exact expenses included in the active calculation window. |

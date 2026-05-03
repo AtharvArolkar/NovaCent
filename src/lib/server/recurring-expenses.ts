@@ -4,6 +4,7 @@ import { applyExpenseBudgetImpact } from "@/lib/server/budgets";
 import { convertToBase } from "@/lib/server/currency";
 import { duplicateKeyFor } from "@/lib/server/import-duplicates";
 import { collections, getDb } from "@/lib/server/mongodb";
+import { classifyMoneyFlowType } from "@/lib/spend-impact";
 
 export function nextRecurringRunAfter(dateValue: string, frequency: RecurringExpenseRule["frequency"], interval: number) {
   const date = new Date(dateValue);
@@ -41,6 +42,13 @@ export async function createRecurringExpenseOccurrence({
 
   const conversion = await convertToBase(rule.original, account.baseCurrency);
   const now = new Date().toISOString();
+  const moneyFlowType = classifyMoneyFlowType(Number(conversion.base.amount ?? rule.original.amount ?? 0), {
+    source: "recurring",
+    merchant: rule.merchant,
+    description: rule.description,
+    categoryName: rule.categoryName,
+    notes: rule.notes
+  });
   const expense: Expense & { duplicateKey: string } = {
     id: crypto.randomUUID(),
     accountId: rule.accountId,
@@ -54,6 +62,7 @@ export async function createRecurringExpenseOccurrence({
     exchangeRate: conversion.exchangeRate,
     spentAt,
     notes: rule.notes,
+    moneyFlowType,
     recurringRuleId: rule.id,
     syncStatus: "synced",
     clientMutationId,

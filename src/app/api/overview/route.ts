@@ -3,7 +3,7 @@ import { getCurrencyRate } from "@/lib/server/currency";
 import { handleApiError, ok } from "@/lib/server/http";
 import { hydrateBudgetSpend } from "@/lib/server/budgets";
 import { collections, getDb } from "@/lib/server/mongodb";
-import { spendImpactForSignedAmount } from "@/lib/spend-impact";
+import { investmentAmountForSignedAmount, spendImpactForSignedAmount } from "@/lib/spend-impact";
 import type { Budget, Expense, Money } from "@/lib/domain";
 
 function roundMoney(amount: number) {
@@ -17,6 +17,12 @@ function normalizeCurrency(currency?: string) {
 function monthBounds(now = new Date()) {
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
+function yearBounds(now = new Date()) {
+  const start = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+  const end = new Date(Date.UTC(now.getUTCFullYear() + 1, 0, 1));
   return { start: start.toISOString(), end: end.toISOString() };
 }
 
@@ -71,8 +77,18 @@ async function spendImpactInCurrency(expense: Expense, targetCurrency: string, c
   return spendImpactForSignedAmount(amount, expense);
 }
 
+async function investmentAmountInCurrency(expense: Expense, targetCurrency: string, cache: RateCache) {
+  const amount = await expenseAmountInCurrency(expense, targetCurrency, cache);
+  return investmentAmountForSignedAmount(amount, expense);
+}
+
 async function totalSpendImpact(expenses: Expense[], targetCurrency: string, cache: RateCache) {
   const amounts = await Promise.all(expenses.map((expense) => spendImpactInCurrency(expense, targetCurrency, cache)));
+  return Math.max(0, roundMoney(amounts.reduce((sum, amount) => sum + amount, 0)));
+}
+
+async function totalInvestmentImpact(expenses: Expense[], targetCurrency: string, cache: RateCache) {
+  const amounts = await Promise.all(expenses.map((expense) => investmentAmountInCurrency(expense, targetCurrency, cache)));
   return Math.max(0, roundMoney(amounts.reduce((sum, amount) => sum + amount, 0)));
 }
 
@@ -92,14 +108,20 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const targetCurrency = normalizeCurrency(url.searchParams.get("targetCurrency") ?? account.baseCurrency);
     const { start: monthStart, end: monthEnd } = monthBounds();
+    const { start: yearStart, end: yearEnd } = yearBounds();
     const db = await getDb();
     const expenseQuery = {
       accountId,
       excludeFromLedger: { $ne: true },
       spentAt: { $gte: monthStart, $lt: monthEnd }
     };
+    const yearlyExpenseQuery = {
+      accountId,
+      excludeFromLedger: { $ne: true },
+      spentAt: { $gte: yearStart, $lt: yearEnd }
+    };
 
-    const [summaryExpenses, recentExpenses, budgets, pendingImports] = await Promise.all([
+    const [summaryExpenses, yearlySummaryExpenses, recentExpenses, budgets, pendingImports] = await Promise.all([
       db.collection<Expense>(collections.expenses).find(expenseQuery).project<Expense>({
         _id: 0,
         id: 1,
@@ -113,6 +135,25 @@ export async function GET(request: Request) {
         base: 1,
         spentAt: 1,
         notes: 1,
+        moneyFlowType: 1,
+        syncStatus: 1,
+        createdAt: 1,
+        updatedAt: 1
+      }).toArray(),
+      db.collection<Expense>(collections.expenses).find(yearlyExpenseQuery).project<Expense>({
+        _id: 0,
+        id: 1,
+        accountId: 1,
+        source: 1,
+        merchant: 1,
+        description: 1,
+        categoryId: 1,
+        categoryName: 1,
+        original: 1,
+        base: 1,
+        spentAt: 1,
+        notes: 1,
+        moneyFlowType: 1,
         syncStatus: 1,
         createdAt: 1,
         updatedAt: 1
@@ -126,8 +167,9 @@ export async function GET(request: Request) {
     const hydratedBudgets = await hydrateBudgetSpend(db, accountId, budgets, { includeExpenses: false });
     const monthlyBudgets = hydratedBudgets.filter((budget) => (budget.period ?? "monthly") === "monthly");
     const yearlyBudgets = hydratedBudgets.filter((budget) => budget.period === "yearly");
-    const [totalSpend, remainingBudget, monthlyRemainingBudget, yearlyRemainingBudget] = await Promise.all([
+    const [totalSpend, totalInvested, remainingBudget, monthlyRemainingBudget, yearlyRemainingBudget] = await Promise.all([
       totalSpendImpact(summaryExpenses, targetCurrency, rateCache),
+      totalInvestmentImpact(yearlySummaryExpenses, targetCurrency, rateCache),
       remainingBudgetInCurrency(hydratedBudgets, targetCurrency, rateCache),
       remainingBudgetInCurrency(monthlyBudgets, targetCurrency, rateCache),
       remainingBudgetInCurrency(yearlyBudgets, targetCurrency, rateCache)
@@ -135,6 +177,7 @@ export async function GET(request: Request) {
 
     return ok({
       totalSpend,
+      totalInvested,
       remainingBudget,
       monthlyRemainingBudget,
       yearlyRemainingBudget,

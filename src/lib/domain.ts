@@ -12,6 +12,8 @@ export type ImportRowStatus = "review" | "possible_duplicate" | "deleted" | "app
 
 export type ExpenseSource = "manual" | "recurring" | "import" | "trip" | "party" | "settlement";
 
+export type MoneyFlowType = "spend" | "income" | "transfer" | "investment";
+
 export type RecurringFrequency = "daily" | "weekly" | "monthly" | "yearly";
 
 export type RecurringExpenseStatus = "active" | "paused" | "ended";
@@ -78,6 +80,7 @@ export interface Expense {
   original: Money;
   base: Money;
   exchangeRate?: CurrencySnapshot;
+  moneyFlowType?: MoneyFlowType;
   spentAt: string;
   notes?: string;
   tripId?: string;
@@ -227,6 +230,7 @@ export interface ImportRow {
   description?: string;
   reference?: string;
   direction?: "withdrawal" | "deposit";
+  moneyFlowType?: MoneyFlowType;
   categoryId?: string;
   spentAt: string;
   original: Money;
@@ -262,6 +266,7 @@ export interface ReportSummary {
   pendingSyncCount: number;
   categoryBreakdown: Array<{ category: string; amount: number; color: string }>;
   monthlyTrend: Array<{ month: string; amount: number; income: number; spend: number }>;
+  investmentTrend: Array<{ month: string; amount: number }>;
   budgetVariance: Array<{ categoryName: string; limitAmount: number; actualAmount: number; remainingAmount: number; usagePercent: number }>;
   merchantTrends: Array<{ month: string; food: number; travel: number; shopping: number; subscriptions: number }>;
   tripSpend: Array<{ trip: string; amount: number }>;
