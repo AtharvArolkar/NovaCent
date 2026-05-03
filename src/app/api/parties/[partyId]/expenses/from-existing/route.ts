@@ -2,6 +2,7 @@ import { accountIdFromRequest, requireAccountAccess } from "@/lib/server/auth";
 import { created, handleApiError, problem } from "@/lib/server/http";
 import { collections, getDb } from "@/lib/server/mongodb";
 import { partyAccessQuery } from "@/lib/server/party-access";
+import { notifyPartySplitParticipants } from "@/lib/server/party-notifications";
 import { existingExpenseSplitSchema } from "@/lib/server/schemas";
 import type { Expense, Party, Split } from "@/lib/domain";
 
@@ -106,6 +107,14 @@ export async function POST(request: Request, context: RouteContext) {
     );
     if (splits.length) {
       await db.collection<Split>(collections.splits).insertMany(splits);
+      await notifyPartySplitParticipants({
+        db,
+        party,
+        splits,
+        actorUserId: user.id,
+        actorAccountId: selectedAccountId,
+        merchant: expenses.length === 1 ? expenses[0].merchant : undefined
+      });
     }
 
     return created({

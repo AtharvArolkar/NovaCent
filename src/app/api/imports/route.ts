@@ -4,7 +4,7 @@ import { parseStatementFile, StatementPasswordError } from "@/lib/server/import-
 import { created, handleApiError, ok, problem } from "@/lib/server/http";
 import { markPossibleImportDuplicates } from "@/lib/server/import-duplicates";
 import { createNotification } from "@/lib/server/notifications";
-import type { CategoryRule } from "@/lib/domain";
+import type { CategoryRule, ImportRow } from "@/lib/domain";
 
 export async function GET(request: Request) {
   try {
@@ -13,23 +13,50 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const duplicateOnly = url.searchParams.get("duplicates") === "true";
     const status = url.searchParams.get("status");
-    const batches = await db.collection(collections.importBatches).find({ accountId }).sort({ createdAt: -1 }).limit(50).toArray();
+    const requestedLimit = Number(url.searchParams.get("limit") ?? 2000);
+    const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(requestedLimit, 5000)) : 2000;
+    const batches = await db.collection(collections.importBatches)
+      .find({ accountId })
+      .project({ rows: 0 })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .toArray();
+    const batchIds = batches.map((batch) => String(batch.id));
+    const rowQuery: Record<string, unknown> = {
+      accountId,
+      batchId: { $in: batchIds }
+    };
 
-    if (duplicateOnly || status) {
-      return ok({
-        batches: batches.map((batch) => ({
-          ...batch,
-          rows: (batch.rows ?? []).filter((row: { status?: string; possibleDuplicates?: unknown[] }) => {
-            if (duplicateOnly && (!row.possibleDuplicates || row.possibleDuplicates.length === 0)) {
-              return false;
-            }
-            return status ? row.status === status : true;
-          })
-        }))
-      });
+    if (status) {
+      rowQuery.status = status;
+    } else {
+      rowQuery.status = { $in: ["review", "possible_duplicate"] };
     }
 
-    return ok({ batches });
+    if (duplicateOnly) {
+      rowQuery["possibleDuplicates.0"] = { $exists: true };
+    }
+
+    const rows = batchIds.length
+      ? await db.collection<ImportRow & { accountId: string }>(collections.importRows)
+          .find(rowQuery)
+          .sort({ createdAt: -1 })
+          .limit(limit)
+          .toArray()
+      : [];
+    const rowsByBatch = new Map<string, typeof rows>();
+    for (const row of rows) {
+      const batchRows = rowsByBatch.get(row.batchId) ?? [];
+      batchRows.push(row);
+      rowsByBatch.set(row.batchId, batchRows);
+    }
+
+    return ok({
+      batches: batches.map((batch) => ({
+        ...batch,
+        rows: rowsByBatch.get(String(batch.id)) ?? []
+      }))
+    });
   } catch (error) {
     return handleApiError(error);
   }
@@ -84,12 +111,18 @@ export async function POST(request: Request) {
     }
     const rows = await markPossibleImportDuplicates(accountId, parsedRows);
     const now = new Date().toISOString();
+    const duplicateCount = rows.filter((row) => row.status === "possible_duplicate").length;
     const batch = {
       id: batchId,
       accountId,
       fileName: file.name,
       status: "review",
-      rows,
+      rows: [],
+      rowCount: rows.length,
+      pendingCount: rows.length,
+      duplicateCount,
+      approvedCount: 0,
+      deletedCount: 0,
       createdAt: now,
       updatedAt: now,
       originalFileDeleted: true
@@ -109,7 +142,7 @@ export async function POST(request: Request) {
       entityType: "importBatch",
       entityId: batchId
     });
-    return created({ batch });
+    return created({ batch: { ...batch, rows } });
   } catch (error) {
     return handleApiError(error);
   }

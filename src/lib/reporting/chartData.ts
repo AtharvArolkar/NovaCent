@@ -32,6 +32,7 @@ export interface PartySummaryPoint {
 }
 
 export interface ReportingChartData {
+  totalSpent?: number;
   categories: LabeledAmount[];
   cashflow: CashFlowPoint[];
   budgetVariance: BudgetVariancePoint[];

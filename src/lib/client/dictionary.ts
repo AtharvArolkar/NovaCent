@@ -44,6 +44,8 @@ export const dictionary = {
     progress: "Progress",
     totalSpend: "Total spend",
     remainingBudget: "Remaining budget",
+    monthlyRemainingBudget: "Monthly remaining",
+    yearlyRemainingBudget: "Yearly remaining",
     monthlyRunway: "Monthly runway",
     pendingImports: "Pending imports",
     save: "Save",
@@ -86,6 +88,8 @@ export const dictionary = {
     progress: "Progreso",
     totalSpend: "Gasto total",
     remainingBudget: "Presupuesto restante",
+    monthlyRemainingBudget: "Restante mensual",
+    yearlyRemainingBudget: "Restante anual",
     monthlyRunway: "Margen mensual",
     pendingImports: "Importaciones pendientes",
     save: "Guardar",
@@ -128,6 +132,8 @@ export const dictionary = {
     progress: "Progression",
     totalSpend: "Dépense totale",
     remainingBudget: "Budget restant",
+    monthlyRemainingBudget: "Mensuel restant",
+    yearlyRemainingBudget: "Annuel restant",
     monthlyRunway: "Autonomie mensuelle",
     pendingImports: "Imports en attente",
     save: "Enregistrer",
@@ -170,6 +176,8 @@ export const dictionary = {
     progress: "प्रगति",
     totalSpend: "कुल खर्च",
     remainingBudget: "शेष बजट",
+    monthlyRemainingBudget: "मासिक शेष",
+    yearlyRemainingBudget: "वार्षिक शेष",
     monthlyRunway: "मासिक रनवे",
     pendingImports: "लंबित आयात",
     save: "सहेजें",
@@ -212,6 +220,8 @@ export const dictionary = {
     progress: "प्रगती",
     totalSpend: "एकूण खर्च",
     remainingBudget: "उर्वरित बजेट",
+    monthlyRemainingBudget: "मासिक उर्वरित",
+    yearlyRemainingBudget: "वार्षिक उर्वरित",
     monthlyRunway: "मासिक रनवे",
     pendingImports: "प्रलंबित आयात",
     save: "जतन करा",
@@ -250,6 +260,8 @@ export const phraseDictionary: Record<Language, Record<string, string>> = {
     "Workspace preferences, sync posture, and localization readiness.": "Preferencias del espacio de trabajo, estado de sincronización y preparación de localización.",
     "Across visible transactions this month": "En transacciones visibles de este mes",
     "Available across active envelopes": "Disponible en sobres activos",
+    "Available in monthly budgets": "Disponible en presupuestos mensuales",
+    "Available in yearly budgets": "Disponible en presupuestos anuales",
     "At the current seven-day average": "Según el promedio actual de siete días",
     "Rows waiting for review": "Filas esperando revisión",
     "Key account metrics": "Métricas clave de la cuenta",
@@ -526,6 +538,8 @@ export const phraseDictionary: Record<Language, Record<string, string>> = {
     "Workspace preferences, sync posture, and localization readiness.": "Préférences de l'espace, état de synchronisation et préparation linguistique.",
     "Across visible transactions this month": "Sur les transactions visibles ce mois-ci",
     "Available across active envelopes": "Disponible dans les enveloppes actives",
+    "Available in monthly budgets": "Disponible dans les budgets mensuels",
+    "Available in yearly budgets": "Disponible dans les budgets annuels",
     "At the current seven-day average": "Au rythme moyen des sept derniers jours",
     "Rows waiting for review": "Lignes en attente de revue",
     "Key account metrics": "Indicateurs clés du compte",
@@ -796,6 +810,8 @@ export const phraseDictionary: Record<Language, Record<string, string>> = {
     "A calm command center for personal, party, and imported spending.": "निजी, समूह और आयातित खर्चों के लिए शांत नियंत्रण केंद्र।",
     "Across visible transactions this month": "इस महीने दिखने वाले लेनदेन में",
     "Available across active envelopes": "सक्रिय बजट में उपलब्ध",
+    "Available in monthly budgets": "मासिक बजट में उपलब्ध",
+    "Available in yearly budgets": "वार्षिक बजट में उपलब्ध",
     "At the current seven-day average": "मौजूदा सात-दिन के औसत पर",
     "Rows waiting for review": "समीक्षा के लिए प्रतीक्षा कर रही पंक्तियां",
     "Budget health": "बजट स्वास्थ्य",
@@ -1072,6 +1088,8 @@ export const phraseDictionary: Record<Language, Record<string, string>> = {
     "A calm command center for personal, party, and imported spending.": "वैयक्तिक, समूह आणि आयात केलेल्या खर्चांसाठी शांत नियंत्रण केंद्र.",
     "Across visible transactions this month": "या महिन्यातील दिसणाऱ्या व्यवहारांमध्ये",
     "Available across active envelopes": "सक्रिय बजेटमध्ये उपलब्ध",
+    "Available in monthly budgets": "मासिक बजेटमध्ये उपलब्ध",
+    "Available in yearly budgets": "वार्षिक बजेटमध्ये उपलब्ध",
     "At the current seven-day average": "सध्याच्या सात दिवसांच्या सरासरीनुसार",
     "Rows waiting for review": "पुनरावलोकनासाठी प्रतीक्षेत असलेल्या ओळी",
     "Budget health": "बजेट स्थिती",
@@ -1324,6 +1342,9 @@ export const supplementalPhraseDictionary: Record<Language, Record<string, strin
     "Confirm delete": "Confirm delete",
     "This action cannot be undone.": "This action cannot be undone.",
     "from expenses?": "from expenses?",
+    "Select all expenses": "Select all expenses",
+    "Delete selected": "Delete selected",
+    "Delete selected expenses?": "Delete selected expenses?",
     "Delete all": "Delete all",
     "Delete all import rows?": "Delete all import rows?",
     "Unable to delete import rows.": "Unable to delete import rows.",
@@ -1364,7 +1385,17 @@ export const supplementalPhraseDictionary: Record<Language, Record<string, strin
     "Account recovery": "Account recovery",
     "Password reset": "Password reset",
     "Sign in to NovaCent": "Sign in to NovaCent",
+    "Working on your request...": "Working on your request...",
+    "Processing statement...": "Processing statement...",
+    "Saving imported rows...": "Saving imported rows...",
+    "Updating imported rows...": "Updating imported rows...",
+    "Syncing changes...": "Syncing changes...",
+    "Updating notifications...": "Updating notifications...",
+    "Signing out...": "Signing out...",
+    "Please wait while NovaCent finishes this request.": "Please wait while NovaCent finishes this request.",
     "Add at least one more participant before adding staged expenses.": "Add at least one more participant before adding staged expenses.",
+    "Add another participant to create splits. With only one participant, NovaCent saves this as a party-only expense.": "Add another participant to create splits. With only one participant, NovaCent saves this as a party-only expense.",
+    "Party expense saved without splits.": "Party expense saved without splits.",
     "Some selected expenses cannot be added to a split.": "Some selected expenses cannot be added to a split.",
     "This is used for new entries. Existing expenses keep the currency they were saved with.": "This is used for new entries. Existing expenses keep the currency they were saved with.",
     manual: "manual",
@@ -1405,6 +1436,9 @@ export const supplementalPhraseDictionary: Record<Language, Record<string, strin
     "Confirm delete": "Confirmar eliminacion",
     "This action cannot be undone.": "Esta accion no se puede deshacer.",
     "from expenses?": "de gastos?",
+    "Select all expenses": "Seleccionar todos los gastos",
+    "Delete selected": "Eliminar seleccionados",
+    "Delete selected expenses?": "Eliminar los gastos seleccionados?",
     "Delete all": "Eliminar todo",
     "Delete all import rows?": "Eliminar todas las filas importadas?",
     "Unable to delete import rows.": "No se pudieron eliminar las filas importadas.",
@@ -1445,6 +1479,14 @@ export const supplementalPhraseDictionary: Record<Language, Record<string, strin
     "Account recovery": "Recuperacion de cuenta",
     "Password reset": "Restablecimiento de contrasena",
     "Sign in to NovaCent": "Iniciar sesion en NovaCent",
+    "Working on your request...": "Procesando tu solicitud...",
+    "Processing statement...": "Procesando extracto...",
+    "Saving imported rows...": "Guardando filas importadas...",
+    "Updating imported rows...": "Actualizando filas importadas...",
+    "Syncing changes...": "Sincronizando cambios...",
+    "Updating notifications...": "Actualizando notificaciones...",
+    "Signing out...": "Cerrando sesion...",
+    "Please wait while NovaCent finishes this request.": "Espera mientras NovaCent termina esta solicitud.",
     manual: "manual",
     import: "importacion",
     recurring: "recurrente",
@@ -1500,6 +1542,8 @@ export const supplementalPhraseDictionary: Record<Language, Record<string, strin
     "You have selected expenses waiting to be added to this party split.": "Tienes gastos seleccionados esperando agregarse a esta division.",
     "Add staged expenses": "Agregar gastos preparados",
     "Add at least one more participant before adding staged expenses.": "Agrega al menos un participante mas antes de agregar los gastos preparados.",
+    "Add another participant to create splits. With only one participant, NovaCent saves this as a party-only expense.": "Agrega otro participante para crear divisiones. Con un solo participante, NovaCent guarda esto como un gasto solo del grupo.",
+    "Party expense saved without splits.": "Gasto de grupo guardado sin divisiones.",
     "Some selected expenses cannot be added to a split.": "Algunos gastos seleccionados no se pueden agregar a una division.",
     "This is used for new entries. Existing expenses keep the currency they were saved with.": "Se usa para nuevas entradas. Los gastos existentes conservan la moneda con la que se guardaron.",
     "Customer support": "Soporte al cliente",
@@ -1545,6 +1589,9 @@ export const supplementalPhraseDictionary: Record<Language, Record<string, strin
     "Confirm delete": "Confirmer la suppression",
     "This action cannot be undone.": "Cette action est irreversible.",
     "from expenses?": "des depenses ?",
+    "Select all expenses": "Selectionner toutes les depenses",
+    "Delete selected": "Supprimer la selection",
+    "Delete selected expenses?": "Supprimer les depenses selectionnees ?",
     "Delete all": "Tout supprimer",
     "Delete all import rows?": "Supprimer toutes les lignes importees ?",
     "Unable to delete import rows.": "Impossible de supprimer les lignes importees.",
@@ -1585,6 +1632,14 @@ export const supplementalPhraseDictionary: Record<Language, Record<string, strin
     "Account recovery": "Recuperation du compte",
     "Password reset": "Reinitialisation du mot de passe",
     "Sign in to NovaCent": "Se connecter a NovaCent",
+    "Working on your request...": "Traitement de votre demande...",
+    "Processing statement...": "Traitement du releve...",
+    "Saving imported rows...": "Enregistrement des lignes importees...",
+    "Updating imported rows...": "Mise a jour des lignes importees...",
+    "Syncing changes...": "Synchronisation des changements...",
+    "Updating notifications...": "Mise a jour des notifications...",
+    "Signing out...": "Deconnexion...",
+    "Please wait while NovaCent finishes this request.": "Veuillez patienter pendant que NovaCent termine cette demande.",
     manual: "manuel",
     import: "import",
     recurring: "recurrent",
@@ -1640,6 +1695,8 @@ export const supplementalPhraseDictionary: Record<Language, Record<string, strin
     "You have selected expenses waiting to be added to this party split.": "Des depenses selectionnees attendent d'etre ajoutees a ce partage.",
     "Add staged expenses": "Ajouter les depenses preparees",
     "Add at least one more participant before adding staged expenses.": "Ajoutez au moins un participant de plus avant d'ajouter les depenses preparees.",
+    "Add another participant to create splits. With only one participant, NovaCent saves this as a party-only expense.": "Ajoutez un autre participant pour creer des partages. Avec un seul participant, NovaCent enregistre cela comme une depense de groupe seule.",
+    "Party expense saved without splits.": "Depense de groupe enregistree sans partages.",
     "Some selected expenses cannot be added to a split.": "Certaines depenses selectionnees ne peuvent pas etre ajoutees au partage.",
     "This is used for new entries. Existing expenses keep the currency they were saved with.": "Utilisee pour les nouvelles entrees. Les depenses existantes gardent la devise enregistree.",
     "Customer support": "Support client",
@@ -1683,6 +1740,9 @@ export const supplementalPhraseDictionary: Record<Language, Record<string, strin
     "Confirm delete": "हटाने की पुष्टि करें",
     "This action cannot be undone.": "यह कार्रवाई वापस नहीं की जा सकती.",
     "from expenses?": "खर्चों से?",
+    "Select all expenses": "सभी खर्च चुनें",
+    "Delete selected": "चयनित हटाएं",
+    "Delete selected expenses?": "चयनित खर्च हटाएं?",
     "Delete all": "सभी हटाएं",
     "Delete all import rows?": "सभी आयात पंक्तियां हटाएं?",
     "Unable to delete import rows.": "आयात पंक्तियां हटाई नहीं जा सकीं.",
@@ -1720,6 +1780,14 @@ export const supplementalPhraseDictionary: Record<Language, Record<string, strin
     "Account recovery": "खाता पुनर्प्राप्ति",
     "Password reset": "पासवर्ड रीसेट",
     "Sign in to NovaCent": "NovaCent में साइन इन करें",
+    "Working on your request...": "आपका अनुरोध पूरा हो रहा है...",
+    "Processing statement...": "स्टेटमेंट प्रोसेस हो रहा है...",
+    "Saving imported rows...": "आयात पंक्तियां सहेजी जा रही हैं...",
+    "Updating imported rows...": "आयात पंक्तियां अपडेट हो रही हैं...",
+    "Syncing changes...": "बदलाव सिंक हो रहे हैं...",
+    "Updating notifications...": "सूचनाएं अपडेट हो रही हैं...",
+    "Signing out...": "साइन आउट हो रहा है...",
+    "Please wait while NovaCent finishes this request.": "कृपया प्रतीक्षा करें, NovaCent यह अनुरोध पूरा कर रहा है.",
     manual: "मैनुअल",
     import: "आयात",
     recurring: "आवर्ती",
@@ -1813,6 +1881,9 @@ export const supplementalPhraseDictionary: Record<Language, Record<string, strin
     "Confirm delete": "हटवण्याची पुष्टी करा",
     "This action cannot be undone.": "ही कृती परत करता येणार नाही.",
     "from expenses?": "खर्चांमधून?",
+    "Select all expenses": "सर्व खर्च निवडा",
+    "Delete selected": "निवडलेले हटवा",
+    "Delete selected expenses?": "निवडलेले खर्च हटवायचे?",
     "Delete all": "सर्व हटवा",
     "Delete all import rows?": "सर्व आयात ओळी हटवायच्या?",
     "Unable to delete import rows.": "आयात ओळी हटवता आल्या नाहीत.",
@@ -1850,6 +1921,14 @@ export const supplementalPhraseDictionary: Record<Language, Record<string, strin
     "Account recovery": "खाते पुनर्प्राप्ती",
     "Password reset": "पासवर्ड रीसेट",
     "Sign in to NovaCent": "NovaCent मध्ये साइन इन करा",
+    "Working on your request...": "तुमची विनंती पूर्ण होत आहे...",
+    "Processing statement...": "स्टेटमेंट प्रक्रिया होत आहे...",
+    "Saving imported rows...": "आयात ओळी जतन होत आहेत...",
+    "Updating imported rows...": "आयात ओळी अपडेट होत आहेत...",
+    "Syncing changes...": "बदल सिंक होत आहेत...",
+    "Updating notifications...": "सूचना अपडेट होत आहेत...",
+    "Signing out...": "साइन आउट होत आहे...",
+    "Please wait while NovaCent finishes this request.": "कृपया थांबा, NovaCent ही विनंती पूर्ण करत आहे.",
     manual: "मॅन्युअल",
     import: "आयात",
     recurring: "आवर्ती",
@@ -1928,6 +2007,9 @@ export type GuideContent = {
   quickStartTitle: string;
   quickStartAria: string;
   sectionsAria: string;
+  featureOverviewTitle: string;
+  featureOverviewAria: string;
+  featureOverview: Array<{ title: string; description: string }>;
   quickStart: Array<{ title: string; description: string }>;
   sections: Array<{ title: string; description: string; steps: string[] }>;
 };
@@ -1935,13 +2017,29 @@ export type GuideContent = {
 export const guideContent: Record<Language, GuideContent> = {
   en: {
     pageTitle: "How to use NovaCent",
-    pageDescription: "A friendly walkthrough for tracking personal spending, imports, budgets, parties, recurring expenses, and reports.",
-    settingsDescription: "A simple step-by-step guide for expenses, budgets, statement imports, parties, recurring rules, reports, notifications, and offline use.",
+    pageDescription: "A first-time walkthrough for setting up your workspace, adding expenses, importing statements, reviewing budgets, and reading reports.",
+    settingsDescription: "A simple new-user guide for accounts, daily expenses, statement imports, budgets, parties, recurring rules, reports, notifications, and offline use.",
     backToSettings: "Back to settings",
     openGuide: "Open guide",
     quickStartTitle: "Quick start",
     quickStartAria: "Quick start checklist",
     sectionsAria: "NovaCent guide sections",
+    featureOverviewTitle: "What you can do with NovaCent",
+    featureOverviewAria: "NovaCent feature overview",
+    featureOverview: [
+      { title: "Track expenses", description: "Add, review, search, and manage your daily spending in one place." },
+      { title: "Import bank statements", description: "Upload statements and review extracted transactions before saving them." },
+      { title: "Manage budgets", description: "Set monthly or yearly budgets and see how much you have used." },
+      { title: "View reports", description: "Analyze spending, cash flow, categories, merchants, budgets, and parties visually." },
+      { title: "Split shared expenses", description: "Create parties, add friends, split costs, and track settlements." },
+      { title: "Handle recurring expenses", description: "Set up repeating expenses like rent, subscriptions, or EMIs." },
+      { title: "Use multiple currencies", description: "Save expenses in different currencies while keeping reports consistent." },
+      { title: "Work offline", description: "Add supported changes offline and sync them when you are back online." },
+      { title: "Get notifications", description: "Stay informed about imports, budget alerts, settlements, and important actions." },
+      { title: "Customize preferences", description: "Change language, theme, default currency, and account settings." },
+      { title: "Install as an app", description: "Use NovaCent like a mobile or desktop app with PWA support." },
+      { title: "Request support", description: "Send feedback, report issues, or suggest new features from inside the app." }
+    ],
     quickStart: [
       {
         title: "Choose the right account",
@@ -1963,7 +2061,8 @@ export const guideContent: Record<Language, GuideContent> = {
         steps: [
           "Pick the account you want to work in before adding expenses, budgets, parties, or imports.",
           "Use the language and theme controls whenever you want a different reading experience.",
-          "Watch the online status. If you are offline, NovaCent keeps supported changes locally and syncs them when you are back online."
+          "Watch the online status. If you are offline, NovaCent keeps supported changes locally and syncs them when you are back online.",
+          "If a blurred progress screen appears, wait for NovaCent to finish saving, syncing, or processing before continuing."
         ]
       },
       {
@@ -1973,6 +2072,7 @@ export const guideContent: Record<Language, GuideContent> = {
           "Open Expenses and use Quick add at the top of the page.",
           "Enter merchant, category, amount, currency, and date. The date defaults to today.",
           "Use search to find older entries by merchant, category, or owner.",
+          "Use row checkboxes to select expenses, then delete selected unlocked expenses in one confirmed action.",
           "Delete unlocked expenses only after confirming. Settlement rows and settled party expenses stay protected."
         ]
       },
@@ -1994,7 +2094,7 @@ export const guideContent: Record<Language, GuideContent> = {
           "Review extracted rows before approval. Nothing is saved as an expense until you approve it.",
           "Choose a category from the dropdown or leave the row Uncategorized.",
           "Use the possible duplicates filter when another statement may contain rows you already imported.",
-          "Approve valid rows and delete rows that should not enter the ledger."
+          "Approve valid rows one by one, approve all safe rows at once, approve everything except possible duplicates, or delete all staged rows if the import is wrong."
         ]
       },
       {
@@ -2040,13 +2140,29 @@ export const guideContent: Record<Language, GuideContent> = {
   },
   es: {
     pageTitle: "Como usar NovaCent",
-    pageDescription: "Una guia sencilla para controlar gastos personales, importaciones, presupuestos, grupos, gastos recurrentes e informes.",
-    settingsDescription: "Una guia paso a paso para gastos, presupuestos, importacion de extractos, grupos, reglas recurrentes, informes, notificaciones y uso sin conexion.",
+    pageDescription: "Una guia inicial para configurar tu espacio, agregar gastos, importar extractos, revisar presupuestos y leer informes.",
+    settingsDescription: "Una guia sencilla para nuevos usuarios sobre cuentas, gastos diarios, importacion de extractos, presupuestos, grupos, reglas recurrentes, informes, notificaciones y uso sin conexion.",
     backToSettings: "Volver a ajustes",
     openGuide: "Abrir guia",
     quickStartTitle: "Inicio rapido",
     quickStartAria: "Lista de inicio rapido",
     sectionsAria: "Secciones de guia de NovaCent",
+    featureOverviewTitle: "Que puedes hacer con NovaCent",
+    featureOverviewAria: "Resumen de funciones de NovaCent",
+    featureOverview: [
+      { title: "Controlar gastos", description: "Agrega, revisa, busca y gestiona tus gastos diarios en un solo lugar." },
+      { title: "Importar extractos bancarios", description: "Sube extractos y revisa las transacciones extraidas antes de guardarlas." },
+      { title: "Gestionar presupuestos", description: "Crea presupuestos mensuales o anuales y mira cuanto has usado." },
+      { title: "Ver informes", description: "Analiza gastos, flujo de caja, categorias, comercios, presupuestos y grupos visualmente." },
+      { title: "Dividir gastos compartidos", description: "Crea grupos, agrega amigos, divide costes y controla liquidaciones." },
+      { title: "Gestionar gastos recurrentes", description: "Configura gastos repetidos como alquiler, suscripciones o EMIs." },
+      { title: "Usar varias monedas", description: "Guarda gastos en distintas monedas y mantiene informes consistentes." },
+      { title: "Trabajar sin conexion", description: "Agrega cambios admitidos sin conexion y sincronizalos al volver." },
+      { title: "Recibir notificaciones", description: "Mantente informado sobre importaciones, alertas de presupuesto, liquidaciones y acciones importantes." },
+      { title: "Personalizar preferencias", description: "Cambia idioma, tema, moneda predeterminada y ajustes de cuenta." },
+      { title: "Instalar como app", description: "Usa NovaCent como app movil o de escritorio con soporte PWA." },
+      { title: "Solicitar soporte", description: "Envia comentarios, reporta problemas o sugiere funciones desde la app." }
+    ],
     quickStart: [
       {
         title: "Elige la cuenta correcta",
@@ -2068,7 +2184,8 @@ export const guideContent: Record<Language, GuideContent> = {
         steps: [
           "Elige la cuenta en la que quieres trabajar antes de agregar gastos, presupuestos, grupos o importaciones.",
           "Usa los controles de idioma y tema cuando quieras una experiencia de lectura diferente.",
-          "Mira el estado en linea. Si estas sin conexion, NovaCent guarda los cambios admitidos localmente y los sincroniza al volver."
+          "Mira el estado en linea. Si estas sin conexion, NovaCent guarda los cambios admitidos localmente y los sincroniza al volver.",
+          "Si aparece una pantalla borrosa de progreso, espera a que NovaCent termine de guardar, sincronizar o procesar antes de continuar."
         ]
       },
       {
@@ -2078,6 +2195,7 @@ export const guideContent: Record<Language, GuideContent> = {
           "Abre Gastos y usa Agregar rapido en la parte superior.",
           "Ingresa comercio, categoria, importe, moneda y fecha. La fecha se establece en hoy por defecto.",
           "Usa la busqueda para encontrar entradas antiguas por comercio, categoria o propietario.",
+          "Usa las casillas para seleccionar gastos y eliminar los gastos desbloqueados seleccionados en una sola accion confirmada.",
           "Elimina gastos desbloqueados solo despues de confirmar. Los acuerdos y gastos de grupo saldados quedan protegidos."
         ]
       },
@@ -2099,7 +2217,7 @@ export const guideContent: Record<Language, GuideContent> = {
           "Revisa las filas extraidas antes de aprobarlas. Nada se guarda como gasto hasta que lo apruebes.",
           "Elige una categoria en el desplegable o deja la fila como Sin categoria.",
           "Usa el filtro de posibles duplicados si otro extracto puede contener filas ya importadas.",
-          "Aprueba filas validas y elimina las que no deben entrar al libro."
+          "Aprueba filas validas una por una, aprueba todas las filas seguras, aprueba todo excepto posibles duplicados o elimina todas las filas preparadas si la importacion es incorrecta."
         ]
       },
       {
@@ -2145,13 +2263,29 @@ export const guideContent: Record<Language, GuideContent> = {
   },
   fr: {
     pageTitle: "Comment utiliser NovaCent",
-    pageDescription: "Un guide simple pour suivre les depenses personnelles, imports, budgets, groupes, depenses recurrentes et rapports.",
-    settingsDescription: "Un guide etape par etape pour les depenses, budgets, imports de releves, groupes, regles recurrentes, rapports, notifications et usage hors ligne.",
+    pageDescription: "Un guide de premiere utilisation pour configurer l'espace, ajouter des depenses, importer des releves, verifier les budgets et lire les rapports.",
+    settingsDescription: "Un guide simple pour nouveaux utilisateurs sur comptes, depenses quotidiennes, imports de releves, budgets, groupes, regles recurrentes, rapports, notifications et usage hors ligne.",
     backToSettings: "Retour aux parametres",
     openGuide: "Ouvrir le guide",
     quickStartTitle: "Demarrage rapide",
     quickStartAria: "Liste de demarrage rapide",
     sectionsAria: "Sections du guide NovaCent",
+    featureOverviewTitle: "Ce que vous pouvez faire avec NovaCent",
+    featureOverviewAria: "Apercu des fonctionnalites NovaCent",
+    featureOverview: [
+      { title: "Suivre les depenses", description: "Ajoutez, verifiez, recherchez et gerez vos depenses quotidiennes au meme endroit." },
+      { title: "Importer des releves bancaires", description: "Importez des releves et verifiez les transactions extraites avant enregistrement." },
+      { title: "Gerer les budgets", description: "Creez des budgets mensuels ou annuels et voyez ce qui est deja utilise." },
+      { title: "Voir les rapports", description: "Analysez visuellement depenses, tresorerie, categories, marchands, budgets et groupes." },
+      { title: "Partager les depenses", description: "Creez des groupes, ajoutez des amis, partagez les couts et suivez les reglements." },
+      { title: "Gerer les depenses recurrentes", description: "Configurez les depenses repetees comme loyer, abonnements ou mensualites." },
+      { title: "Utiliser plusieurs devises", description: "Enregistrez les depenses dans plusieurs devises tout en gardant des rapports coherents." },
+      { title: "Travailler hors ligne", description: "Ajoutez les changements pris en charge hors ligne puis synchronisez-les au retour." },
+      { title: "Recevoir des notifications", description: "Restez informe des imports, alertes de budget, reglements et actions importantes." },
+      { title: "Personnaliser les preferences", description: "Changez langue, theme, devise par defaut et parametres de compte." },
+      { title: "Installer comme application", description: "Utilisez NovaCent comme application mobile ou bureau avec le support PWA." },
+      { title: "Demander de l'aide", description: "Envoyez commentaires, problemes ou idees de fonctionnalites depuis l'application." }
+    ],
     quickStart: [
       {
         title: "Choisir le bon compte",
@@ -2173,7 +2307,8 @@ export const guideContent: Record<Language, GuideContent> = {
         steps: [
           "Choisissez le compte a utiliser avant d'ajouter des depenses, budgets, groupes ou imports.",
           "Utilisez les controles de langue et de theme pour changer votre experience de lecture.",
-          "Surveillez le statut en ligne. Hors ligne, NovaCent garde les changements pris en charge localement puis les synchronise."
+          "Surveillez le statut en ligne. Hors ligne, NovaCent garde les changements pris en charge localement puis les synchronise.",
+          "Si un ecran de progression floute apparait, attendez que NovaCent termine l'enregistrement, la synchronisation ou le traitement."
         ]
       },
       {
@@ -2183,6 +2318,7 @@ export const guideContent: Record<Language, GuideContent> = {
           "Ouvrez Depenses et utilisez l'ajout rapide en haut de page.",
           "Saisissez marchand, categorie, montant, devise et date. La date est aujourd'hui par defaut.",
           "Utilisez la recherche pour retrouver des lignes par marchand, categorie ou proprietaire.",
+          "Utilisez les cases a cocher pour selectionner des depenses, puis supprimer les depenses deverrouillees selectionnees en une seule action confirmee.",
           "Supprimez les depenses deverrouillees seulement apres confirmation. Les reglements et depenses de groupe reglees restent proteges."
         ]
       },
@@ -2204,7 +2340,7 @@ export const guideContent: Record<Language, GuideContent> = {
           "Verifiez les lignes extraites avant approbation. Rien n'est enregistre comme depense avant votre accord.",
           "Choisissez une categorie ou laissez la ligne Non classee.",
           "Utilisez le filtre de doublons possibles si un autre releve peut contenir les memes lignes.",
-          "Approuvez les lignes valides et supprimez celles qui ne doivent pas entrer dans le grand livre."
+          "Approuvez les lignes valides une par une, approuvez toutes les lignes sures, approuvez tout sauf les doublons possibles ou supprimez toutes les lignes preparees si l'import est incorrect."
         ]
       },
       {
@@ -2250,13 +2386,29 @@ export const guideContent: Record<Language, GuideContent> = {
   },
   hi: {
     pageTitle: "NovaCent का उपयोग कैसे करें",
-    pageDescription: "निजी खर्च, आयात, बजट, समूह, आवर्ती खर्च और रिपोर्ट समझने के लिए सरल गाइड.",
-    settingsDescription: "खर्च, बजट, स्टेटमेंट आयात, समूह, आवर्ती नियम, रिपोर्ट, सूचनाएं और ऑफलाइन उपयोग के लिए आसान चरणबद्ध गाइड.",
+    pageDescription: "पहली बार उपयोग के लिए गाइड: कार्यक्षेत्र सेट करें, खर्च जोड़ें, स्टेटमेंट आयात करें, बजट देखें और रिपोर्ट पढ़ें.",
+    settingsDescription: "नए उपयोगकर्ता के लिए खाते, रोज के खर्च, स्टेटमेंट आयात, बजट, समूह, आवर्ती नियम, रिपोर्ट, सूचनाएं और ऑफलाइन उपयोग की आसान गाइड.",
     backToSettings: "सेटिंग्स पर वापस जाएं",
     openGuide: "गाइड खोलें",
     quickStartTitle: "त्वरित शुरुआत",
     quickStartAria: "त्वरित शुरुआत सूची",
     sectionsAria: "NovaCent गाइड सेक्शन",
+    featureOverviewTitle: "NovaCent में आप क्या कर सकते हैं",
+    featureOverviewAria: "NovaCent सुविधाओं की झलक",
+    featureOverview: [
+      { title: "खर्च ट्रैक करें", description: "अपने रोज़ के खर्च एक ही जगह जोड़ें, देखें, खोजें और संभालें." },
+      { title: "बैंक स्टेटमेंट आयात करें", description: "स्टेटमेंट अपलोड करें और सेव करने से पहले निकाली गई एंट्री देखें." },
+      { title: "बजट संभालें", description: "मासिक या वार्षिक बजट सेट करें और देखें कितना उपयोग हुआ है." },
+      { title: "रिपोर्ट देखें", description: "खर्च, नकद प्रवाह, श्रेणियां, व्यापारी, बजट और समूह को चार्ट में समझें." },
+      { title: "साझा खर्च बांटें", description: "समूह बनाएं, मित्र जोड़ें, खर्च बांटें और निपटारे ट्रैक करें." },
+      { title: "आवर्ती खर्च संभालें", description: "किराया, सब्सक्रिप्शन या EMI जैसे दोहराए जाने वाले खर्च सेट करें." },
+      { title: "कई मुद्राएं इस्तेमाल करें", description: "अलग-अलग मुद्राओं में खर्च सेव करें और रिपोर्ट को सुसंगत रखें." },
+      { title: "ऑफलाइन काम करें", description: "समर्थित बदलाव ऑफलाइन जोड़ें और ऑनलाइन आने पर सिंक करें." },
+      { title: "सूचनाएं पाएं", description: "आयात, बजट अलर्ट, निपटारे और जरूरी कार्रवाइयों की जानकारी पाएं." },
+      { title: "पसंद बदलें", description: "भाषा, थीम, डिफ़ॉल्ट मुद्रा और खाता सेटिंग बदलें." },
+      { title: "ऐप की तरह इंस्टॉल करें", description: "PWA सपोर्ट के साथ NovaCent को मोबाइल या डेस्कटॉप ऐप की तरह इस्तेमाल करें." },
+      { title: "सहायता मांगें", description: "ऐप के अंदर से प्रतिक्रिया भेजें, समस्या बताएं या नई सुविधा सुझाएं." }
+    ],
     quickStart: [
       {
         title: "सही खाता चुनें",
@@ -2278,7 +2430,8 @@ export const guideContent: Record<Language, GuideContent> = {
         steps: [
           "खर्च, बजट, समूह या आयात जोड़ने से पहले वह खाता चुनें जिसमें काम करना है.",
           "जब पढ़ने का अनुभव बदलना हो तो भाषा और थीम नियंत्रण इस्तेमाल करें.",
-          "ऑनलाइन स्थिति देखें. ऑफलाइन होने पर NovaCent समर्थित बदलाव स्थानीय रूप से रखता है और ऑनलाइन होने पर समन्वय करता है."
+          "ऑनलाइन स्थिति देखें. ऑफलाइन होने पर NovaCent समर्थित बदलाव स्थानीय रूप से रखता है और ऑनलाइन होने पर समन्वय करता है.",
+          "अगर धुंधली प्रगति स्क्रीन दिखे, तो आगे बढ़ने से पहले NovaCent को सेव, सिंक या प्रोसेस पूरा करने दें."
         ]
       },
       {
@@ -2288,6 +2441,7 @@ export const guideContent: Record<Language, GuideContent> = {
           "खर्च पेज खोलें और ऊपर त्वरित जोड़ का इस्तेमाल करें.",
           "व्यापारी, श्रेणी, राशि, मुद्रा और तारीख भरें. तारीख अपने आप आज की रहती है.",
           "पुरानी प्रविष्टियां व्यापारी, श्रेणी या मालिक से खोजने के लिए खोज का इस्तेमाल करें.",
+          "चेकबॉक्स से खर्च चुनें और चुने हुए अनलॉक खर्चों को एक पुष्टि की गई कार्रवाई में हटाएं.",
           "लॉक नहीं किए गए खर्च पुष्टि के बाद ही हटाएं. निपटान पंक्तियां और निपटाए गए समूह खर्च सुरक्षित रहते हैं."
         ]
       },
@@ -2309,7 +2463,7 @@ export const guideContent: Record<Language, GuideContent> = {
           "मंज़ूर करने से पहले निकाली गई पंक्तियों की समीक्षा करें. मंज़ूर किए बिना कोई पंक्ति खर्च नहीं बनती.",
           "ड्रॉपडाउन से श्रेणी चुनें या पंक्ति को अवर्गीकृत रहने दें.",
           "अगर दूसरे स्टेटमेंट में पहले से आयात की गई पंक्तियां हो सकती हैं, तो संभावित दोहराव फ़िल्टर इस्तेमाल करें.",
-          "मान्य पंक्तियां मंज़ूर करें और जो खाता-बही में नहीं जानी चाहिए उन्हें हटाएं."
+          "मान्य पंक्तियां एक-एक करके मंज़ूर करें, सभी सुरक्षित पंक्तियां मंज़ूर करें, संभावित दोहराव छोड़कर मंज़ूर करें, या आयात गलत हो तो सभी तैयार की गई पंक्तियां हटा दें."
         ]
       },
       {
@@ -2355,13 +2509,29 @@ export const guideContent: Record<Language, GuideContent> = {
   },
   mr: {
     pageTitle: "NovaCent कसे वापरावे",
-    pageDescription: "वैयक्तिक खर्च, आयात, बजेट, समूह, आवर्ती खर्च आणि अहवाल समजण्यासाठी सोपी गाइड.",
-    settingsDescription: "खर्च, बजेट, स्टेटमेंट आयात, समूह, आवर्ती नियम, अहवाल, सूचना आणि ऑफलाइन वापरासाठी सोपी चरणबद्ध गाइड.",
+    pageDescription: "पहिल्यांदा वापरणाऱ्यांसाठी गाइड: कार्यक्षेत्र सेट करा, खर्च जोडा, स्टेटमेंट आयात करा, बजेट तपासा आणि अहवाल वाचा.",
+    settingsDescription: "नवीन वापरकर्त्यांसाठी खाते, दररोजचे खर्च, स्टेटमेंट आयात, बजेट, समूह, आवर्ती नियम, अहवाल, सूचना आणि ऑफलाइन वापराची सोपी गाइड.",
     backToSettings: "सेटिंग्जवर परत जा",
     openGuide: "गाइड उघडा",
     quickStartTitle: "जलद सुरुवात",
     quickStartAria: "जलद सुरुवात यादी",
     sectionsAria: "NovaCent गाइड विभाग",
+    featureOverviewTitle: "NovaCent मध्ये तुम्ही काय करू शकता",
+    featureOverviewAria: "NovaCent सुविधांचा आढावा",
+    featureOverview: [
+      { title: "खर्च ट्रॅक करा", description: "दररोजचे खर्च एकाच ठिकाणी जोडा, पाहा, शोधा आणि व्यवस्थापित करा." },
+      { title: "बँक स्टेटमेंट आयात करा", description: "स्टेटमेंट अपलोड करा आणि सेव करण्यापूर्वी काढलेल्या नोंदी तपासा." },
+      { title: "बजेट व्यवस्थापित करा", description: "मासिक किंवा वार्षिक बजेट सेट करा आणि किती वापरले ते पाहा." },
+      { title: "अहवाल पाहा", description: "खर्च, रोकड प्रवाह, श्रेणी, व्यापारी, बजेट आणि समूह दृश्य स्वरूपात समजा." },
+      { title: "सामायिक खर्च वाटा", description: "समूह तयार करा, मित्र जोडा, खर्च वाटा आणि निपटारे ट्रॅक करा." },
+      { title: "आवर्ती खर्च हाताळा", description: "भाडे, सबस्क्रिप्शन किंवा EMI सारखे पुन्हा येणारे खर्च सेट करा." },
+      { title: "अनेक चलने वापरा", description: "वेगवेगळ्या चलनात खर्च सेव करा आणि अहवाल सुसंगत ठेवा." },
+      { title: "ऑफलाइन काम करा", description: "समर्थित बदल ऑफलाइन जोडा आणि ऑनलाइन झाल्यावर सिंक करा." },
+      { title: "सूचना मिळवा", description: "आयात, बजेट अलर्ट, निपटारे आणि महत्त्वाच्या कृतींबद्दल माहिती मिळवा." },
+      { title: "प्राधान्ये बदला", description: "भाषा, थीम, डीफॉल्ट चलन आणि खाते सेटिंग बदला." },
+      { title: "अॅप म्हणून इंस्टॉल करा", description: "PWA सपोर्टसह NovaCent मोबाइल किंवा डेस्कटॉप अॅपसारखे वापरा." },
+      { title: "सहाय्य मागा", description: "अॅपमधून अभिप्राय पाठवा, समस्या नोंदवा किंवा नवीन सुविधा सुचवा." }
+    ],
     quickStart: [
       {
         title: "योग्य खाते निवडा",
@@ -2383,7 +2553,8 @@ export const guideContent: Record<Language, GuideContent> = {
         steps: [
           "खर्च, बजेट, समूह किंवा आयात जोडण्यापूर्वी काम करायचे खाते निवडा.",
           "वेगळा वाचन अनुभव हवा असल्यास भाषा आणि थीम नियंत्रण वापरा.",
-          "ऑनलाइन स्थिती पहा. ऑफलाइन असताना NovaCent समर्थित बदल स्थानिक पातळीवर ठेवते आणि ऑनलाइन झाल्यावर समन्वय करते."
+          "ऑनलाइन स्थिती पहा. ऑफलाइन असताना NovaCent समर्थित बदल स्थानिक पातळीवर ठेवते आणि ऑनलाइन झाल्यावर समन्वय करते.",
+          "धूसर प्रगती स्क्रीन दिसल्यास, पुढे जाण्यापूर्वी NovaCent सेव, सिंक किंवा प्रोसेस पूर्ण होऊ द्या."
         ]
       },
       {
@@ -2393,6 +2564,7 @@ export const guideContent: Record<Language, GuideContent> = {
           "खर्च पान उघडा आणि वरचा जलद जोडा पर्याय वापरा.",
           "व्यापारी, श्रेणी, रक्कम, चलन आणि तारीख भरा. तारीख आपोआप आजची असते.",
           "जुन्या नोंदी व्यापारी, श्रेणी किंवा मालकाने शोधण्यासाठी शोध वापरा.",
+          "चेकबॉक्सने खर्च निवडा आणि निवडलेले अनलॉक खर्च एका पुष्टी केलेल्या कृतीत हटवा.",
           "लॉक नसलेले खर्च पुष्टीकरणानंतरच हटवा. निपटारा ओळी आणि निपटलेले समूह खर्च सुरक्षित राहतात."
         ]
       },
@@ -2414,7 +2586,7 @@ export const guideContent: Record<Language, GuideContent> = {
           "मंजूर करण्यापूर्वी काढलेल्या ओळींची समीक्षा करा. मंजूर केल्याशिवाय काहीही खर्च म्हणून जतन होत नाही.",
           "ड्रॉपडाउनमधून श्रेणी निवडा किंवा ओळ अवर्गीकृत ठेवा.",
           "दुसऱ्या स्टेटमेंटमध्ये आधी आयात केलेल्या ओळी असू शकतात तर संभाव्य पुनरावृत्ती फिल्टर वापरा.",
-          "मान्य ओळी मंजूर करा आणि खर्च वहीत नको असलेल्या ओळी हटवा."
+          "मान्य ओळी एकेक करून मंजूर करा, सर्व सुरक्षित ओळी मंजूर करा, संभाव्य पुनरावृत्ती सोडून मंजूर करा, किंवा आयात चुकीचा असेल तर सर्व तयार केलेल्या ओळी हटवा."
         ]
       },
       {

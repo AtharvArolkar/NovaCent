@@ -180,6 +180,7 @@ export interface PartyParticipant {
   displayName: string;
   userId?: string;
   accountId?: string;
+  email?: string;
 }
 
 export interface Party {

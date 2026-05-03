@@ -25,7 +25,8 @@ export async function POST(request: Request) {
       kind: "registered" as const,
       displayName: user.name ?? user.email ?? "You",
       userId: user.id,
-      accountId
+      accountId,
+      email: user.email
     };
     const participantInputs = payload.participants.some((participant) => participant.userId === user.id)
       ? payload.participants
@@ -40,7 +41,8 @@ export async function POST(request: Request) {
         kind: participant.kind,
         displayName: participant.displayName,
         userId: participant.userId,
-        accountId: participant.accountId
+        accountId: participant.accountId,
+        email: participant.email
       })),
       createdAt: new Date().toISOString()
     };

@@ -1,5 +1,7 @@
 import { buildBudgetVariance, buildCategoryBreakdown } from "@/lib/reporting";
 import type { ReportingChartData } from "@/lib/reporting";
+import { spendImpactForSignedAmount } from "@/lib/spend-impact";
+import { withApiActivity } from "@/lib/client/api-activity";
 import { enqueueOutboxItem, listOutboxItems, markOutboxItem, removeOutboxItem } from "@/lib/offline";
 import type { Account, Budget, Expense, ImportRow, Party } from "./demo-data";
 import { accounts, budgets, expenses, imports, parties } from "./demo-data";
@@ -10,6 +12,7 @@ type LiveExpense = {
   id?: string;
   spentAt?: string;
   merchant?: string;
+  description?: string;
   categoryName?: string;
   original?: Money;
   base?: Money;
@@ -40,8 +43,18 @@ type LiveBudget = {
   alertThreshold?: number;
   includedExpenses?: LiveBudgetIncludedExpense[];
 };
+type LiveOverview = {
+  totalSpend?: number;
+  remainingBudget?: number;
+  monthlyRemainingBudget?: number;
+  yearlyRemainingBudget?: number;
+  pendingImports?: number;
+  budgets?: LiveBudget[];
+  expenses?: LiveExpense[];
+};
 type LiveParty = {
   id?: string;
+  accountId?: string;
   name?: string;
   participants?: LivePartyParticipant[];
   balance?: Money | number;
@@ -160,6 +173,7 @@ export type PartyParticipantInput = {
   displayName: string;
   userId?: string;
   accountId?: string;
+  email?: string;
 };
 export type UserSearchResult = {
   id: string;
@@ -198,6 +212,7 @@ export type PartySettlement = {
 };
 export type PartyDetail = {
   id: string;
+  accountId?: string;
   name: string;
   canManage: boolean;
   participants: PartyParticipant[];
@@ -230,6 +245,15 @@ export type RecurringExpenseRule = {
   lastRunAt?: string;
   status: "active" | "paused" | "ended";
   notes?: string;
+};
+export type OverviewData = {
+  totalSpend: number;
+  remainingBudget: number;
+  monthlyRemainingBudget: number;
+  yearlyRemainingBudget: number;
+  pendingImports: number;
+  budgets: Budget[];
+  expenses: Expense[];
 };
 export type RecurringExpenseInput = {
   merchant: string;
@@ -299,17 +323,15 @@ const expenseCalculationMoney = (expense: Pick<Expense, "amount" | "currency" | 
   currency: expense.baseCurrency ?? expense.currency
 });
 
-const spendImpactAmount = async (expense: Pick<Expense, "amount" | "currency" | "baseAmount" | "baseCurrency" | "source">, targetCurrency = "INR") => {
+type ClientSpendExpense = Pick<Expense, "amount" | "currency" | "baseAmount" | "baseCurrency" | "source" | "merchant" | "description" | "category">;
+
+const spendImpactAmount = async (expense: ClientSpendExpense, targetCurrency = "INR") => {
   const calculationMoney = expenseCalculationMoney(expense);
   const amount = await convertClientAmount(calculationMoney.amount, calculationMoney.currency, targetCurrency);
-  if (expense.source === "settlement") {
-    return amount;
-  }
-
-  return Math.max(amount, 0);
+  return spendImpactForSignedAmount(amount, expense);
 };
 
-const totalSpendImpact = async (expenseRows: Array<Pick<Expense, "amount" | "currency" | "baseAmount" | "baseCurrency" | "source">>, targetCurrency = "INR") => {
+const totalSpendImpact = async (expenseRows: ClientSpendExpense[], targetCurrency = "INR") => {
   const impacts = await Promise.all(expenseRows.map((expense) => spendImpactAmount(expense, targetCurrency)));
   return Math.max(0, Math.round(impacts.reduce((sum, amount) => sum + amount, 0) * 100) / 100);
 };
@@ -361,23 +383,27 @@ const withAccountQuery = (path: string, accountId?: string) => {
   return `${path}${separator}accountId=${encodeURIComponent(accountId)}`;
 };
 
-async function requestJson<T>(path: string, accountId?: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(withAccountQuery(path, accountId), {
-    ...init,
-    headers: {
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...(accountId ? { "x-account-id": accountId } : {}),
-      ...init?.headers
-    },
-    cache: init?.cache ?? "no-store"
-  });
+async function requestJson<T>(path: string, accountId?: string, init?: RequestInit, activity?: { message?: string }): Promise<T> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  const track = !(method === "GET" && path.startsWith("/api/notifications"));
+  return withApiActivity(async () => {
+    const response = await fetch(withAccountQuery(path, accountId), {
+      ...init,
+      headers: {
+        ...(init?.body ? { "Content-Type": "application/json" } : {}),
+        ...(accountId ? { "x-account-id": accountId } : {}),
+        ...init?.headers
+      },
+      cache: init?.cache ?? "no-store"
+    });
 
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(payload?.error ?? `Request failed: ${response.status}`);
-  }
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(payload?.error ?? `Request failed: ${response.status}`);
+    }
 
-  return response.json() as Promise<T>;
+    return response.json() as Promise<T>;
+  }, { track, message: activity?.message });
 }
 
 async function withFallback<T>(live: () => Promise<T>, mock: () => Promise<T>) {
@@ -400,6 +426,7 @@ const toExpense = (expense: LiveExpense): Expense => {
     id: expense.id ?? crypto.randomUUID(),
     date: (expense.spentAt ?? new Date().toISOString()).slice(0, 10),
     merchant: expense.merchant ?? "Unknown merchant",
+    description: expense.description,
     category: expense.categoryName ?? "Uncategorized",
     amount: asAmount(original),
     currency: original?.currency ?? "INR",
@@ -476,6 +503,7 @@ const toPartySettlement = (settlement: LiveSettlement): PartySettlement => ({
 
 const toPartyDetail = (payload: { party: LiveParty; expenses?: LiveExpense[]; splits?: LiveSplit[]; settlements?: LiveSettlement[]; canManage?: boolean }): PartyDetail => ({
   id: payload.party.id ?? crypto.randomUUID(),
+  accountId: payload.party.accountId,
   name: payload.party.name ?? "Party",
   canManage: payload.canManage ?? true,
   participants: payload.party.participants?.map(toPartyParticipant) ?? [],
@@ -594,30 +622,34 @@ export async function getAccounts() {
 export async function getOverview(accountId?: string, targetCurrency = "INR") {
   return withFallback(
     async () => {
-      const [expenseRows, budgetRows, importRows] = await Promise.all([getExpenses(accountId), getBudgets(accountId, targetCurrency), getImportRows(accountId)]);
-      const [totalSpend, remainingBudget] = await Promise.all([
-        totalSpendImpact(expenseRows, targetCurrency),
-        totalRemainingBudget(budgetRows, targetCurrency)
-      ]);
+      const params = new URLSearchParams({ targetCurrency: displayCurrencyFor(targetCurrency) });
+      const payload = await requestJson<LiveOverview>(`/api/overview?${params.toString()}`, accountId);
+      const budgetRows = await convertBudgetsForDisplay((payload.budgets ?? []).map(toBudget), targetCurrency);
       return {
-        totalSpend,
-        remainingBudget,
-        monthlyRunway: 18,
-        pendingImports: importRows.length,
+        totalSpend: Number(payload.totalSpend ?? 0),
+        remainingBudget: Number(payload.remainingBudget ?? 0),
+        monthlyRemainingBudget: Number(payload.monthlyRemainingBudget ?? 0),
+        yearlyRemainingBudget: Number(payload.yearlyRemainingBudget ?? 0),
+        pendingImports: Number(payload.pendingImports ?? 0),
         budgets: budgetRows,
-        expenses: expenseRows.slice(0, 5)
+        expenses: (payload.expenses ?? []).map(toExpense)
       };
     },
     async () => {
       await wait();
-      const [totalSpend, remainingBudget] = await Promise.all([
+      const monthlyBudgets = budgets.filter((budget) => (budget.period ?? "monthly") === "monthly");
+      const yearlyBudgets = budgets.filter((budget) => budget.period === "yearly");
+      const [totalSpend, remainingBudget, monthlyRemainingBudget, yearlyRemainingBudget] = await Promise.all([
         totalSpendImpact(expenses, targetCurrency),
-        totalRemainingBudget(budgets, targetCurrency)
+        totalRemainingBudget(budgets, targetCurrency),
+        totalRemainingBudget(monthlyBudgets, targetCurrency),
+        totalRemainingBudget(yearlyBudgets, targetCurrency)
       ]);
       return {
         totalSpend,
         remainingBudget,
-        monthlyRunway: 18,
+        monthlyRemainingBudget,
+        yearlyRemainingBudget,
         pendingImports: imports.length,
         budgets,
         expenses: expenses.slice(0, 5)
@@ -698,50 +730,84 @@ export async function deleteExpense(accountId: string, expenseId: string) {
   return requestJson<{ deleted: boolean }>(`/api/expenses/${expenseId}`, accountId, { method: "DELETE" });
 }
 
+export async function deleteExpenses(accountId: string, expenseIds: string[]) {
+  const uniqueExpenseIds = Array.from(new Set(expenseIds.filter(Boolean)));
+  if (!uniqueExpenseIds.length) {
+    return { deletedIds: [], skippedIds: [], deletedCount: 0, skippedCount: 0 };
+  }
+
+  if (useMocks) {
+    await wait();
+    return {
+      deletedIds: uniqueExpenseIds,
+      skippedIds: [],
+      deletedCount: uniqueExpenseIds.length,
+      skippedCount: 0
+    };
+  }
+
+  return requestJson<{
+    requestedCount: number;
+    deletedCount: number;
+    skippedCount: number;
+    deletedIds: string[];
+    skippedIds: string[];
+  }>("/api/expenses/bulk-delete", accountId, {
+    method: "POST",
+    body: JSON.stringify({ expenseIds: uniqueExpenseIds })
+  });
+}
+
 export async function syncPendingOutbox(accountId?: string) {
   if (useMocks || typeof navigator !== "undefined" && !navigator.onLine) {
     return { synced: 0, failed: 0 };
   }
 
   const items = await listOutboxItems(accountId, ["pending", "failed"]);
-  let synced = 0;
-  let failed = 0;
-
-  for (const item of items) {
-    if (!item.endpoint || !item.method) {
-      continue;
-    }
-
-    await markOutboxItem(item.id, { status: "syncing", lastAttemptAt: new Date().toISOString(), incrementAttempts: true });
-
-    try {
-      const response = await fetch(withAccountQuery(item.endpoint, item.accountId), {
-        method: item.method,
-        headers: {
-          "Content-Type": "application/json",
-          "x-account-id": item.accountId
-        },
-        body: JSON.stringify({ ...(item.payload as Record<string, unknown>), clientMutationId: item.clientMutationId })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Sync failed with ${response.status}`);
-      }
-
-      await markOutboxItem(item.id, { status: "synced", lastAttemptAt: new Date().toISOString() });
-      await removeOutboxItem(item.id);
-      synced += 1;
-    } catch (error) {
-      await markOutboxItem(item.id, {
-        status: "failed",
-        lastAttemptAt: new Date().toISOString(),
-        lastError: error instanceof Error ? error.message : "Sync failed"
-      });
-      failed += 1;
-    }
+  if (!items.length) {
+    return { synced: 0, failed: 0 };
   }
 
-  return { synced, failed };
+  return withApiActivity(async () => {
+    let synced = 0;
+    let failed = 0;
+
+    for (const item of items) {
+      if (!item.endpoint || !item.method) {
+        continue;
+      }
+
+      await markOutboxItem(item.id, { status: "syncing", lastAttemptAt: new Date().toISOString(), incrementAttempts: true });
+
+      try {
+        const response = await fetch(withAccountQuery(item.endpoint, item.accountId), {
+          method: item.method,
+          headers: {
+            "Content-Type": "application/json",
+            "x-account-id": item.accountId
+          },
+          body: JSON.stringify({ ...(item.payload as Record<string, unknown>), clientMutationId: item.clientMutationId })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Sync failed with ${response.status}`);
+        }
+
+        await markOutboxItem(item.id, { status: "synced", lastAttemptAt: new Date().toISOString() });
+        await removeOutboxItem(item.id);
+        synced += 1;
+      } catch (error) {
+        await markOutboxItem(item.id, {
+          status: "failed",
+          lastAttemptAt: new Date().toISOString(),
+          lastError: error instanceof Error ? error.message : "Sync failed"
+        });
+        failed += 1;
+      }
+    }
+
+    return { synced, failed };
+  }, { message: "Syncing changes..." });
 }
 
 export async function getBudgets(accountId?: string, targetCurrency = "INR") {
@@ -1022,6 +1088,9 @@ export async function createPartyExpense(accountId: string, partyId: string, inp
         paidByParticipantId: input.paidByParticipantId,
         excludeFromLedger: input.excludeFromLedger
       });
+      if (!input.splits.length) {
+        return { expense, splits: [] };
+      }
       const splitPayload = await requestJson<{ splits: LiveSplit[] }>(`/api/parties/${partyId}/splits`, accountId, {
         method: "POST",
         body: JSON.stringify({
@@ -1151,26 +1220,46 @@ export async function uploadStatement(accountId: string, file: File, statementPa
   if (statementPassword?.trim()) {
     formData.append("statementPassword", statementPassword.trim());
   }
-  const response = await fetch(withAccountQuery("/api/imports", accountId), {
-    method: "POST",
-    headers: { "x-account-id": accountId },
-    body: formData
-  });
+  return withApiActivity(async () => {
+    const response = await fetch(withAccountQuery("/api/imports", accountId), {
+      method: "POST",
+      headers: { "x-account-id": accountId },
+      body: formData
+    });
 
-  if (!response.ok) {
-    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new Error(payload?.error ?? `Import upload failed: ${response.status}`);
-  }
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(payload?.error ?? `Import upload failed: ${response.status}`);
+    }
 
-  const payload = (await response.json()) as { batch: LiveImportBatch };
-  return (payload.batch.rows ?? []).map((row) => toImportRow(row, payload.batch));
+    const payload = (await response.json()) as { batch: LiveImportBatch };
+    return (payload.batch.rows ?? []).map((row) => toImportRow(row, payload.batch));
+  }, { message: "Processing statement..." });
 }
 
-const IMPORT_REVIEW_BATCH_SIZE = 100;
+type ImportReviewResponse = {
+  approvedExpenses?: unknown[];
+  approvedCount?: number;
+  approved?: number;
+  deletedRows?: number;
+  deletedCount?: number;
+  deleted?: number;
+  skippedCount?: number;
+};
+
+function importReviewCounts(response: ImportReviewResponse, action: "approve" | "delete") {
+  const approved = response.approvedCount ?? response.approved ?? response.approvedExpenses?.length ?? 0;
+  const deleted = response.deletedCount ?? response.deleted ?? response.deletedRows ?? 0;
+  return {
+    approved: action === "approve" ? approved : 0,
+    deleted: action === "delete" ? deleted : 0
+  };
+}
 
 function importReviewPayload(row: ImportRow, action: "approve" | "delete", categoryName?: string) {
   const resolvedCategoryName = categoryName?.trim() || row.suggestedCategory || "Uncategorized";
   return {
+    ...(row.batchId ? { batchId: row.batchId } : {}),
     rowId: row.id,
     action,
     ...(action === "approve" ? { categoryId: categoryIdFor(resolvedCategoryName), categoryName: resolvedCategoryName } : {}),
@@ -1184,17 +1273,14 @@ export async function reviewImportRow(accountId: string, row: ImportRow, action:
     return { approved: action === "approve" ? 1 : 0, deleted: action === "delete" ? 1 : 0 };
   }
 
-  const response = await requestJson<{ approvedExpenses?: unknown[]; deletedRows?: number }>(`/api/imports/${row.batchId}/approve`, accountId, {
+  const response = await requestJson<ImportReviewResponse>(`/api/imports/${row.batchId}/approve`, accountId, {
     method: "POST",
     body: JSON.stringify({
       rows: [importReviewPayload(row, action, options.categoryName)]
     })
-  });
+  }, { message: action === "approve" ? "Saving imported rows..." : "Updating imported rows..." });
 
-  return {
-    approved: response.approvedExpenses?.length ?? 0,
-    deleted: response.deletedRows ?? 0
-  };
+  return importReviewCounts(response, action);
 }
 
 export async function reviewImportRows(accountId: string, rows: Array<{ row: ImportRow; categoryName?: string }>, action: "approve" | "delete") {
@@ -1205,36 +1291,28 @@ export async function reviewImportRows(accountId: string, rows: Array<{ row: Imp
   }
 
   const rowsWithoutBatch = rows.filter(({ row }) => !row.batchId).length;
-  const grouped = new Map<string, Array<{ row: ImportRow; categoryName?: string }>>();
-
-  for (const item of rows) {
-    if (!item.row.batchId) continue;
-    const group = grouped.get(item.row.batchId) ?? [];
-    group.push(item);
-    grouped.set(item.row.batchId, group);
-  }
+  const rowsWithBatch = rows.filter(({ row }) => row.batchId);
 
   let approved = action === "approve" ? rowsWithoutBatch : 0;
   let deleted = action === "delete" ? rowsWithoutBatch : 0;
 
-  for (const [batchId, group] of grouped) {
-    for (let index = 0; index < group.length; index += IMPORT_REVIEW_BATCH_SIZE) {
-      const chunk = group.slice(index, index + IMPORT_REVIEW_BATCH_SIZE);
-      const response = await requestJson<{ approvedExpenses?: unknown[]; deletedRows?: number }>(`/api/imports/${batchId}/approve`, accountId, {
-        method: "POST",
-        body: JSON.stringify({
-          rows: chunk.map(({ row, categoryName }) => importReviewPayload(row, action, categoryName))
-        })
-      });
-      approved += response.approvedExpenses?.length ?? 0;
-      deleted += response.deletedRows ?? 0;
-    }
+  if (rowsWithBatch.length) {
+    const response = await requestJson<ImportReviewResponse>("/api/imports/review", accountId, {
+      method: "POST",
+      body: JSON.stringify({
+        rows: rowsWithBatch.map(({ row, categoryName }) => importReviewPayload(row, action, categoryName))
+      })
+    }, { message: action === "approve" ? "Saving imported rows..." : "Updating imported rows..." });
+    const counts = importReviewCounts(response, action);
+    approved += counts.approved;
+    deleted += counts.deleted;
   }
 
   return { approved, deleted };
 }
 
 const fallbackReportData = (): ReportingChartData => ({
+  totalSpent: budgets.reduce((sum, budget) => sum + budget.spent, 0),
   categories: buildCategoryBreakdown(budgets),
   cashflow: [
     { label: "Jan", income: 182000, spend: 121400 },
@@ -1272,6 +1350,7 @@ async function convertLabeledRows(rows: ReportingChartData["categories"], source
 
 async function convertReportData(data: ReportingChartData, sourceCurrency: string, targetCurrency: string): Promise<ReportingChartData> {
   return {
+    totalSpent: data.totalSpent === undefined ? undefined : await convertClientAmount(data.totalSpent, sourceCurrency, targetCurrency),
     categories: await convertLabeledRows(data.categories, sourceCurrency, targetCurrency),
     cashflow: await Promise.all(
       data.cashflow.map(async (row) => ({
@@ -1330,8 +1409,10 @@ export async function getReports(accountId?: string, range: ReportRangeInput = {
         };
       }>(path, accountId);
       const reportCurrency = payload.report.totalSpent?.currency ?? "INR";
+      const categoryRows = payload.report.categoryBreakdown?.map((row) => ({ label: row.category, value: row.amount })) ?? [];
       const reportData = {
-        categories: payload.report.categoryBreakdown?.map((row) => ({ label: row.category, value: row.amount })) ?? [],
+        totalSpent: payload.report.totalSpent?.amount ?? categoryRows.reduce((sum, row) => sum + row.value, 0),
+        categories: categoryRows,
         cashflow: payload.report.monthlyTrend?.map((row) => ({
           label: row.month,
           income: row.income ?? (row.amount < 0 ? Math.abs(row.amount) : 0),
@@ -1426,10 +1507,10 @@ export async function markNotificationsRead(accountId?: string) {
   if (useMocks) return;
 
   try {
-    await fetch(withAccountQuery("/api/notifications", accountId), {
+    await withApiActivity(() => fetch(withAccountQuery("/api/notifications", accountId), {
       method: "PATCH",
       headers: accountId ? { "x-account-id": accountId } : undefined
-    });
+    }).then(() => undefined), { message: "Updating notifications..." });
   } catch {
     // Notification read state is nice-to-have; keep the shell usable offline.
   }

@@ -4,8 +4,9 @@ import { hasSettledPartyExpense } from "@/lib/server/delete-guards";
 import { handleApiError, ok, problem } from "@/lib/server/http";
 import { collections, getDb } from "@/lib/server/mongodb";
 import { partyAccessQuery, partyAccountIds } from "@/lib/server/party-access";
+import { ensurePartyOwnerParticipant } from "@/lib/server/party-participants";
 import { partyParticipantAddSchema } from "@/lib/server/schemas";
-import type { Expense } from "@/lib/domain";
+import type { Expense, Party } from "@/lib/domain";
 
 interface RouteContext {
   params: Promise<{ partyId: string }> | { partyId: string };
@@ -18,7 +19,7 @@ export async function GET(request: Request, context: RouteContext) {
     const currentUser = await getCurrentUser();
     const db = await getDb();
     const directAccount = requestedAccountId ? await requireAccountAccess(requestedAccountId).catch(() => null) : null;
-    const party = await db.collection(collections.parties).findOne(
+    const partyRecord = await db.collection<Party>(collections.parties).findOne(
       partyAccessQuery({
         partyId,
         selectedAccountId: directAccount?.accountId,
@@ -26,10 +27,11 @@ export async function GET(request: Request, context: RouteContext) {
       })
     );
 
-    if (!party) {
+    if (!partyRecord) {
       return problem("Party was not found.", 404);
     }
 
+    const party = await ensurePartyOwnerParticipant(db, partyRecord);
     const accountId = party.accountId;
     const visibleExpenseAccountIds = partyAccountIds(party);
     const [expenses, splits, settlements] = await Promise.all([
@@ -50,16 +52,25 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { accountId } = await requireAccountAccess(accountIdFromRequest(request));
     const payload = partyParticipantAddSchema.parse(await request.json());
     const db = await getDb();
-    const party = await db.collection(collections.parties).findOne({ id: partyId, accountId });
+    const partyRecord = await db.collection<Party>(collections.parties).findOne({ id: partyId, accountId });
 
-    if (!party) {
+    if (!partyRecord) {
       return problem("Party was not found.", 404);
     }
 
+    const party = await ensurePartyOwnerParticipant(db, partyRecord);
     const existingParticipants = party.participants ?? [];
-    const duplicate = existingParticipants.some((participant: { kind?: string; userId?: string; displayName?: string }) => {
-      if (payload.participant.kind === "registered" && participant.userId && participant.userId === payload.participant.userId) {
-        return true;
+    const duplicate = existingParticipants.some((participant: { kind?: string; userId?: string; accountId?: string; email?: string; displayName?: string }) => {
+      if (payload.participant.kind === "registered") {
+        const email = payload.participant.email?.trim().toLowerCase();
+        return Boolean(
+          (payload.participant.userId && participant.userId === payload.participant.userId) ||
+          (payload.participant.accountId && participant.accountId === payload.participant.accountId) ||
+          (email && participant.email?.trim().toLowerCase() === email)
+        );
+      }
+      if (participant.kind === "registered") {
+        return false;
       }
       return participant.displayName?.trim().toLowerCase() === payload.participant.displayName.trim().toLowerCase();
     });
@@ -77,7 +88,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       participantInput = {
         ...participantInput,
         displayName: participantInput.displayName || user.name,
-        accountId: participantInput.accountId ?? user.defaultAccountId
+        accountId: participantInput.accountId ?? user.defaultAccountId,
+        email: user.email
       };
     }
 
@@ -87,7 +99,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       kind: participantInput.kind,
       displayName: participantInput.displayName,
       userId: participantInput.userId,
-      accountId: participantInput.accountId
+      accountId: participantInput.accountId,
+      email: participantInput.email
     };
 
     await db.collection(collections.parties).updateOne(

@@ -1,5 +1,6 @@
 import type { Db } from "mongodb";
 import type { Budget, BudgetIncludedExpense, BudgetPeriod, BudgetScope, Expense, Split } from "@/lib/domain";
+import { spendImpactForSignedAmount } from "@/lib/spend-impact";
 import { collections, getDb } from "@/lib/server/mongodb";
 import { getCurrencyRate } from "@/lib/server/currency";
 import { createNotification } from "@/lib/server/notifications";
@@ -107,11 +108,7 @@ async function includedExpenseFrom(expense: Expense, category: { categoryName?: 
 
 async function budgetSpendImpactAmount(expense: Expense, targetCurrency: string, cache: CurrencyRateCache = new Map()) {
   const amount = await expenseAmountInCurrency(expense, targetCurrency, cache);
-  if (expense.source === "settlement") {
-    return amount;
-  }
-
-  return Math.max(amount, 0);
+  return spendImpactForSignedAmount(amount, expense);
 }
 
 function addSpend(
@@ -122,6 +119,10 @@ function addSpend(
 ) {
   spendByCategory.set(key, (spendByCategory.get(key) ?? 0) + expense.amount);
   expensesByCategory.set(key, [...(expensesByCategory.get(key) ?? []), expense]);
+}
+
+function addSpendAmount(spendByCategory: Map<string, number>, key: string, amount: number) {
+  spendByCategory.set(key, (spendByCategory.get(key) ?? 0) + amount);
 }
 
 function budgetCategoryFor(expense: Expense, expensesById: Map<string, Expense>, splitsById: Map<string, Split>) {
@@ -137,7 +138,14 @@ function budgetCategoryFor(expense: Expense, expensesById: Map<string, Expense>,
   };
 }
 
-async function budgetCalculationByCategory(db: Db, accountId: string, period: BudgetPeriod = "monthly", targetCurrency = "INR") {
+async function budgetCalculationByCategory(
+  db: Db,
+  accountId: string,
+  period: BudgetPeriod = "monthly",
+  targetCurrency = "INR",
+  options: { includeExpenses?: boolean } = {}
+) {
+  const includeExpenses = options.includeExpenses ?? true;
   const expenses = await db.collection<Expense>(collections.expenses).find({ accountId, excludeFromLedger: { $ne: true } }).sort({ spentAt: -1, createdAt: -1 }).toArray();
   const periodExpenses = expenses.filter((expense) => expenseInPeriod(expense, period));
   const settlementSplitIds = Array.from(
@@ -163,6 +171,14 @@ async function budgetCalculationByCategory(db: Db, accountId: string, period: Bu
     }
 
     const category = budgetCategoryFor(expense, expensesById, splitsById);
+    if (!includeExpenses) {
+      addSpendAmount(spendByCategory, "scope:overall", impactAmount);
+      for (const key of categoryKeys(category.categoryId, category.categoryName)) {
+        addSpendAmount(spendByCategory, key, impactAmount);
+      }
+      continue;
+    }
+
     const includedExpense = await includedExpenseFrom(expense, category, targetCurrency, rateCache);
     addSpend(spendByCategory, expensesByCategory, "scope:overall", includedExpense);
     for (const key of categoryKeys(category.categoryId, category.categoryName)) {
@@ -173,13 +189,13 @@ async function budgetCalculationByCategory(db: Db, accountId: string, period: Bu
   return { spendByCategory, expensesByCategory };
 }
 
-export async function hydrateBudgetSpend(db: Db, accountId: string, budgets: Budget[]) {
+export async function hydrateBudgetSpend(db: Db, accountId: string, budgets: Budget[], options: { includeExpenses?: boolean } = {}) {
   const periodSpend = new Map<string, Awaited<ReturnType<typeof budgetCalculationByCategory>>>();
   const spendForPeriod = async (period: BudgetPeriod, currency: string) => {
-    const key = `${period}:${normalizeCurrency(currency)}`;
+    const key = `${period}:${normalizeCurrency(currency)}:${options.includeExpenses === false ? "summary" : "detail"}`;
     const existing = periodSpend.get(key);
     if (existing) return existing;
-    const next = await budgetCalculationByCategory(db, accountId, period, currency);
+    const next = await budgetCalculationByCategory(db, accountId, period, currency, options);
     periodSpend.set(key, next);
     return next;
   };
@@ -226,111 +242,145 @@ export async function calculatedBudgetSpent(db: Db, input: { accountId: string; 
 }
 
 export async function applyExpenseBudgetImpact(expense: Expense, userId?: string) {
-  const storedCalculationAmount = Number(expense.base?.amount ?? expense.original?.amount ?? 0);
-  if (expense.excludeFromLedger || expense.source === "settlement" || storedCalculationAmount <= 0) {
+  await applyExpensesBudgetImpact([expense], userId);
+}
+
+export async function applyExpensesBudgetImpact(expenses: Expense[], userId?: string) {
+  const eligibleExpenses = expenses.filter((expense) => !expense.excludeFromLedger && expense.source !== "settlement");
+  if (!eligibleExpenses.length) {
     return;
   }
 
   const db = await getDb();
-  const budgets = await db.collection<Budget>(collections.budgets).find({ accountId: expense.accountId }).toArray();
-
-  if (!budgets.length) {
-    return;
+  const budgetsByAccount = new Map<string, Budget[]>();
+  for (const accountId of Array.from(new Set(eligibleExpenses.map((expense) => expense.accountId)))) {
+    budgetsByAccount.set(accountId, await db.collection<Budget>(collections.budgets).find({ accountId }).toArray());
   }
 
-  for (const budget of budgets) {
-    const scope = budgetScope(budget);
-    const categoryMatches =
-      scope === "overall" ||
-      budget.categoryId === expense.categoryId ||
-      normalizedCategoryName(budget.categoryName) === normalizedCategoryName(expense.categoryName);
-    if (!categoryMatches) {
+  for (const [accountId, budgets] of budgetsByAccount) {
+    if (!budgets.length) {
       continue;
     }
 
-    if (!expenseInPeriod(expense, budget.period ?? "monthly")) {
-      continue;
-    }
+    const accountExpenses = eligibleExpenses.filter((expense) => expense.accountId === accountId);
+    const rateCache: CurrencyRateCache = new Map();
 
-    const impactAmount = await budgetSpendImpactAmount(expense, budget.limit.currency);
-    if (impactAmount <= 0) {
-      continue;
-    }
+    for (const budget of budgets) {
+      const scope = budgetScope(budget);
+      let impactTotal = 0;
 
-    const previousSpent = Number(budget.spent?.amount ?? 0);
-    const nextSpent = Math.round((previousSpent + impactAmount) * 100) / 100;
-    await db.collection(collections.budgets).updateOne(
-      { id: budget.id, accountId: expense.accountId },
-      {
-        $set: {
-          spent: { amount: nextSpent, currency: normalizeCurrency(budget.limit.currency) },
-          updatedAt: new Date().toISOString()
+      for (const expense of accountExpenses) {
+        const categoryMatches =
+          scope === "overall" ||
+          budget.categoryId === expense.categoryId ||
+          normalizedCategoryName(budget.categoryName) === normalizedCategoryName(expense.categoryName);
+        if (!categoryMatches) {
+          continue;
         }
+
+        if (!expenseInPeriod(expense, budget.period ?? "monthly")) {
+          continue;
+        }
+
+        impactTotal += await budgetSpendImpactAmount(expense, budget.limit.currency, rateCache);
       }
-    );
 
-    const limit = Number(budget.limit.amount);
-    const threshold = Number(budget.alertThreshold ?? 100);
-    const previousPercent = limit > 0 ? (previousSpent / limit) * 100 : 0;
-    const nextPercent = limit > 0 ? (nextSpent / limit) * 100 : 0;
+      if (impactTotal === 0) {
+        continue;
+      }
 
-    if (limit > 0 && previousPercent < threshold && nextPercent >= threshold) {
-      await createNotification({
-        accountId: expense.accountId,
-        userId,
-        title: "Budget threshold reached",
-        body: `${budget.categoryName} is at ${Math.round(nextPercent)}% of the ${periodLabel(budget.period)} budget.`,
-        tone: "warning",
-        eventType: "budget_threshold",
-        entityType: "budget",
-        entityId: budget.id
-      });
+      const previousSpent = Number(budget.spent?.amount ?? 0);
+      const nextSpent = Math.max(0, Math.round((previousSpent + impactTotal) * 100) / 100);
+      await db.collection(collections.budgets).updateOne(
+        { id: budget.id, accountId },
+        {
+          $set: {
+            spent: { amount: nextSpent, currency: normalizeCurrency(budget.limit.currency) },
+            updatedAt: new Date().toISOString()
+          }
+        }
+      );
+
+      const limit = Number(budget.limit.amount);
+      const threshold = Number(budget.alertThreshold ?? 100);
+      const previousPercent = limit > 0 ? (previousSpent / limit) * 100 : 0;
+      const nextPercent = limit > 0 ? (nextSpent / limit) * 100 : 0;
+
+      if (impactTotal > 0 && limit > 0 && previousPercent < threshold && nextPercent >= threshold) {
+        await createNotification({
+          accountId,
+          userId,
+          title: "Budget threshold reached",
+          body: `${budget.categoryName} is at ${Math.round(nextPercent)}% of the ${periodLabel(budget.period)} budget.`,
+          tone: "warning",
+          eventType: "budget_threshold",
+          entityType: "budget",
+          entityId: budget.id
+        });
+      }
     }
   }
 }
 
 export async function reverseExpenseBudgetImpact(expense: Expense) {
-  const storedCalculationAmount = Number(expense.base?.amount ?? expense.original?.amount ?? 0);
-  if (expense.excludeFromLedger || expense.source === "settlement" || storedCalculationAmount <= 0) {
+  await reverseExpensesBudgetImpact([expense]);
+}
+
+export async function reverseExpensesBudgetImpact(expenses: Expense[]) {
+  const eligibleExpenses = expenses.filter((expense) => !expense.excludeFromLedger && expense.source !== "settlement");
+  if (!eligibleExpenses.length) {
     return;
   }
 
   const db = await getDb();
-  const budgets = await db.collection<Budget>(collections.budgets).find({ accountId: expense.accountId }).toArray();
-
-  if (!budgets.length) {
-    return;
+  const budgetsByAccount = new Map<string, Budget[]>();
+  for (const accountId of Array.from(new Set(eligibleExpenses.map((expense) => expense.accountId)))) {
+    budgetsByAccount.set(accountId, await db.collection<Budget>(collections.budgets).find({ accountId }).toArray());
   }
 
-  await Promise.all(budgets.map(async (budget) => {
-    const scope = budgetScope(budget);
-    const categoryMatches =
-      scope === "overall" ||
-      budget.categoryId === expense.categoryId ||
-      normalizedCategoryName(budget.categoryName) === normalizedCategoryName(expense.categoryName);
-    if (!categoryMatches) {
-      return;
+  for (const [accountId, budgets] of budgetsByAccount) {
+    if (!budgets.length) {
+      continue;
     }
 
-    if (!expenseInPeriod(expense, budget.period ?? "monthly")) {
-      return;
-    }
+    const accountExpenses = eligibleExpenses.filter((expense) => expense.accountId === accountId);
+    const rateCache: CurrencyRateCache = new Map();
 
-    const impactAmount = await budgetSpendImpactAmount(expense, budget.limit.currency);
-    if (impactAmount <= 0) {
-      return;
-    }
+    await Promise.all(budgets.map(async (budget) => {
+      const scope = budgetScope(budget);
+      let impactTotal = 0;
 
-    const previousSpent = Number(budget.spent?.amount ?? 0);
-    const nextSpent = Math.max(0, Math.round((previousSpent - impactAmount) * 100) / 100);
-    await db.collection(collections.budgets).updateOne(
-      { id: budget.id, accountId: expense.accountId },
-      {
-        $set: {
-          spent: { amount: nextSpent, currency: normalizeCurrency(budget.limit.currency) },
-          updatedAt: new Date().toISOString()
+      for (const expense of accountExpenses) {
+        const categoryMatches =
+          scope === "overall" ||
+          budget.categoryId === expense.categoryId ||
+          normalizedCategoryName(budget.categoryName) === normalizedCategoryName(expense.categoryName);
+        if (!categoryMatches) {
+          continue;
         }
+
+        if (!expenseInPeriod(expense, budget.period ?? "monthly")) {
+          continue;
+        }
+
+        impactTotal += await budgetSpendImpactAmount(expense, budget.limit.currency, rateCache);
       }
-    );
-  }));
+
+      if (impactTotal === 0) {
+        return;
+      }
+
+      const previousSpent = Number(budget.spent?.amount ?? 0);
+      const nextSpent = Math.max(0, Math.round((previousSpent - impactTotal) * 100) / 100);
+      await db.collection(collections.budgets).updateOne(
+        { id: budget.id, accountId },
+        {
+          $set: {
+            spent: { amount: nextSpent, currency: normalizeCurrency(budget.limit.currency) },
+            updatedAt: new Date().toISOString()
+          }
+        }
+      );
+    }));
+  }
 }

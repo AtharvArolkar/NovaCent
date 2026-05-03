@@ -3,6 +3,7 @@ import { accountIdFromRequest, requireAccountAccess } from "@/lib/server/auth";
 import { collections, getDb } from "@/lib/server/mongodb";
 import { attachPartyBalances, buildReportSummary } from "@/lib/server/reports";
 import { handleApiError, ok } from "@/lib/server/http";
+import { hydrateBudgetSpend } from "@/lib/server/budgets";
 import type { Budget, Expense, Party, Settlement, Split } from "@/lib/domain";
 
 function parseDateParam(value: string | null, boundary: "start" | "end") {
@@ -46,7 +47,8 @@ export async function GET(request: Request) {
       ? await db.collection<Expense>(collections.expenses).find({ id: { $in: sourceExpenseIds } }).toArray()
       : [];
 
-    const summary = buildReportSummary(expenses, budgets, [], splits, sourceExpenses);
+    const hydratedBudgets = await hydrateBudgetSpend(db, accountId, budgets, { includeExpenses: false });
+    const summary = buildReportSummary(expenses, hydratedBudgets, [], splits, sourceExpenses);
     return ok({ report: attachPartyBalances(summary, parties, splits, settlements) });
   } catch (error) {
     return handleApiError(error);

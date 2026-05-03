@@ -41,6 +41,10 @@ export const expenseSchema = z.object({
   clientMutationId: z.string().optional()
 });
 
+export const expenseBulkDeleteSchema = z.object({
+  expenseIds: z.array(z.string().min(1)).min(1).max(500)
+});
+
 export const recurringExpenseSchema = z.object({
   merchant: z.string().min(1).max(160),
   description: z.string().max(500).optional(),
@@ -93,7 +97,8 @@ export const partyParticipantSchema = z.object({
   kind: z.enum(["registered", "external"]),
   displayName: z.string().min(1).max(120),
   userId: z.string().optional(),
-  accountId: z.string().optional()
+  accountId: z.string().optional(),
+  email: z.string().email().optional()
 });
 
 export const partySchema = z.object({
@@ -146,6 +151,14 @@ export const importRowReviewSchema = z.object({
 
 export const importApproveSchema = z.object({
   rows: z.array(importRowReviewSchema)
+});
+
+export const importBulkReviewRowSchema = importRowReviewSchema.extend({
+  batchId: z.string().min(1)
+});
+
+export const importBulkReviewSchema = z.object({
+  rows: z.array(importBulkReviewRowSchema).min(1).max(10000)
 });
 
 export const resetRequestSchema = z.object({

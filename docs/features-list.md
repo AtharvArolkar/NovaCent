@@ -1,6 +1,6 @@
 # NovaCent Feature Inventory
 
-Last updated: 2026-05-02
+Last updated: 2026-05-03
 
 This is the living feature list for NovaCent. Whenever a new feature is added, changed, deferred, or removed, update this document in the same work item.
 
@@ -25,6 +25,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | PWA manifest and offline service-worker foundation. |
 | Implemented | PWA install prompt configuration with browser install event handling, install/dismiss actions, and installable manifest shortcuts. |
 | Implemented | First-time signed-in users see a guide prompt for "How to use NovaCent" before the PWA install prompt is shown. |
+| Implemented | Global screen loader blocks app interaction with a blurred backdrop during API requests, uses a short delay to avoid flicker, skips notification polling GET requests, and shows a dedicated statement-processing message during imports. |
 | Implemented | QA regression test plan for validating working features after every change. |
 | Implemented | Non-deviation QA guard requiring existing working functionality to remain unchanged unless the user explicitly requests a behavior change. |
 | Implemented | Responsiveness checker process for validating UI changes across mobile, tablet, and desktop widths. |
@@ -63,6 +64,8 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Money displays include the active currency code beside formatted amounts so mixed-currency values are explicit. |
 | Implemented | Default account labels use neutral "Primary Account" wording, with legacy "Primary INR Account" display names normalized in the UI. |
 | Implemented | Dashboard and Reports metric cards become horizontally scrollable swipe rails on mobile. |
+| Implemented | Dashboard loads account summary metrics through a lightweight overview API and shows a loading state instead of temporary zero-value metrics while the first overview request is pending. |
+| Implemented | Dashboard separates remaining budget into monthly remaining and yearly remaining cards instead of showing a combined runway metric. |
 | Implemented | Responsive hardening for top-bar actions, page actions, forms, tables, charts, participant chips, and mobile action buttons. |
 | Implemented | Date fields use a shared accessible picker control with a visible calendar button across expenses, recurring rules, party expenses, and report filters. |
 | Implemented | Native dropdown controls use consistent app-wide width, text clipping, dark-mode color-scheme, and option theme styling where browsers allow it. |
@@ -74,17 +77,18 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Compact mobile top-bar action wrapping so theme, logout, notifications, and status controls do not stretch into distorted blocks. |
 | Implemented | Accessible labels, captions, semantic tables, status messages, and keyboard-friendly controls. |
 | Implemented | Modern UI polish, chart visuals, transitions, and stable form layouts. |
-| Implemented | Authenticated How to use NovaCent guide page linked from Settings with centrally managed localized guide content for accounts, expenses, budgets, imports, parties, recurring expenses, reports, notifications, and support, including fully localized Hindi and Marathi guide copy. |
+| Implemented | Authenticated How to use NovaCent guide page linked from Settings with a localized broad feature overview plus centrally managed new-user steps for accounts, expenses, budgets, imports, parties, recurring expenses, reports, notifications, support, bulk actions, and progress-loader behavior. |
 
 ## Expenses
 
 | Status | Feature |
 | --- | --- |
 | Implemented | Overall expense ledger with search. |
-| Implemented | Dashboard total spend excludes generic profit/deposit inflows while keeping settlement adjustments visible where they affect personal spend. |
+| Implemented | Dashboard total spend nets eligible imported deposit/reimbursement credits against imported statement spend, while imported salary, self-transfer, sweep, and investment-transfer rows are ignored by keyword. |
 | Implemented | Expense ledger, recent activity, party expense tables, group balances, split amounts, and settlement approval amounts use consistent signed money-flow display: paid/owed outflows are red negatives and received inflows are green positives. |
 | Implemented | Quick-add expense form appears above the ledger and defaults the date to the local current date. |
 | Implemented | Manual expense create flow with success/error feedback. |
+| Implemented | Expense ledger supports row checkboxes, select-all for visible selectable expenses, and confirmed one-request bulk deletion of selected deletable expenses. |
 | Implemented | Expense rows preserve and display the original saved amount and currency; converted values are kept as calculation metadata only. |
 | Implemented | Category pickers include Food, Shopping, Travel, Fuel, Loan/EMI, Subscriptions, Health, Others, plus import-specific Uncategorized/Reimbursements options. |
 | Implemented | Offline expense queueing when the device is offline. |
@@ -105,7 +109,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Monthly and yearly budget periods. Monthly budgets run from the 1st of the current month to month end; yearly budgets run from Jan 1 to Dec 31. Budget spend is recalculated for the active month/year and includes existing matching expenses when a budget is listed, created, or edited. |
 | Implemented | Overall spend budgets track every visible expense in the active month/year, while single-category budgets track only their matching category. |
 | Implemented | Budget spend matching supports both category id and category name so older existing expenses still count when the visible category matches. |
-| Implemented | Budget calculations ignore generic profit/deposit inflows, while settlement debits and credits still net against shared-expense budgets. |
+| Implemented | Budget calculations net eligible imported deposit/reimbursement credits against imported statement spend, while imported salary, self-transfer, sweep, and investment-transfer rows are ignored by keyword. |
 | Implemented | Budget spend is calculated by converting matching expenses into the budget/default currency before summing mixed-currency rows. |
 | Implemented | Dashboard Budget Health and Budgets page display budget spend, limit, and included expense amounts in the selected default currency. |
 | Implemented | Budget cards can expand to show the exact expenses included in the active calculation window. |
@@ -136,10 +140,11 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Shared parties are visible when the selected account is the owner, when the selected account is a registered participant, or when the signed-in user is a registered participant. |
 | Implemented | Party delete with confirmation for the managing account only. |
 | Implemented | Parties with settled expenses are locked from deletion. |
-| Implemented | Registered friend search by name/email. |
+| Implemented | Registered friend search by name/email hides the party owner and people already added by user/account/email, while same-name users remain selectable with their email shown clearly in responsive result rows. |
 | Implemented | Add registered users to parties. |
 | Implemented | Add non-registered external placeholders from the friend search results only when no registered user matches the search. |
 | Implemented | Party expense creation inside a party. |
+| Implemented | Party expense creation works for owner-plus-participant parties, including older party records where the owner was stored on the party account but not yet materialized as a participant. |
 | Implemented | Shared party workspaces read party expenses across the owner account and registered participant accounts while keeping splits and settlements under the party owner account. |
 | Implemented | Party expense paid-by participant selection. |
 | Implemented | Even split and manual split amount modes. |
@@ -148,6 +153,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Existing selected expenses can be added to an existing party split, or staged for a new party until participants are added. |
 | Implemented | Staged split callout explains when another participant is required before selected expenses can be added. |
 | Implemented | Split validation that participants belong to the party. |
+| Implemented | New party splits notify registered participants who owe a share, while skipping external placeholders and the signed-in actor who created the split. |
 | Implemented | Mark split as settled. |
 | Implemented | External placeholder settlements settle directly without approval. |
 | Implemented | Registered-user settlements require payer approval. |
@@ -167,6 +173,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | CSV, XLS/XLSX, TXT, and text-PDF parsing path. |
 | Implemented | Bank statement parser recognizes common Date, Description/Narration/Particulars, Ref/UTR/Cheque, Withdrawal/Debit/DR, Deposit/Credit/CR, Amount, Currency, and Balance column patterns across different statement layouts. |
 | Implemented | Import review separates withdrawal and deposit amounts: withdrawals post as spend, while deposits post as negative gain/reimbursement cashflow when approved. |
+| Implemented | Approved import expenses retain the original statement description so spend/budget rules can identify salary, self-transfer, sweep, and investment-transfer rows. |
 | Implemented | Import review displays one signed amount column with deposits shown as green positive inflows and withdrawals shown as red negative outflows. |
 | Implemented | Import review uses a desktop-aligned table and mobile cards with minimal description/amount/approve/delete controls plus expandable details. |
 | Implemented | Import review lets each staged row be approved with a selected category from a dropdown, including leaving it as Uncategorized. |
@@ -177,8 +184,10 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Import review header shows the current visible pending row count for all rows or duplicate-only filtering. |
 | Implemented | Imported row approve and delete actions. |
 | Implemented | Import review supports bulk approval for all rows or all non-duplicate rows, while preserving per-row category selections. |
-| Implemented | Import review supports confirmed bulk deletion of all pending imported rows, with responsive bulk action controls on desktop and mobile. |
-| Implemented | Bulk import approvals are grouped and sent in chunked batch requests instead of one frontend request per row. |
+| Implemented | Import review supports confirmed one-request bulk deletion for selected staged rows, with responsive bulk action controls on desktop and mobile. |
+| Implemented | Bulk import approvals and deletes are sent from the UI in one API request; the backend groups rows by statement batch and uses bulk expense inserts plus bulk import-row status updates. |
+| Implemented | Import batches store scalable metadata while import rows are read from the indexed `importRows` collection, avoiding repeated large embedded batch documents during review. |
+| Implemented | Import approval uses bulk expense inserts, bulk import-row status updates, and grouped budget-impact updates to reduce large-statement approval time. |
 | Implemented | Possible duplicate detection and duplicate filter. |
 | Implemented | Category suggestions for imported rows. |
 | Implemented | Uploaded file name is retained as metadata. |
@@ -203,6 +212,7 @@ This is the living feature list for NovaCent. Whenever a new feature is added, c
 | Implemented | Report exports exclude the on-screen timeframe selector from PDF/print output; spreadsheet CSV exports contain only report data rows. |
 | Implemented | PDF/print report export keeps summary metrics together and starts each report chart panel on a separate page. |
 | Implemented | Reports ignore ledger-excluded party expenses and include finalized settlement cashflow. |
+| Implemented | Report tracked spend uses the same imported reimbursement offset and ignored-cashflow keyword rules as dashboard and budgets. |
 | Implemented | Spend by category nets settlement credits/debits back to the original party expense category, so a reimbursed shared expense shows the user's final personal spend. |
 | Implemented | Budget spend also nets settlement reimbursements back to the original party expense category for the active budget period. |
 

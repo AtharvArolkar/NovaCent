@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { FormEvent, useState } from "react";
 import { appConfig } from "@/lib/app-config";
+import { withApiActivity } from "@/lib/client/api-activity";
 import { usePreferences } from "@/lib/client/preferences";
 
 type FormState = "idle" | "submitting" | "success" | "error";
@@ -81,11 +82,11 @@ export function LoginForm() {
     event.preventDefault();
     setState("submitting");
     const form = readForm(event.currentTarget);
-    const result = await signIn("credentials", {
+    const result = await withApiActivity(() => signIn("credentials", {
       email: form.email,
       password: form.password,
       redirect: false
-    });
+    }), { message: "Signing in" });
 
     if (result?.error) {
       setState("error");
@@ -104,7 +105,7 @@ export function LoginForm() {
         <label>{tx("Email")}<input name="email" type="email" autoComplete="email" required /></label>
         <label>{tx("Password")}<input name="password" type="password" autoComplete="current-password" required /></label>
         <button type="submit" disabled={state === "submitting"}>{state === "submitting" ? tx("Signing in") : tx("Sign in")}</button>
-        <button className="secondary-button" type="button" onClick={() => signIn("google", { callbackUrl: "/" })}>{tx("Continue with Google")}</button>
+        <button className="secondary-button" type="button" onClick={() => void withApiActivity(() => signIn("google", { callbackUrl: "/" }), { message: "Signing in" })}>{tx("Continue with Google")}</button>
       </form>
       {message ? <p role="alert">{message}</p> : null}
       <div className="auth-links">
@@ -125,11 +126,11 @@ export function RegisterForm() {
     event.preventDefault();
     setState("submitting");
     const form = readForm(event.currentTarget);
-    const response = await fetch("/api/auth/register", {
+    const response = await withApiActivity(() => fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form)
-    });
+    }), { message: "Creating account" });
 
     if (!response.ok) {
       setState("error");
@@ -137,11 +138,11 @@ export function RegisterForm() {
       return;
     }
 
-    await signIn("credentials", {
+    await withApiActivity(() => signIn("credentials", {
       email: form.email,
       password: form.password,
       redirect: false
-    });
+    }), { message: "Signing in" });
     setState("success");
     router.push("/");
     router.refresh();
@@ -173,11 +174,11 @@ export function ForgotPasswordForm() {
     event.preventDefault();
     setState("submitting");
     const form = readForm(event.currentTarget);
-    const response = await fetch("/api/auth/forgot-password", {
+    const response = await withApiActivity(() => fetch("/api/auth/forgot-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: form.email })
-    });
+    }), { message: "Preparing link" });
     const payload = await response.json();
     setState(response.ok ? "success" : "error");
     setMessage(payload.message ? tx(payload.message) : tx("If the email exists, a reset link has been prepared."));
@@ -209,11 +210,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
     event.preventDefault();
     setState("submitting");
     const form = readForm(event.currentTarget);
-    const response = await fetch("/api/auth/reset-password", {
+    const response = await withApiActivity(() => fetch("/api/auth/reset-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token, password: form.password })
-    });
+    }), { message: "Updating password" });
 
     if (!response.ok) {
       setState("error");

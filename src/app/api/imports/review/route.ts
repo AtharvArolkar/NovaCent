@@ -1,28 +1,23 @@
 import { accountIdFromRequest, requireAccountAccess } from "@/lib/server/auth";
-import { getDb } from "@/lib/server/mongodb";
 import { handleApiError, ok, problem } from "@/lib/server/http";
-import { importApproveSchema } from "@/lib/server/schemas";
 import { reviewImportRowsForAccount } from "@/lib/server/import-review";
+import { getDb } from "@/lib/server/mongodb";
+import { importBulkReviewSchema } from "@/lib/server/schemas";
 
-interface RouteContext {
-  params: Promise<{ batchId: string }> | { batchId: string };
-}
-
-export async function POST(request: Request, context: RouteContext) {
+export async function POST(request: Request) {
   try {
-    const { batchId } = await context.params;
     const { accountId, account, user } = await requireAccountAccess(accountIdFromRequest(request));
-    const payload = importApproveSchema.parse(await request.json());
+    const payload = importBulkReviewSchema.parse(await request.json());
     const db = await getDb();
     const result = await reviewImportRowsForAccount(db, {
       accountId,
       accountBaseCurrency: account.baseCurrency,
       userId: user.id,
-      rows: payload.rows.map((row) => ({ ...row, batchId }))
+      rows: payload.rows
     });
 
     if (result.missingBatchIds.length) {
-      return problem("Import batch was not found.", 404);
+      return problem("One or more import batches were not found.", 404, { missingBatchIds: result.missingBatchIds });
     }
 
     return ok(result);

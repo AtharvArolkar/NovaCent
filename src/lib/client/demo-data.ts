@@ -9,6 +9,7 @@ export type Expense = {
   id: string;
   date: string;
   merchant: string;
+  description?: string;
   category: string;
   amount: number;
   currency?: string;

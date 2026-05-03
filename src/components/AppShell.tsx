@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { appConfig } from "@/lib/app-config";
+import { useApiActivity, withApiActivity } from "@/lib/client/api-activity";
 import { clearNotifications, getAccounts, getNotifications, markNotificationsRead, syncPendingOutbox, type Notification } from "@/lib/client/expense-service";
 import type { Account } from "@/lib/client/demo-data";
 import { languages, type Language } from "@/lib/client/dictionary";
@@ -25,10 +26,26 @@ const navItems = [
 const authRoutes = ["/login", "/register", "/forgot-password", "/reset-password"];
 const guidePromptSeenKey = (userKey: string) => `novacent-guide-prompt-seen:${userKey}`;
 
+function ScreenLoader({ visible, message }: { visible: boolean; message: string }) {
+  const { tx } = usePreferences();
+  if (!visible) return null;
+
+  return (
+    <div className="screen-loader-backdrop" role="alert" aria-live="assertive" aria-busy="true">
+      <div className="screen-loader-card">
+        <span className="screen-loader-spinner" aria-hidden="true" />
+        <strong>{tx(message)}</strong>
+        <p>{tx("Please wait while NovaCent finishes this request.")}</p>
+      </div>
+    </div>
+  );
+}
+
 function ShellContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { accountId, setAccountId, theme, setTheme, language, setLanguage, isOnline, canInstallPwa, promptPwaInstall, dismissPwaInstall, t, tx } = usePreferences();
+  const apiActivity = useApiActivity(250);
   const [accountOptions, setAccountOptions] = useState<Account[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
@@ -149,11 +166,17 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   );
 
   if (authRoutes.some((route) => pathname.startsWith(route))) {
-    return <main className="auth-main">{children}</main>;
+    return (
+      <>
+        <ScreenLoader visible={apiActivity.visible} message={apiActivity.message} />
+        <main className="auth-main">{children}</main>
+      </>
+    );
   }
 
   return (
     <div className="app-shell">
+      <ScreenLoader visible={apiActivity.visible} message={apiActivity.message} />
       <aside className={mobileNavOpen ? "sidebar menu-open" : "sidebar"}>
         <div className="sidebar-header">
           <Link className="brand" href="/" aria-label={`${t("appName")} ${tx("home")}`} onClick={() => setMobileNavOpen(false)}>
@@ -238,7 +261,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
               <span className={isOnline ? "connection sidebar-connection online" : "connection sidebar-connection offline"}>{isOnline ? t("online") : t("offline")}</span>
             </div>
             <div className="sidebar-footer-actions">
-              <button className="secondary-button logout-button sidebar-logout" type="button" onClick={() => void signOut({ callbackUrl: "/login" })}>
+              <button className="secondary-button logout-button sidebar-logout" type="button" onClick={() => void withApiActivity(() => signOut({ callbackUrl: "/login" }), { message: "Signing out..." })}>
                 <LogOut aria-hidden="true" size={16} />
                 <span>{t("logout")}</span>
               </button>

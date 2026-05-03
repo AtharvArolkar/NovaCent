@@ -1,6 +1,6 @@
 # NovaCent
 
-NovaCent is a Next.js + TypeScript expense tracker for multi-user personal finance, INR-first multi-currency expenses, budgets, shared parties, statement-import review, offline caching, and Vercel deployment.
+NovaCent is a Next.js + TypeScript personal finance app for account-scoped expenses, bank statement imports, budgets, shared party splits, recurring payments, reports, offline-friendly usage, and Vercel deployment.
 
 ## Quick Start
 
@@ -56,36 +56,39 @@ npm run build
 npm audit --omit=dev
 ```
 
+## User Guide And Feature Docs
+
+- User-facing app guide: `/how-to-use` inside the authenticated app.
+- Concise public feature summary: [docs/available-features.md](docs/available-features.md).
+- Detailed living feature inventory: [docs/features-list.md](docs/features-list.md).
+- Vercel deployment checklist: [docs/vercel-setup.md](docs/vercel-setup.md).
+
 ## Current Scope
 
 The living product feature inventory is maintained in [docs/features-list.md](docs/features-list.md). Update that document whenever a feature is added, changed, deferred, or removed.
 
-- Email/password and Google authentication.
-- Default INR account creation.
-- Global account switcher.
-- Account-scoped APIs for expenses, budgets, parties, settlements, import batches, notifications, and reports.
-- Automatic INR conversion using Frankfurter exchange rates.
-- Statement upload parsing for CSV, XLS/XLSX, and text PDF, with review-before-save.
-- Password-protected text PDF statement parsing with a transient statement password field.
-- Recurring expense rules with automatic background execution through a Vercel Cron endpoint.
-- Party-only external participants and direct external settlement.
-- Party split modes for even, manual amount, percentage, and shares.
-- Existing ledger expenses can be staged or converted into party split expenses without duplicating ledger rows.
-- Registered settlement approval endpoint.
-- Dedicated Support page saved to MongoDB with optional SMTP admin notification.
-- Offline helpers for IndexedDB cached reports, cached rates, and sync outbox.
-- PWA manifest and service worker.
-- Central branding in `src/lib/app-config.ts`.
-- Central translations in `src/lib/client/dictionary.ts`.
+- Auth: email/password sign-in, registration, logout, forgot/reset/change password, and Google OAuth wiring.
+- Accounts: global account switcher, account-scoped APIs, neutral primary account labeling, and per-account preferences.
+- Expenses: quick add, search, row selection, select all, one-request bulk deletion, original-currency display, and offline queueing.
+- Money flow: paid/outgoing amounts show as negative red values; received/reimbursement amounts show as positive green values.
+- Currency: multi-currency entry, stored original currency per expense, default-currency preference for new entries, and Frankfurter-backed conversion for calculations.
+- Budgets: monthly/yearly budget tracking, edit/delete flows, alert thresholds, default-currency calculations, and expandable included-expense details.
+- Dashboard: lightweight overview API, loading state instead of misleading zeroes, monthly/yearly remaining budget cards, recent activity, and mobile swipe metric cards.
+- Imports: CSV, XLS/XLSX, TXT, and text-PDF statement parsing, password-protected text PDF support, review-before-save, duplicate filtering, category assignment, and one-request bulk approve/delete.
+- Statement parsing: common bank columns are detected for date, narration/description, reference, withdrawal/debit, deposit/credit, amount, balance, and wrapped PDF rows.
+- Parties: shared party workspaces, registered or placeholder participants, party expense creation, split modes, staged ledger expenses, settlement approvals, and participant notifications.
+- Recurring expenses: recurring rule UI with create/edit/pause/resume/end flows and Vercel Cron-compatible background execution.
+- Reports: timeframe filters, category mix, cash flow, budget variance, merchant, party, and currency analytics with CSV and PDF/print export.
+- Notifications: notification center with unread count, mark-read, clear-all, import, budget, settlement, password, and guide/PWA prompts.
+- Support: authenticated customer support form saved to MongoDB, with optional generic SMTP admin email.
+- Offline/PWA: service worker, manifest, install prompt, cached rates/reports foundation, sync outbox, and sync-now action.
+- UX/accessibility: responsive app shell, mobile drawer, themed scrollbars, in-app translated confirmation dialogs, global API loader, dark/light themes, and accessible controls.
+- Localization/branding: central branding in `src/lib/app-config.ts` and app text in `src/lib/client/dictionary.ts` with English, Hindi, Marathi, French, and Spanish.
 
-## Phase 2 Backlog
+## Phase Backlogs
 
-Remaining product requirements are stored in [docs/phase-2-requirements.md](docs/phase-2-requirements.md). Phase 2 focused on live API wiring, offline sync replay, import review completion, recurring expenses, split workflows, settlement approvals, advanced reports, exports, OCR, and production password-reset email.
-
-## Phase 3 Backlog
-
-Remaining end-to-end workflow and advanced production requirements are stored in [docs/phase-3-requirements.md](docs/phase-3-requirements.md). Implemented Phase 3 coverage includes recurring-rule UI/background execution, adding existing expenses to party splits, percentage/share split modes, customer support form, backend-powered advanced report sections, SMTP reset emails, and password-protected text PDF statement imports. Scanned PDF/image OCR and Google OAuth verification with real credentials remain tracked there.
+Historical and remaining product requirements are stored in [docs/phase-2-requirements.md](docs/phase-2-requirements.md) and [docs/phase-3-requirements.md](docs/phase-3-requirements.md). Keep those files as planning records, and use [docs/features-list.md](docs/features-list.md) as the current implementation truth.
 
 ## Notes
 
-Scanned PDF OCR is intentionally treated as the next import phase. CSV, spreadsheet, and text-PDF parsing are implemented first because they are more reliable inside Vercel serverless limits.
+Scanned PDF/image OCR is intentionally deferred. CSV, spreadsheet, TXT, and text-PDF parsing are implemented first because they are more reliable inside Vercel serverless limits. Password-protected text PDFs are supported through a transient statement password that is not stored.

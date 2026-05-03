@@ -3,8 +3,8 @@
 import { FormEvent, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { CalendarDays } from "lucide-react";
 import Link from "next/link";
-import { addExistingExpensesToParty, addPartyParticipant, approvePartySettlement, createBudget, createExpense, createParty, createPartyExpense, createRecurringExpenseRule, deleteBudget, deleteExpense, deleteParty, deletePartyExpense, getAccounts, getBudgets, getExpenses, getImportRows, getOverview, getParties, getPartyDetail, getRecurringExpenses, getReports, markPartySplitSettled, reportDataToCsv, reviewImportRow, reviewImportRows, searchUsers, submitSupportRequest, syncPendingOutbox, updateBudget, updateRecurringExpenseRule, uploadStatement } from "@/lib/client/expense-service";
-import type { PartyDetail, PartyParticipant, PartyParticipantInput, PartySettlement, PartySplit, RecurringExpenseInput, RecurringExpenseRule, ReportRangeInput, SupportRequestInput, UserSearchResult } from "@/lib/client/expense-service";
+import { addExistingExpensesToParty, addPartyParticipant, approvePartySettlement, createBudget, createExpense, createParty, createPartyExpense, createRecurringExpenseRule, deleteBudget, deleteExpense, deleteExpenses, deleteParty, deletePartyExpense, getAccounts, getBudgets, getExpenses, getImportRows, getOverview, getParties, getPartyDetail, getRecurringExpenses, getReports, markPartySplitSettled, reportDataToCsv, reviewImportRow, reviewImportRows, searchUsers, submitSupportRequest, syncPendingOutbox, updateBudget, updateRecurringExpenseRule, uploadStatement } from "@/lib/client/expense-service";
+import type { OverviewData, PartyDetail, PartyParticipant, PartyParticipantInput, PartySettlement, PartySplit, RecurringExpenseInput, RecurringExpenseRule, ReportRangeInput, SupportRequestInput, UserSearchResult } from "@/lib/client/expense-service";
 import type { Account, Budget, Expense, ImportRow, Party } from "@/lib/client/demo-data";
 import { guideContent, languages, type Language } from "@/lib/client/dictionary";
 import type { ReportingChartData } from "@/lib/reporting";
@@ -383,25 +383,50 @@ function ExpenseTable({
   onDelete,
   selectedIds,
   onToggleSelect,
+  onToggleSelectAll,
   isSelectable
 }: {
   rows: Expense[];
   onDelete?: (expense: Expense) => void;
   selectedIds?: Set<string>;
   onToggleSelect?: (expense: Expense) => void;
+  onToggleSelectAll?: () => void;
   isSelectable?: (expense: Expense) => boolean;
 }) {
   const { tx } = usePreferences();
-  if (!rows.length) return <EmptyState title="No expenses yet" description="New spending will appear here once imported or added." />;
   const showActions = Boolean(onDelete);
   const showSelection = Boolean(onToggleSelect);
+  const selectableRows = showSelection ? rows.filter((expense) => (isSelectable ? isSelectable(expense) : true)) : [];
+  const allSelectableSelected = selectableRows.length > 0 && selectableRows.every((expense) => selectedIds?.has(expense.id));
+  const someSelectableSelected = selectableRows.some((expense) => selectedIds?.has(expense.id));
+  const selectAllRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = !allSelectableSelected && someSelectableSelected;
+    }
+  }, [allSelectableSelected, someSelectableSelected]);
+
+  if (!rows.length) return <EmptyState title="No expenses yet" description="New spending will appear here once imported or added." />;
+
   return (
     <div className="table-wrap">
       <table>
         <caption>{tx("Expense ledger with merchant, category, owner, amount, and status")}</caption>
         <thead>
           <tr>
-            {showSelection ? <th scope="col">{tx("Select")}</th> : null}
+            {showSelection ? (
+              <th scope="col">
+                <input
+                  ref={selectAllRef}
+                  aria-label={tx("Select all expenses")}
+                  checked={allSelectableSelected}
+                  disabled={!selectableRows.length}
+                  type="checkbox"
+                  onChange={() => onToggleSelectAll?.()}
+                />
+              </th>
+            ) : null}
             <th scope="col">{tx("Date")}</th>
             <th scope="col">{tx("Merchant")}</th>
             <th scope="col">{tx("Category")}</th>
@@ -494,8 +519,9 @@ function BarList({ title, rows }: { title: string; rows: { label: string; value:
 export function DashboardView() {
   const { accountId, defaultCurrency, t, tx } = usePreferences();
   const loadOverview = useCallback(() => getOverview(accountId, defaultCurrency), [accountId, defaultCurrency]);
-  const { data, loading, reload } = useAsyncData(loadOverview, { totalSpend: 0, remainingBudget: 0, monthlyRunway: 0, pendingImports: 0, budgets: [], expenses: [] });
+  const { data, loading, reload } = useAsyncData<OverviewData | null>(loadOverview, null);
   const [syncState, setSyncState] = useState<SubmitState>("idle");
+  const overview = data;
 
   return (
     <>
@@ -521,19 +547,23 @@ export function DashboardView() {
           </button>
         }
       />
-      {loading ? <LoadingNote label="Loading dashboard" /> : null}
+      {loading && !overview ? <LoadingNote label="Loading dashboard" /> : null}
       {syncState === "saved" ? <p className="success-note" role="status">{tx("Sync complete.")}</p> : null}
       {syncState === "failed" ? <p className="error-note" role="alert">{tx("Unable to sync right now.")}</p> : null}
-      <section className="metric-grid" aria-label={tx("Key account metrics")}>
-        <MetricCard label={t("totalSpend")} value={formatCurrency(data.totalSpend, defaultCurrency)} detail="Across visible transactions this month" />
-        <MetricCard label={t("remainingBudget")} value={formatCurrency(data.remainingBudget, defaultCurrency)} detail="Available across active envelopes" />
-        <MetricCard label={t("monthlyRunway")} value={`${data.monthlyRunway} ${tx("days")}`} detail="At the current seven-day average" />
-        <MetricCard label={t("pendingImports")} value={String(data.pendingImports)} detail="Rows waiting for review" />
-      </section>
-      <div className="content-grid">
-        <Panel title="Budget health"><BudgetList rows={data.budgets} /></Panel>
-        <Panel title="Recent activity"><ExpenseTable rows={data.expenses} /></Panel>
-      </div>
+      {overview ? (
+        <>
+          <section className="metric-grid" aria-label={tx("Key account metrics")}>
+            <MetricCard label={t("totalSpend")} value={formatCurrency(overview.totalSpend, defaultCurrency)} detail="Across visible transactions this month" />
+            <MetricCard label={t("monthlyRemainingBudget")} value={formatCurrency(overview.monthlyRemainingBudget, defaultCurrency)} detail="Available in monthly budgets" />
+            <MetricCard label={t("yearlyRemainingBudget")} value={formatCurrency(overview.yearlyRemainingBudget, defaultCurrency)} detail="Available in yearly budgets" />
+            <MetricCard label={t("pendingImports")} value={String(overview.pendingImports)} detail="Rows waiting for review" />
+          </section>
+          <div className="content-grid">
+            <Panel title="Budget health"><BudgetList rows={overview.budgets} /></Panel>
+            <Panel title="Recent activity"><ExpenseTable rows={overview.expenses} /></Panel>
+          </div>
+        </>
+      ) : null}
     </>
   );
 }
@@ -558,10 +588,22 @@ export function ExpensesView() {
   const selectableForSplit = useCallback((expense: Expense) =>
     (!expense.source || ["manual", "import", "recurring"].includes(expense.source)) && !expense.partyId && !expense.settlementId,
   []);
-  const selectedExpenseIdList = useMemo(() => Array.from(selectedExpenseIds), [selectedExpenseIds]);
+  const canDeleteExpense = useCallback((expense: Expense) => expense.canDelete !== false, []);
+  const selectableForExpenseActions = useCallback((expense: Expense) => selectableForSplit(expense) || canDeleteExpense(expense), [canDeleteExpense, selectableForSplit]);
+  const selectedExpenses = useMemo(() => data.filter((expense) => selectedExpenseIds.has(expense.id)), [data, selectedExpenseIds]);
+  const selectedDeletableExpenses = useMemo(() => selectedExpenses.filter(canDeleteExpense), [canDeleteExpense, selectedExpenses]);
+  const selectedSplitExpenseIdList = useMemo(() => selectedExpenses.filter(selectableForSplit).map((expense) => expense.id), [selectableForSplit, selectedExpenses]);
+
+  useEffect(() => {
+    setSelectedExpenseIds((current) => {
+      const availableIds = new Set(data.map((expense) => expense.id));
+      const next = new Set(Array.from(current).filter((id) => availableIds.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [data]);
 
   function toggleExpenseSelection(expense: Expense) {
-    if (!selectableForSplit(expense)) return;
+    if (!selectableForExpenseActions(expense)) return;
     setSelectedExpenseIds((current) => {
       const next = new Set(current);
       if (next.has(expense.id)) {
@@ -573,11 +615,28 @@ export function ExpensesView() {
     });
   }
 
+  function toggleAllVisibleExpenses() {
+    const selectableIds = filtered.filter(selectableForExpenseActions).map((expense) => expense.id);
+    if (!selectableIds.length) return;
+    setSelectedExpenseIds((current) => {
+      const next = new Set(current);
+      const allVisibleSelected = selectableIds.every((id) => next.has(id));
+      for (const id of selectableIds) {
+        if (allVisibleSelected) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+      }
+      return next;
+    });
+  }
+
   async function onAddSelectedToParty() {
-    if (!selectedSplitPartyId || !selectedExpenseIdList.length) return;
+    if (!selectedSplitPartyId || !selectedSplitExpenseIdList.length) return;
     setSplitAddState("saving");
     try {
-      await addExistingExpensesToParty(accountId, selectedSplitPartyId, selectedExpenseIdList);
+      await addExistingExpensesToParty(accountId, selectedSplitPartyId, selectedSplitExpenseIdList);
       setSelectedExpenseIds(new Set());
       setSelectedSplitPartyId("");
       await reload();
@@ -588,8 +647,8 @@ export function ExpensesView() {
   }
 
   function stageSelectedForNewParty() {
-    if (!selectedExpenseIdList.length || typeof window === "undefined") return;
-    window.sessionStorage.setItem("novacent-staged-split-expenses", JSON.stringify(selectedExpenseIdList));
+    if (!selectedSplitExpenseIdList.length || typeof window === "undefined") return;
+    window.sessionStorage.setItem("novacent-staged-split-expenses", JSON.stringify(selectedSplitExpenseIdList));
     window.location.assign("/parties");
   }
 
@@ -632,6 +691,31 @@ export function ExpensesView() {
     });
   }
 
+  function onDeleteSelectedExpenses() {
+    if (!selectedDeletableExpenses.length) return;
+    requestConfirmation({
+      title: "Confirm delete",
+      message: "Delete selected expenses?",
+      confirmLabel: "Delete selected",
+      onConfirm: async () => {
+        setDeleteState("saving");
+        try {
+          const result = await deleteExpenses(accountId, selectedDeletableExpenses.map((expense) => expense.id));
+          const deletedIds = new Set(result.deletedIds);
+
+          if (deletedIds.size) {
+            setData((rows) => rows.filter((row) => !deletedIds.has(row.id)));
+            setSelectedExpenseIds((current) => new Set(Array.from(current).filter((id) => !deletedIds.has(id))));
+          }
+
+          setDeleteState(deletedIds.size === selectedDeletableExpenses.length ? "saved" : "failed");
+        } catch {
+          setDeleteState("failed");
+        }
+      }
+    });
+  }
+
   return (
     <>
       {confirmationDialog}
@@ -640,7 +724,7 @@ export function ExpensesView() {
         description="Search, add, and review every transaction before it hits reports."
         action={
           <div className="inline-actions header-actions">
-            {selectedExpenseIds.size ? <button type="button" onClick={stageSelectedForNewParty}>{tx("Create party from selection")}</button> : null}
+            {selectedSplitExpenseIdList.length ? <button type="button" onClick={stageSelectedForNewParty}>{tx("Create party from selection")}</button> : null}
             <button
               type="button"
               onClick={() => {
@@ -667,7 +751,7 @@ export function ExpensesView() {
         {submitState === "saved" ? <p className="success-note" role="status">{tx("Expense saved or queued for sync.")}</p> : null}
         {submitState === "failed" ? <p className="error-note" role="alert">{tx("Unable to save expense.")}</p> : null}
       </Panel>
-      {selectedExpenseIds.size ? (
+      {selectedSplitExpenseIdList.length ? (
         <Panel title="Add selected expenses to split">
           <div className="form-grid">
             <label>{tx("Existing party")}<select value={selectedSplitPartyId} onChange={(event) => setSelectedSplitPartyId(event.target.value)}><option value="">{tx("Choose party")}</option>{partyOptions.map((party) => <option key={party.id} value={party.id}>{party.name}</option>)}</select></label>
@@ -678,8 +762,16 @@ export function ExpensesView() {
           {splitAddState === "failed" ? <p className="error-note" role="alert">{tx("Unable to add selected expenses. Add at least two participants to the party first.")}</p> : null}
         </Panel>
       ) : null}
-      <Panel title="Expense ledger" aside={<label className="search-box"><span>{t("search")}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tx("Merchant, category, owner")} /></label>}>
-        <ExpenseTable rows={filtered} onDelete={onDeleteExpense} selectedIds={selectedExpenseIds} onToggleSelect={toggleExpenseSelection} isSelectable={selectableForSplit} />
+      <Panel
+        title="Expense ledger"
+        aside={
+          <div className="ledger-toolbar">
+            {selectedDeletableExpenses.length ? <button className="danger-button" type="button" onClick={onDeleteSelectedExpenses}>{tx("Delete selected")}</button> : null}
+            <label className="search-box"><span>{t("search")}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tx("Merchant, category, owner")} /></label>
+          </div>
+        }
+      >
+        <ExpenseTable rows={filtered} onDelete={onDeleteExpense} selectedIds={selectedExpenseIds} onToggleSelect={toggleExpenseSelection} onToggleSelectAll={toggleAllVisibleExpenses} isSelectable={selectableForExpenseActions} />
       </Panel>
     </>
   );
@@ -1401,8 +1493,32 @@ export function PartiesView() {
   const participantAlreadyExists = partyDetail?.participants.some((participant) =>
     [participant.displayName, participant.email ?? ""].some((value) => value.trim().toLowerCase() === normalizedPlaceholderSearchText)
   ) ?? false;
+  const visibleFriendResults = useMemo(() => {
+    if (!partyDetail) return friendResults;
+
+    const participantUserIds = new Set(partyDetail.participants.map((participant) => participant.userId).filter(Boolean));
+    const participantAccountIds = new Set(
+      [
+        partyDetail.accountId,
+        ...partyDetail.participants.map((participant) => participant.accountId)
+      ].filter(Boolean)
+    );
+    const participantEmails = new Set(
+      partyDetail.participants.map((participant) => participant.email ?? "")
+        .map((value) => value.trim().toLowerCase())
+        .filter(Boolean)
+    );
+
+    return friendResults.filter((user) => {
+      const userEmail = user.email.trim().toLowerCase();
+      if (participantUserIds.has(user.id)) return false;
+      if (user.defaultAccountId && participantAccountIds.has(user.defaultAccountId)) return false;
+      if (participantEmails.has(userEmail)) return false;
+      return true;
+    });
+  }, [friendResults, partyDetail]);
   const canAddSearchAsPlaceholder = Boolean(placeholderSearchText) && friendResults.length === 0 && !participantAlreadyExists;
-  const hasFriendSearchResults = friendResults.length > 0 || canAddSearchAsPlaceholder;
+  const hasFriendSearchResults = visibleFriendResults.length > 0 || canAddSearchAsPlaceholder;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1553,12 +1669,14 @@ export function PartiesView() {
 
     try {
       setExpenseState("saving");
-      if (!merchant || !paidBy || participants.length < 2 || !Number.isFinite(amount) || amount <= 0) {
+      if (!merchant || !paidBy || !participants.length || !Number.isFinite(amount) || amount <= 0) {
         throw new Error("Invalid party expense");
       }
 
-      let splits: Array<{ participantId: string; amount: number }>;
-      if (splitMode === "even") {
+      let splits: Array<{ participantId: string; amount: number }> = [];
+      if (participants.length < 2) {
+        splits = [];
+      } else if (splitMode === "even") {
         splits = debtors.map((participant) => ({ participantId: participant.id, amount: Number((amount / participants.length).toFixed(2)) }));
       } else if (splitMode === "percentage") {
         const percentages = participants.map((participant) => ({
@@ -1592,7 +1710,7 @@ export function PartiesView() {
           .filter((split) => Number.isFinite(split.amount) && split.amount > 0);
       }
       const manualTotal = splits.reduce((sum, split) => sum + split.amount, 0);
-      if (!splits.length || manualTotal > amount) {
+      if (participants.length > 1 && (!splits.length || manualTotal > amount)) {
         throw new Error("Invalid split amounts");
       }
 
@@ -1844,19 +1962,20 @@ export function PartiesView() {
               </div>
               {hasFriendSearchResults ? (
                 <div className="result-list">
-                  {friendResults.map((user) => (
+                  {visibleFriendResults.map((user) => (
                     <button
-                      className="secondary-button"
+                      className="secondary-button party-search-result"
                       type="button"
                       key={user.id}
-                      onClick={() => addParticipant({ kind: "registered", displayName: user.name, userId: user.id, accountId: user.defaultAccountId })}
+                      onClick={() => addParticipant({ kind: "registered", displayName: user.name, userId: user.id, accountId: user.defaultAccountId, email: user.email })}
                     >
-                      {tx("Add")} {user.name}
+                      <span className="party-search-result-main"><span>{tx("Add")}</span> {user.name}</span>
+                      {user.email ? <span className="party-search-result-email">{user.email}</span> : null}
                     </button>
                   ))}
                   {canAddSearchAsPlaceholder ? (
                     <button
-                      className="secondary-button"
+                      className="secondary-button party-placeholder-result"
                       type="button"
                       onClick={() => void addParticipant({ kind: "external", displayName: placeholderSearchText })}
                     >
@@ -1892,6 +2011,9 @@ export function PartiesView() {
                 <DateField label="Date" name="date" defaultValue={todayInputValue()} required />
                 <label>{tx("Paid by")}<select name="paidBy" value={paidByParticipantId} onChange={(event) => setPaidByParticipantId(event.target.value)} required>{partyDetail.participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.displayName}</option>)}</select></label>
                 <label>{tx("Split mode")}<select value={splitMode} onChange={(event) => setSplitMode(event.target.value as "even" | "manual" | "percentage" | "shares")}><option value="even">{tx("Even split")}</option><option value="manual">{tx("Manual amounts")}</option><option value="percentage">{tx("Percentages")}</option><option value="shares">{tx("Shares")}</option></select></label>
+                {partyDetail.participants.length < 2 ? (
+                  <p className="muted-note wide-field">{tx("Add another participant to create splits. With only one participant, NovaCent saves this as a party-only expense.")}</p>
+                ) : null}
                 {splitMode === "manual"
                   ? partyDetail.participants
                       .filter((participant) => participant.id !== paidByParticipantId)
@@ -1911,7 +2033,7 @@ export function PartiesView() {
                   : null}
                 <button className="form-submit" type="submit" disabled={expenseState === "saving"}>{expenseState === "saving" ? tx("Saving") : tx("Save party expense")}</button>
               </form>
-              {expenseState === "saved" ? <p className="success-note" role="status">{tx("Party expense and splits saved.")}</p> : null}
+              {expenseState === "saved" ? <p className="success-note" role="status">{tx(partyDetail.participants.length < 2 ? "Party expense saved without splits." : "Party expense and splits saved.")}</p> : null}
               {expenseState === "failed" ? <p className="error-note" role="alert">{tx("Unable to save party expense or splits.")}</p> : null}
             </section>
 
@@ -2086,7 +2208,7 @@ export function ReportsView() {
       {error ? <p className="error-note" role="alert">{tx(error)}</p> : null}
       {!loading && !error && !hasReportData ? <EmptyState title="No report data for this timeframe" description="Try All or a wider date range to include more transactions." /> : null}
       <section className="report-summary" aria-label={tx("Report summary metrics")}>
-        <MetricCard label="Tracked spend" value={formatCurrency(data.categories.reduce((sum, row) => sum + row.value, 0), defaultCurrency)} detail="Across active report categories" />
+        <MetricCard label="Tracked spend" value={formatCurrency(data.totalSpent ?? data.categories.reduce((sum, row) => sum + row.value, 0), defaultCurrency)} detail="Across active report categories" />
         <MetricCard label="Cash retained" value={formatCurrency(data.cashflow.reduce((sum, row) => sum + row.income - row.spend, 0), defaultCurrency)} detail="Income minus spend in visible months" />
         <MetricCard label="Largest budget usage" value={`${Math.max(...data.budgetVariance.map((row) => row.usage), 0)}%`} detail="Highest active category utilization" />
         <MetricCard label="Currencies" value={String(data.currencies.length)} detail="Original spend currencies represented" />
@@ -2176,6 +2298,15 @@ export function HowToUseView() {
         description={content.pageDescription}
         action={<Link className="secondary-button guide-header-link" href="/settings">{content.backToSettings}</Link>}
       />
+      <Panel title={content.featureOverviewTitle}>
+        <ul className="guide-feature-list" aria-label={content.featureOverviewAria}>
+          {content.featureOverview.map((feature) => (
+            <li key={feature.title}>
+              <strong>{feature.title}:</strong> {feature.description}
+            </li>
+          ))}
+        </ul>
+      </Panel>
       <Panel title={content.quickStartTitle}>
         <div className="guide-quick-start" aria-label={content.quickStartAria}>
           {content.quickStart.map((item, index) => (

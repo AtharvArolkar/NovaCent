@@ -1,5 +1,6 @@
 import type { Budget, Expense, Party, ReportSummary, Settlement, Split, Trip } from "@/lib/domain";
 import { appConfig } from "@/lib/app-config";
+import { spendImpactForSignedAmount } from "@/lib/spend-impact";
 
 function roundMoney(amount: number) {
   return Math.round(amount * 100) / 100;
@@ -28,11 +29,7 @@ function expenseBaseAmount(expense: Expense) {
 
 function spendImpactAmount(expense: Expense) {
   const amount = expenseBaseAmount(expense);
-  if (expense.source === "settlement") {
-    return amount;
-  }
-
-  return Math.max(amount, 0);
+  return spendImpactForSignedAmount(amount, expense);
 }
 
 function expenseOriginalAmount(expense: Expense) {
@@ -94,14 +91,15 @@ export function buildReportSummary(expenses: Expense[], budgets: Budget[], trips
     byCurrency.set(originalCurrency, (byCurrency.get(originalCurrency) ?? 0) + Math.max(expenseOriginalAmount(expense), 0));
     const trendBucket = merchantTrendMonths.get(month) ?? { food: 0, travel: 0, shopping: 0, subscriptions: 0 };
     const categoryKey = reportCategory.toLowerCase();
+    const trendSpend = Math.max(spendImpactAmount(expense), 0);
     if (categoryKey.includes("food")) {
-      trendBucket.food += Math.max(baseAmount, 0);
+      trendBucket.food += trendSpend;
     } else if (categoryKey.includes("travel")) {
-      trendBucket.travel += Math.max(baseAmount, 0);
+      trendBucket.travel += trendSpend;
     } else if (categoryKey.includes("shopping")) {
-      trendBucket.shopping += Math.max(baseAmount, 0);
+      trendBucket.shopping += trendSpend;
     } else if (categoryKey.includes("subscription")) {
-      trendBucket.subscriptions += Math.max(baseAmount, 0);
+      trendBucket.subscriptions += trendSpend;
     }
     merchantTrendMonths.set(month, trendBucket);
     if (expense.tripId) {
