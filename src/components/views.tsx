@@ -116,7 +116,30 @@ function importAmountValue(row: ImportRow) {
 }
 
 const investmentCategoryOptions = ["Investments", "Mutual Funds", "Stocks", "Postal Investments", "Insurance Investments", "PPF/NPS", "Fixed Deposits", "Recurring Deposits", "Bonds", "Gold", "Crypto", "Other Investments"];
-const expenseCategoryOptions = ["Food", "Shopping", "Travel", "Fuel", "Loan/EMI", ...investmentCategoryOptions, "Subscriptions", "Health", "Others"];
+const expenseCategoryOptions = [
+  "Food",
+  "Groceries",
+  "Dining",
+  "Shopping",
+  "Travel",
+  "Fuel",
+  "Bike Expense",
+  "Transport",
+  "Utilities",
+  "Rent",
+  "Education",
+  "Entertainment",
+  "Personal Care",
+  "Household",
+  "Insurance",
+  "Taxes",
+  "Gifts",
+  "Loan/EMI",
+  ...investmentCategoryOptions,
+  "Subscriptions",
+  "Health",
+  "Others"
+];
 const importReviewCategoryOptions = ["Uncategorized", ...expenseCategoryOptions, "Reimbursements"];
 const investmentCategorySet = new Set(investmentCategoryOptions);
 const moneyFlowOptions: Array<{ value: MoneyFlowType; label: string }> = [

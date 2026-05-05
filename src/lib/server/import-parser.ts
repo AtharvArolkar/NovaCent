@@ -151,8 +151,22 @@ function parseAmount(value: string) {
 }
 
 const defaultCategoryRules: Array<{ pattern: RegExp; categoryName: string }> = [
+  { pattern: /\b(loan|emi)\b/i, categoryName: "Loan/EMI" },
+  { pattern: /\b(grocery|groceries|supermarket|mart|dmart|d-mart|bigbasket|blinkit|zepto|jiomart|reliance\s+fresh|more\s+retail|nature'?s?\s+basket|instamart)\b/i, categoryName: "Groceries" },
+  { pattern: /\b(swiggy|zomato|dominos|pizza\s+hut|mcdonald|burger\s+king|kfc|food\s+delivery)\b/i, categoryName: "Food" },
+  { pattern: /\b(restaurant|cafe|cafeteria|dining|hotel|eatery|foodcourt)\b/i, categoryName: "Dining" },
   { pattern: /\b(fuel|petrol|diesel|iocl|indian\s+oil|hpcl|hindustan\s+petroleum|bpcl|bharat\s+petroleum|shell)\b/i, categoryName: "Fuel" },
-  { pattern: /\b(loan|emi)\b/i, categoryName: "Loan/EMI" }
+  { pattern: /\b(bike|motorcycle|two[-\s]?wheeler|scooter|helmet|tyre|tire|puncture|bike\s+service|service\s+center|spare|motocycle|motorcycle\s+liquid)\b/i, categoryName: "Bike Expense" },
+  { pattern: /\b(uber|ola|rapido|metro|bus|train|irctc|railway|cab|taxi|auto|rickshaw|toll|fastag|parking)\b/i, categoryName: "Transport" },
+  { pattern: /\b(electricity|water\s+bill|gas\s+bill|broadband|internet|wifi|wi-fi|mobile\s+bill|airtel|jiofiber|jio\s+fiber|vi\s+bill|bsnl|mseb|mahavitaran|adani\s+electricity|tata\s+power)\b/i, categoryName: "Utilities" },
+  { pattern: /\b(rent|landlord|tenant|house\s+rent|flat\s+rent)\b/i, categoryName: "Rent" },
+  { pattern: /\b(school|college|tuition|course|class|exam|fees|udemy|coursera|upgrad)\b/i, categoryName: "Education" },
+  { pattern: /\b(movie|cinema|bookmyshow|gaming|game|spotify|prime\s+video|hotstar|netflix|theatre)\b/i, categoryName: "Entertainment" },
+  { pattern: /\b(salon|saloon|haircut|spa|beauty|grooming|personal\s+care)\b/i, categoryName: "Personal Care" },
+  { pattern: /\b(household|home\s+centre|homecenter|ikea|furniture|hardware|appliance|decor|home\s+decor)\b/i, categoryName: "Household" },
+  { pattern: /\b(health\s+insurance|motor\s+insurance|vehicle\s+insurance|insurance\s+premium|policy\s+premium)\b/i, categoryName: "Insurance" },
+  { pattern: /\b(income\s+tax|property\s+tax|road\s+tax|tax\s+payment|gst)\b/i, categoryName: "Taxes" },
+  { pattern: /\b(gift|donation|charity|present)\b/i, categoryName: "Gifts" }
 ];
 
 function categoryForMerchant(merchant: string, rules: CategoryRule[]) {
